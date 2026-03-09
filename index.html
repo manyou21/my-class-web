@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>ระบบจัดการห้องเรียน</title>
-<!-- ... Head CSS ส่วนเดิมคงไว้ ... -->
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -334,100 +333,462 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 </style>
 </head>
 <body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <p style="margin-top:10px; color: white; font-weight: 500;">กำลังดำเนินการ...</p>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Floating Hamburger Button (Mobile Only) -->
+<button class="hamburger-float" onclick="toggleMobileSidebar()">
+  <i class="fas fa-bars"></i>
+</button>
+
+<!-- Mobile Overlay -->
+<div class="mobile-overlay" id="mobileOverlay" onclick="toggleMobileSidebar()"></div>
+
+<!-- Login -->
+<div class="login-container" id="loginPage">
+  <div class="login-box">
+    <div class="logo"><i class="fas fa-school"></i></div>
+    <h2 style="text-align:center; margin-bottom:20px;">เข้าสู่ระบบ</h2>
+    <div class="error-box" id="loginError"></div>
+    <form id="loginForm">
+      <div class="form-group">
+        <label>ชื่อ / Email</label>
+        <input type="text" id="loginId" required placeholder="กรอกชื่อหรือ Email">
+      </div>
+      <div class="form-group">
+        <label>รหัสผ่าน</label>
+        <input type="password" id="loginPw" required placeholder="กรอกรหัสผ่าน (4 ตัวขึ้นไป)">
+      </div>
+      <button type="submit" class="btn btn-primary">
+        <i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ
+      </button>
+    </form>
+    <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
+      <p style="text-align:center; font-size: 0.9rem; color: var(--text-secondary); margin-bottom:10px;">มีโค้ด? กรอกที่นี่</p>
+      <div style="display:flex; gap:10px;">
+        <input type="text" id="loginCode" placeholder="Code" style="flex:1; padding: 10px;">
+        <button type="button" class="btn btn-secondary" onclick="doLoginRedeem()">
+          <i class="fas fa-gift"></i>
+        </button>
+      </div>
+    </div>
+    <div class="link">
+      <a onclick="openModal('modalForgot')">ลืมรหัสผ่าน?</a> | 
+      <a onclick="toggleForm('reg')">สมัครสมาชิก</a>
+    </div>
+  </div>
+
+  <div class="login-box" id="regForm" style="display:none;">
+    <h2 style="text-align:center; margin-bottom:20px;">สมัครสมาชิก</h2>
+    <div class="error-box" id="regError"></div>
+    <form id="registerForm">
+      <div class="form-group">
+        <label>ชื่อ-นามสกุล (ตามทะเบียน)</label>
+        <input type="text" id="regName" required>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="regEmail" placeholder="example@mail.com">
+      </div>
+      <div class="form-group">
+        <label>รหัสนักเรียน (นักเรียนเท่านั้น)</label>
+        <input type="text" id="regCode" placeholder="เช่น 47535">
+      </div>
+      <div class="form-group">
+        <label>รหัสผ่าน (4 ตัวขึ้นไป)</label>
+        <input type="password" id="regPw" required placeholder="เช่น test1234">
+      </div>
+      <div class="form-group">
+        <label>ยืนยันรหัสผ่าน</label>
+        <input type="password" id="regCPw" required>
+      </div>
+      <div class="form-group">
+        <label>คำใบ้รหัสผ่าน (เผื่อลืม)</label>
+        <input type="text" id="regHint" placeholder="เช่น ชื่อแม่+เลขบ้าน">
+      </div>
+      <button type="submit" class="btn btn-primary">
+        <i class="fas fa-user-plus"></i> สมัคร
+      </button>
+    </form>
+    <div class="link">
+      <a onclick="toggleForm('login')">กลับไป Login</a>
+    </div>
+  </div>
+</div>
+
+<!-- App -->
+<div class="app-container" id="app">
+  
+  <!-- 🔷 Sidebar (Desktop) -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <i class="fas fa-th-large"></i>
+      <span>ระบบห้องเรียน</span>
+    </div>
+    <div class="sidebar-menu">
+      <div class="sidebar-item active" onclick="setTab('hw')" data-tab="hw">
+        <i class="fas fa-book"></i>
+        <span>การบ้าน</span>
+      </div>
+      <div class="sidebar-item" onclick="setTab('money')" data-tab="money">
+        <i class="fas fa-coins"></i>
+        <span>เงินห้อง</span>
+      </div>
+      <div class="sidebar-item" onclick="setTab('leave')" data-tab="leave">
+        <i class="fas fa-calendar-times"></i>
+        <span>ลา / กิจกรรม</span>
+      </div>
+      <div class="sidebar-item" onclick="setTab('redeem')" data-tab="redeem">
+        <i class="fas fa-gift"></i>
+        <span>Redeem Code</span>
+      </div>
+      <div class="sidebar-item" onclick="setTab('me')" data-tab="me">
+        <i class="fas fa-user"></i>
+        <span>โปรไฟล์</span>
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="sidebarUserName">-</div>
+          <div class="sidebar-user-role" id="sidebarUserRole">-</div>
+        </div>
+      </div>
+      <div class="sidebar-actions">
+        <button class="btn btn-secondary btn-sm" onclick="toggleTheme()" style="flex:1;">
+          <i class="fas fa-adjust"></i>
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="manualRefresh()" style="flex:1;">
+          <i class="fas fa-sync-alt"></i>
+        </button>
+        <button class="btn btn-danger btn-sm" onclick="logout()" style="flex:1;">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🔥 Mobile Sidebar (Hidden by default) -->
+  <div class="sidebar mobile" id="mobileSidebar">
+    <div class="sidebar-brand">
+      <i class="fas fa-th-large"></i>
+      <span>ระบบห้องเรียน</span>
+      <button class="btn btn-secondary btn-icon" onclick="toggleMobileSidebar()" style="margin-left:auto;">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="sidebar-menu">
+      <div class="sidebar-item active" onclick="setTab('hw'); toggleMobileSidebar();" data-tab="hw">
+        <i class="fas fa-book"></i>
+        <span>การบ้าน</span>
+      </div>
+      <div class="sidebar-item" onclick="setTab('money'); toggleMobileSidebar();" data-tab="money">
+        <i class="fas fa-coins"></i>
+        <span>เงินห้อง</span>
+      </div>
+      <div class="sidebar-item" onclick="setTab('leave'); toggleMobileSidebar();" data-tab="leave">
+        <i class="fas fa-calendar-times"></i>
+        <span>ลา / กิจกรรม</span>
+      </div>
+      <div class="sidebar-item" onclick="setTab('redeem'); toggleMobileSidebar();" data-tab="redeem">
+        <i class="fas fa-gift"></i>
+        <span>Redeem Code</span>
+      </div>
+      <div class="sidebar-item" onclick="setTab('me'); toggleMobileSidebar();" data-tab="me">
+        <i class="fas fa-user"></i>
+        <span>โปรไฟล์</span>
+      </div>
+    </div>
+    <!-- 🔥 Footer ใน Mobile Sidebar (แสดงโปรไฟล์ครบถ้วน) -->
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="mobileSidebarUserName">-</div>
+          <div class="sidebar-user-role" id="mobileSidebarUserRole">-</div>
+          <div style="font-size: 0.8rem; margin-top: 5px; color: var(--text-secondary);">
+            เครดิต: <b id="mobileSidebarCredits">0</b>
+          </div>
+        </div>
+      </div>
+      <div class="sidebar-actions">
+        <button class="btn btn-secondary btn-sm" onclick="toggleTheme()" style="flex:1;">
+          <i class="fas fa-adjust"></i>
+        </button>
+        <button class="btn btn-danger btn-sm" onclick="logout()" style="flex:1;">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Wrapper -->
+  <div class="main-wrapper">
+    <main class="main">
+      <!-- HW -->
+      <div class="tab-panel active" id="panelHw">
+        <div class="header">
+          <h1 class="title"><i class="fas fa-book-open"></i> การบ้าน</h1>
+          <button class="btn btn-primary btn-sm" id="btnAddHw" style="display:none;" onclick="openModal('modalHw')">
+            <i class="fas fa-plus"></i> เพิ่มการบ้าน
+          </button>
+        </div>
+        <div id="listHw"></div>
+      </div>
+
+      <!-- Money -->
+      <div class="tab-panel" id="panelMoney">
+        <div class="header">
+          <h1 class="title"><i class="fas fa-wallet"></i> เงินห้อง</h1>
+          <button class="btn btn-primary btn-sm" id="btnAddMoney" style="display:none;" onclick="openModal('modalMoney')">
+            <i class="fas fa-plus"></i> ตั้งเก็บเงิน
+          </button>
+        </div>
+        <div id="listMoney"></div>
+      </div>
+
+      <!-- Leave -->
+      <div class="tab-panel" id="panelLeave">
+        <div class="header">
+          <h1 class="title"><i class="fas fa-calendar-check"></i> ลา / กิจกรรม</h1>
+          <button class="btn btn-success btn-sm" onclick="openModal('modalLeave')">
+            <i class="fas fa-plus"></i> แจ้งลา
+          </button>
+        </div>
+        <div id="listLeave"></div>
+      </div>
+
+      <!-- Redeem -->
+      <div class="tab-panel" id="panelRedeem">
+        <div class="header">
+          <h1 class="title"><i class="fas fa-gift"></i> Redeem Code</h1>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><b><i class="fas fa-keyboard"></i> กรอกโค้ด</b></div>
+          <div class="card-body">
+            <input type="text" id="redeemInput" class="redeem-input-large" placeholder="XXXXX" autocomplete="off">
+            <button class="btn btn-primary" style="width:100%; margin-top:15px; padding:15px; font-size:1.1rem;" onclick="doRedeem()">
+              <i class="fas fa-paper-plane"></i> ยืนยันโค้ด
+            </button>
+            <div id="redeemResult" class="redeem-result"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><b><i class="fas fa-qrcode"></i> สแกน QR Code</b></div>
+          <div class="card-body" style="padding:0;">
+            <div id="reader"></div>
+            <div style="padding:15px; text-align:center;">
+              <p id="scanStatus" style="margin-bottom:10px; color:var(--text-secondary);">กดปุ่มด้านล่างเพื่อเปิดกล้อง</p>
+              <button class="btn btn-success" onclick="startScanner()">
+                <i class="fas fa-camera"></i> เปิดกล้อง
+              </button>
+              <button class="btn btn-danger" style="display:none;" id="stopCamBtn" onclick="stopScanner()">
+                <i class="fas fa-stop"></i> ปิดกล้อง
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="createCodeCard" style="display:none;">
+          <div class="card-head"><b><i class="fas fa-plus-circle"></i> สร้างโค้ด (Admin)</b></div>
+          <div class="card-body">
+            <div class="form-group">
+              <label>ประเภทโค้ด</label>
+              <select id="codeType" style="width:100%" onchange="updateCodeForm()">
+                <option value="TEMP_ACCESS">1. สิทธิ์ผู้ใช้งานชั่วคราว</option>
+                <option value="ADD_HW">2. เพิ่มเครดิตตั้งการบ้าน</option>
+                <option value="ADD_MONEY">3. สร้างรายการเก็บเงินกลุ่ม</option>
+              </select>
+            </div>
+            <div id="codeFormDynamic"></div>
+            <div class="form-group" style="margin-top:15px;">
+              <label>รายละเอียดเพิ่มเติม (Optional)</label>
+              <textarea id="codeNote" rows="2" placeholder="หมายเหตุ เช่น สำหรับกลุ่มทำโปรเจค A"></textarea>
+            </div>
+            <button class="btn btn-success" style="width:100%; padding:15px;" onclick="createCode()">
+              <i class="fas fa-magic"></i> สร้างโค้ด
+            </button>
+            <div id="generatedCodeBox" style="display:none; margin-top:20px; text-align:center; border-top:1px dashed var(--border); padding-top:20px;">
+              <p style="color:var(--text-secondary);">โค้ดของคุณพร้อมใช้งาน:</p>
+              <h2 id="generatedCodeText" style="color:var(--accent); letter-spacing:4px; cursor:pointer; background:var(--bg-tertiary); padding:15px; border-radius:8px;" onclick="copyCode()"></h2>
+              <p style="font-size:0.8rem; margin-top:5px;">(แตะเพื่อคัดลอก)</p>
+              <img id="qrImage" style="margin-top:15px; width:180px; height:180px; border-radius:8px; box-shadow: var(--shadow);">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Me -->
+      <div class="tab-panel" id="panelMe">
+        <div class="card">
+          <div class="card-head"><b><i class="fas fa-id-card"></i> โปรไฟล์</b></div>
+          <div class="card-body">
+            <div style="display: grid; gap: 10px;">
+              <div><strong>ชื่อ:</strong> <span id="meName"></span></div>
+              <div><strong>Email:</strong> <span id="meEmail"></span></div>
+              <div><strong>บทบาท:</strong> <span id="meRole"></span></div>
+              <div><strong>เลขที่:</strong> <span id="meNo"></span></div>
+              <div><strong>Credit ตั้งการบ้าน:</strong> <span id="meHwCredits" style="color:var(--accent); font-weight:bold;"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><b><i class="fas fa-key"></i> เปลี่ยนรหัสผ่าน</b></div>
+          <div class="card-body">
+            <form id="formPw">
+              <div class="form-group">
+                <input type="password" id="pwOld" placeholder="รหัสปัจจุบัน" style="width:100%">
+              </div>
+              <div class="form-group">
+                <input type="password" id="pwNew" placeholder="รหัสใหม่ (4 ตัวขึ้นไป)" style="width:100%">
+              </div>
+              <div class="form-group">
+                <input type="password" id="pwConf" placeholder="ยืนยันรหัสใหม่" style="width:100%">
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-save"></i> เปลี่ยนรหัส
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Modals -->
+<div class="modal" id="modalForgot">
+  <div class="modal-content">
+    <div class="modal-head">
+      <b>ลืมรหัสผ่าน</b>
+      <button class="btn btn-secondary btn-icon" onclick="closeModal('modalForgot')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:15px;">กรอกชื่อผู้ใช้เพื่อดูคำใบ้</p>
+      <input type="text" id="forgotName" placeholder="ชื่อผู้ใช้" style="width:100%; margin-bottom:10px;">
+      <div id="forgotResult" style="background:var(--bg-tertiary); padding:15px; border-radius:8px; display:none;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="getHint()">
+        <i class="fas fa-lightbulb"></i> ดูคำใบ้
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modalHw">
+  <div class="modal-content">
+    <div class="modal-head">
+      <b>เพิ่มการบ้าน</b>
+      <button class="btn btn-secondary btn-icon" onclick="closeModal('modalHw')">&times;</button>
+    </div>
+    <form id="formHw">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>วิชา</label>
+          <select id="hwSub" style="width:100%" required></select>
+        </div>
+        <div class="form-group">
+          <label>รายละเอียด</label>
+          <textarea id="hwDesc" rows="3" style="width:100%" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>วันที่สั่ง</label>
+          <input type="date" id="hwDate" style="width:100%" required>
+        </div>
+        <div class="form-group">
+          <label>กำหนดส่ง</label>
+          <div style="display: flex; align-items: center; gap: 10px;">
+             <input type="date" id="hwDue" style="flex:1;">
+             <label style="display:flex; align-items:center; gap:5px; white-space: nowrap; cursor:pointer; font-size:0.9rem;">
+               <input type="checkbox" id="hwNoDue" onchange="document.getElementById('hwDue').disabled=this.checked;"> ไม่มีกำหนด
+             </label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="submit" class="btn btn-success">
+          <i class="fas fa-check"></i> บันทึก
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal" id="modalMoney">
+  <div class="modal-content">
+    <div class="modal-head">
+      <b>ตั้งเก็บเงิน</b>
+      <button class="btn btn-secondary btn-icon" onclick="closeModal('modalMoney')">&times;</button>
+    </div>
+    <form id="formMoney">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>รายการ</label>
+          <input type="text" id="mTitle" style="width:100%" required>
+        </div>
+        <div class="form-group">
+          <label>จำนวน/คน (บาท)</label>
+          <input type="number" id="mAmt" style="width:100%" required>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="submit" class="btn btn-success">
+          <i class="fas fa-check"></i> บันทึก
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal" id="modalLeave">
+  <div class="modal-content">
+    <div class="modal-head">
+      <b>แจ้งลา / กิจกรรม</b>
+      <button class="btn btn-secondary btn-icon" onclick="closeModal('modalLeave')">&times;</button>
+    </div>
+    <form id="formLeave">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>ประเภท</label>
+          <select id="lType" style="width:100%">
+            <option value="ลาป่วย">ลาป่วย</option>
+            <option value="ลากิจ">ลากิจ</option>
+            <option value="กิจกรรม">กิจกรรม</option>
+            <option value="ลาครึ่งเช้า">ลาครึ่งเช้า</option>
+            <option value="ลาครึ่งบ่าย">ลาครึ่งบ่าย</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>วันที่</label>
+          <input type="date" id="lDate" style="width:100%" required>
+        </div>
+        <div class="form-group">
+          <label>เหตุผล / โน้ต</label>
+          <textarea id="lReason" rows="2" style="width:100%" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>แนบรูปภาพ (เอกสาร/ใบรับรอง)</label>
+          <input type="file" id="lImage" accept="image/*" style="width:100%">
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="submit" class="btn btn-warning">
+          <i class="fas fa-paper-plane"></i> ส่งคำขอ
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
-// ============================================
-// 🔧 CONFIGURATION FOR GITHUB PAGES
-// ============================================
-// ใส่ URL ของ Web App ที่ Deploy จาก Google Apps Script ตรงนี้
-// ตัวอย่าง: https://script.google.com/macros/s/AKfycb.../exec
-const API_URL = 'https://script.google.com/macros/s/AKfycbxEuGFDmXh9UwNZ9aS6PxGKKkvfBloFGkMNcTzaIqvILbMQT1RDRrxLGLRI0scgRQzDuw/exec';
-
-// ============================================
-// 🚀 POLYFILL: google.script.run for External Hosting
-// ============================================
-(function() {
-  // ตรวจสอบว่ารันอยู่บน Google Apps Script environment หรือไม่
-  // ถ้าไม่มี google.script แสดงว่ารันจากภายนอก (GitHub)
-  if (!window.google || !window.google.script) {
-    
-    console.log('Initializing External API Runner for GitHub Pages...');
-    
-    // สร้าง object จำลอง google.script.run
-    window.google = window.google || {};
-    window.google.script = window.google.script || {};
-
-    class ExternalRunner {
-      constructor() {
-        this.successCallback = () => {};
-        this.failureCallback = () => {};
-      }
-
-      withSuccessHandler(callback) {
-        this.successCallback = callback;
-        return this;
-      }
-
-      withFailureHandler(callback) {
-        this.failureCallback = callback;
-        return this;
-      }
-
-      // ฟังก์ชันเรียก API
-      async callServer(functionName, args) {
-        try {
-          const response = await fetch(API_URL, {
-            method: 'POST',
-            mode: 'cors', // สำคัญมากสำหรับ CORS
-            cache: 'no-cache',
-            headers: {
-              'Content-Type': 'text/plain', // ใช้ text/plain เพื่อหลีกเลี่ยง CORS Preflight complexity บางกรณี
-            },
-            body: JSON.stringify({
-              action: functionName,
-              args: args
-            })
-          });
-
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-
-          const data = await response.json();
-          
-          if (data.status === 'success') {
-            this.successCallback(data.result);
-          } else {
-            this.failureCallback(data.message || 'Unknown error from server');
-          }
-        } catch (error) {
-          console.error('API Call Error:', error);
-          this.failureCallback(error.message);
-        }
-      }
-    }
-
-    // ใช้ Proxy เพื่อดักจับการเรียกฟังก์ชันทุกตัวที่ประกาศบน .run
-    window.google.script.run = new Proxy(new ExternalRunner(), {
-      get: function(target, prop) {
-        // ถ้าเป็น method ของ Runner เอง (withSuccessHandler, etc.)
-        if (prop in target) {
-          return target[prop];
-        }
-        // ถ้าเป็นชื่อฟังก์ชันที่ต้องเรียก
-        return function(...args) {
-          // เรียก callServer แล้ว return target เพื่อให้ chain .withSuccessHandler ต่อได้
-          target.callServer(prop, args);
-          return target;
-        }
-      }
-    });
-  }
-})();
-
-// ============================================
-// 📦 MAIN APPLICATION LOGIC (เดิม)
-// ============================================
-
+// --- Global Variables ---
 let u = null, students = [], subjects = [];
 let hwData = [], moneyData = [], leaveData = [];
 let lastTheme = localStorage.getItem('theme') || 'light';
@@ -436,9 +797,10 @@ let currentTrPayCounter = -1;
 let autoRefreshTimer = null;
 let html5QrCode = null;
 
-// ... (ฟังก์ชัน JavaScript ทั้งหมดในส่วนล่างเดิมๆ คงไว้ทั้งหมด ไม่ต้องแก้ไข) ...
-// เช่น initForms(), openModal(), doLogin(), loadHw() ฯลฯ
-// เนื่องจากเราได้สร้าง Polyfill ไว้ด้านบนแล้ว ฟังก์ชันเหล่านี้จะทำงานได้ปกติทั้งบน GAS และ GitHub Pages
+const SUBJECTS_FALLBACK = ['ไทยหลัก','ไทยเสริม','คณิตหลัก','คณิตเสริม','วิทย์หลัก','วิทย์เสริม',
+'อังกฤษหลัก','อังกฤษเสริม Joshua','อังกฤษเสริม จิรารัตน์','IS','ประวัติ','สังคม',
+'ป้องกันการทุจริต','วิทยาการคำนวณ','มัลติมีเดีย','แนะแนว','นาฏศิลป์','ทัศนศิลป์',
+'การงาน','สุขศึกษา','พลศึกษา','อื่นๆ'];
 
 document.addEventListener('DOMContentLoaded', () => { 
   initForms(); 
@@ -446,30 +808,22 @@ document.addEventListener('DOMContentLoaded', () => {
   applyTheme(); 
 });
 
-function safeAddListener(id, event, handler) {
-  const el = document.getElementById(id);
-  if (el) el.addEventListener(event, handler);
-  else console.warn(`safeAddListener: '${id}' not found`);
-}
-
 function initForms() {
-  safeAddListener('loginForm', 'submit', doLogin);
-  safeAddListener('registerForm', 'submit', doRegister);
-  safeAddListener('formHw', 'submit', doAddHw);
-  safeAddListener('formMoney', 'submit', doAddMoney);
-  safeAddListener('formLeave', 'submit', doAddLeave);
-  safeAddListener('formPw', 'submit', doChangePw);
+  document.getElementById('loginForm').addEventListener('submit', doLogin);
+  document.getElementById('registerForm').addEventListener('submit', doRegister);
+  document.getElementById('formHw').addEventListener('submit', doAddHw);
+  document.getElementById('formMoney').addEventListener('submit', doAddMoney);
+  document.getElementById('formLeave').addEventListener('submit', doAddLeave);
+  document.getElementById('formPw').addEventListener('submit', doChangePw);
   
   const today = new Date().toISOString().split('T')[0];
-  const hwDate = document.getElementById('hwDate');
-  if (hwDate) hwDate.value = today;
-  const lDate = document.getElementById('lDate');
-  if (lDate) lDate.value = today;
+  document.getElementById('hwDate').value = today;
+  document.getElementById('lDate').value = today;
   
   updateCodeForm();
 }
 
-// --- UI Helpers (เหมือนเดิม) ---
+// --- UI Helpers ---
 function openModal(id) { 
   if(id === 'modalHw') populateSubjects(); 
   document.getElementById(id).classList.add('show'); 
@@ -503,7 +857,7 @@ function formatDate(d) {
   } catch(e) { return d; } 
 }
 
-// --- Mobile Sidebar (เหมือนเดิม) ---
+// --- Mobile Sidebar ---
 function toggleMobileSidebar() {
   const mobileSidebar = document.getElementById('mobileSidebar');
   const overlay = document.getElementById('mobileOverlay');
@@ -511,7 +865,7 @@ function toggleMobileSidebar() {
   overlay.classList.toggle('show');
 }
 
-// --- Auth (เหมือนเดิม) ---
+// --- Auth ---
 function doLogin(e) {
   e.preventDefault(); 
   const id = document.getElementById('loginId').value; 
@@ -943,55 +1297,44 @@ function loadLeave() {
     .getLeaveRequests();
 }
 
-function getLeaveColor(type) {
-  // สีพื้นฐานสำหรับประเภทคำขอ เพื่อให้แสดงได้เหมือนการบ้าน (มีแถบสีด้านบน)
-  const map = {
-    'ลา': '#fbbf24',
-    'กิจกรรม': '#34d399',
-    'ขาด': '#f97316'
-  };
-  return map[type] || '#60a5fa';
-}
-
 function renderLeave() {
-  const leaveContainer = document.getElementById('listLeave');
-  const fallbackContainer = document.getElementById('listHw');
-  const target = leaveContainer || fallbackContainer;
-  if (!target) return;
-
-  const sectionId = 'leaveSection';
-  if (target.querySelector(`#${sectionId}`)) {
-    target.querySelector(`#${sectionId}`).remove();
-  }
-
+  const el = document.getElementById('listLeave');
+  if (!el) return;
+  
   if (!leaveData || leaveData.length === 0) {
-    const html = '<p style="text-align:center; color:var(--text-muted); padding:40px;">ไม่มีคำขอลา / กิจกรรม</p>';
-    if (leaveContainer) target.innerHTML = html;
-    else target.insertAdjacentHTML('beforeend', `<div id="${sectionId}">${html}</div>`);
+    el.innerHTML = `
+      <div class="card" style="text-align:center; padding:30px;">
+        <div class="card-body" style="color:var(--text-muted);">
+          <i class="fas fa-calendar-times" style="font-size:1.6rem; margin-bottom:10px;"></i><br>
+          ไม่มีคำขอลา / กิจกรรม
+        </div>
+      </div>`;
     return;
   }
-
+  
   let list = leaveData;
   if (!u.canApproveLeave && u.studentNo) {
     list = leaveData.filter(l => String(l.studentNo) === String(u.studentNo));
   }
-
+  
   if (!list.length) {
-    const html = '<p style="text-align:center; color:var(--text-muted); padding:40px;">ไม่มีคำขอของคุณ</p>';
-    if (leaveContainer) target.innerHTML = html;
-    else target.insertAdjacentHTML('beforeend', `<div id="${sectionId}">${html}</div>`);
+    el.innerHTML = `
+      <div class="card" style="text-align:center; padding:30px;">
+        <div class="card-body" style="color:var(--text-muted);">
+          <i class="fas fa-user-clock" style="font-size:1.6rem; margin-bottom:10px;"></i><br>
+          ไม่มีคำขอของคุณ
+        </div>
+      </div>`;
     return;
   }
-
-  const content = list.map(l => {
+  
+  el.innerHTML = list.map(l => {
     const isPending = l.status === 'PENDING';
     const badgeClass = isPending ? 'badge-pending' : (l.status === 'APPROVED' ? 'badge-approved' : 'badge-rejected');
     const badgeText = isPending ? 'รออนุมัติ' : (l.status === 'APPROVED' ? 'อนุมัติแล้ว' : 'ไม่อนุมัติ');
-    const barColor = getLeaveColor(l.type);
-
+    
     return `
 <div class="card">
-  <div class="subject-color-bar" style="background-color: ${barColor};"></div>
   <div class="card-head">
     <div>
       <b style="font-size: 1.1rem;">${l.studentName}</b><br>
@@ -1037,20 +1380,6 @@ function renderLeave() {
   </div>
 </div>`;
   }).join('');
-
-  const wrapperHtml = `
-<div id="${sectionId}">
-  <div class="header" style="margin-top: 20px;">
-    <div class="title"><i class="fas fa-file-alt"></i> คำขอลา / กิจกรรม</div>
-  </div>
-  ${content}
-</div>`;
-
-  if (leaveContainer) {
-    target.innerHTML = wrapperHtml;
-  } else {
-    target.insertAdjacentHTML('beforeend', wrapperHtml);
-  }
 }
 
 function doAddLeave(e) {
@@ -1362,7 +1691,6 @@ function renderMe() {
   document.getElementById('meNo').textContent = u.studentNo || '-';
   document.getElementById('meHwCredits').textContent = u.hwCredits || 0;
 }
-
 </script>
 </body>
 </html>
