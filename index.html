@@ -788,6 +788,79 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 </div>
 
 <script>
+// ============================================
+// 🔧 CONFIGURATION FOR GITHUB PAGES
+// ============================================
+// ใส่ URL ของ Web App ที่ Deploy จาก Google Apps Script ตรงนี้
+// ตัวอย่าง: https://script.google.com/macros/s/AKfycb.../exec
+const API_URL = 'https://script.google.com/macros/s/AKfycbxEuGFDmXh9UwNZ9aS6PxGKKkvfBloFGkMNcTzaIqvILbMQT1RDRrxLGLRI0scgRQzDuw/exec';
+
+// ============================================
+// 🚀 POLYFILL: google.script.run for External Hosting
+// ============================================
+(function() {
+  if (window.google && window.google.script) return;
+  window.google = window.google || {};
+  window.google.script = window.google.script || {};
+
+  class ExternalRunner {
+    constructor() {
+      this.successCallback = () => {};
+      this.failureCallback = () => {};
+    }
+
+    withSuccessHandler(callback) {
+      this.successCallback = callback;
+      return this;
+    }
+
+    withFailureHandler(callback) {
+      this.failureCallback = callback;
+      return this;
+    }
+
+    async callServer(functionName, args) {
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          mode: 'cors',
+          cache: 'no-cache',
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: JSON.stringify({ action: functionName, args: args }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.status === 'success') {
+          this.successCallback(data.result);
+        } else {
+          this.failureCallback(data.message || 'Unknown error from server');
+        }
+      } catch (error) {
+        console.error('API Call Error:', error);
+        this.failureCallback(error.message);
+      }
+    }
+  }
+
+  window.google.script.run = new Proxy(new ExternalRunner(), {
+    get: function(target, prop) {
+      if (prop in target) {
+        return target[prop];
+      }
+      return function(...args) {
+        target.callServer(prop, args);
+        return target;
+      };
+    }
+  });
+})();
+
 // --- Global Variables ---
 let u = null, students = [], subjects = [];
 let hwData = [], moneyData = [], leaveData = [];
@@ -808,17 +881,25 @@ document.addEventListener('DOMContentLoaded', () => {
   applyTheme(); 
 });
 
+function safeAddListener(id, event, handler) {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener(event, handler);
+  else console.warn(`safeAddListener: '${id}' not found`);
+}
+
 function initForms() {
-  document.getElementById('loginForm').addEventListener('submit', doLogin);
-  document.getElementById('registerForm').addEventListener('submit', doRegister);
-  document.getElementById('formHw').addEventListener('submit', doAddHw);
-  document.getElementById('formMoney').addEventListener('submit', doAddMoney);
-  document.getElementById('formLeave').addEventListener('submit', doAddLeave);
-  document.getElementById('formPw').addEventListener('submit', doChangePw);
+  safeAddListener('loginForm', 'submit', doLogin);
+  safeAddListener('registerForm', 'submit', doRegister);
+  safeAddListener('formHw', 'submit', doAddHw);
+  safeAddListener('formMoney', 'submit', doAddMoney);
+  safeAddListener('formLeave', 'submit', doAddLeave);
+  safeAddListener('formPw', 'submit', doChangePw);
   
   const today = new Date().toISOString().split('T')[0];
-  document.getElementById('hwDate').value = today;
-  document.getElementById('lDate').value = today;
+  const hwDate = document.getElementById('hwDate');
+  if (hwDate) hwDate.value = today;
+  const lDate = document.getElementById('lDate');
+  if (lDate) lDate.value = today;
   
   updateCodeForm();
 }
