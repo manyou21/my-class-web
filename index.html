@@ -447,16 +447,35 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initForms() {
-  document.getElementById('loginForm').addEventListener('submit', doLogin);
-  document.getElementById('registerForm').addEventListener('submit', doRegister);
-  document.getElementById('formHw').addEventListener('submit', doAddHw);
-  document.getElementById('formMoney').addEventListener('submit', doAddMoney);
-  document.getElementById('formLeave').addEventListener('submit', doAddLeave);
-  document.getElementById('formPw').addEventListener('submit', doChangePw);
+  const loginForm = document.getElementById('loginForm');
+  if (loginForm) loginForm.addEventListener('submit', doLogin);
+  else console.warn('initForms: loginForm not found');
+
+  const registerForm = document.getElementById('registerForm');
+  if (registerForm) registerForm.addEventListener('submit', doRegister);
+  else console.warn('initForms: registerForm not found');
+
+  const formHw = document.getElementById('formHw');
+  if (formHw) formHw.addEventListener('submit', doAddHw);
+  else console.warn('initForms: formHw not found');
+
+  const formMoney = document.getElementById('formMoney');
+  if (formMoney) formMoney.addEventListener('submit', doAddMoney);
+  else console.warn('initForms: formMoney not found');
+
+  const formLeave = document.getElementById('formLeave');
+  if (formLeave) formLeave.addEventListener('submit', doAddLeave);
+  else console.warn('initForms: formLeave not found');
+
+  const formPw = document.getElementById('formPw');
+  if (formPw) formPw.addEventListener('submit', doChangePw);
+  else console.warn('initForms: formPw not found');
   
   const today = new Date().toISOString().split('T')[0];
-  document.getElementById('hwDate').value = today;
-  document.getElementById('lDate').value = today;
+  const hwDate = document.getElementById('hwDate');
+  if (hwDate) hwDate.value = today;
+  const lDate = document.getElementById('lDate');
+  if (lDate) lDate.value = today;
   
   updateCodeForm();
 }
