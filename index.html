@@ -446,30 +446,19 @@ document.addEventListener('DOMContentLoaded', () => {
   applyTheme(); 
 });
 
+function safeAddListener(id, event, handler) {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener(event, handler);
+  else console.warn(`safeAddListener: '${id}' not found`);
+}
+
 function initForms() {
-  const loginForm = document.getElementById('loginForm');
-  if (loginForm) loginForm.addEventListener('submit', doLogin);
-  else console.warn('initForms: loginForm not found');
-
-  const registerForm = document.getElementById('registerForm');
-  if (registerForm) registerForm.addEventListener('submit', doRegister);
-  else console.warn('initForms: registerForm not found');
-
-  const formHw = document.getElementById('formHw');
-  if (formHw) formHw.addEventListener('submit', doAddHw);
-  else console.warn('initForms: formHw not found');
-
-  const formMoney = document.getElementById('formMoney');
-  if (formMoney) formMoney.addEventListener('submit', doAddMoney);
-  else console.warn('initForms: formMoney not found');
-
-  const formLeave = document.getElementById('formLeave');
-  if (formLeave) formLeave.addEventListener('submit', doAddLeave);
-  else console.warn('initForms: formLeave not found');
-
-  const formPw = document.getElementById('formPw');
-  if (formPw) formPw.addEventListener('submit', doChangePw);
-  else console.warn('initForms: formPw not found');
+  safeAddListener('loginForm', 'submit', doLogin);
+  safeAddListener('registerForm', 'submit', doRegister);
+  safeAddListener('formHw', 'submit', doAddHw);
+  safeAddListener('formMoney', 'submit', doAddMoney);
+  safeAddListener('formLeave', 'submit', doAddLeave);
+  safeAddListener('formPw', 'submit', doChangePw);
   
   const today = new Date().toISOString().split('T')[0];
   const hwDate = document.getElementById('hwDate');
