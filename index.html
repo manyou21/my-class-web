@@ -228,7 +228,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .check-amt { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
 
 /* QR Scanner */
-#reader { width: 100%; min-height: 250px; }
+#reader { width: 100%; max-width: 380px; min-height: 250px; margin: 0 auto; border-radius: 12px; overflow: hidden; }
 #qr-shaded-region { border-color: var(--accent) !important; }
 
 /* Redeem Input */
@@ -342,12 +342,12 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 <div class="toast-container" id="toastContainer"></div>
 
 <!-- Floating Hamburger Button (Mobile Only) -->
-<button class="hamburger-float" onclick="toggleMobileSidebar()">
+<button id="hamburgerBtn" class="hamburger-float" onclick="toggleMobileSidebar()">
   <i class="fas fa-bars"></i>
 </button>
 
 <!-- Mobile Overlay -->
-<div class="mobile-overlay" id="mobileOverlay" onclick="toggleMobileSidebar()"></div>
+<div class="mobile-overlay" id="mobileOverlay"></div>
 
 <!-- Login -->
 <div class="login-container" id="loginPage">
@@ -923,13 +923,24 @@ function showError(id, m) {
   el.textContent = m; 
   el.style.display = 'block'; 
 }
-function showToast(m, type) { 
+function showToast(m, type, duration = 5000) { 
   const c = document.getElementById('toastContainer'); 
   const t = document.createElement('div'); 
   t.className = `toast ${type}`; 
-  t.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'exclamation' : 'info'}-circle"></i> ${m}`; 
+  t.innerHTML = `
+    <i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'exclamation' : 'info'}-circle"></i>
+    <span class="toast-message">${m}</span>
+    <button class="toast-close" aria-label="ปิด">&times;</button>
+  `; 
   c.appendChild(t); 
-  setTimeout(() => t.remove(), 3000); 
+
+  const removeToast = () => { if(t.parentElement) t.remove(); };
+  const closeBtn = t.querySelector('.toast-close');
+  if(closeBtn) closeBtn.addEventListener('click', removeToast);
+
+  let timer = setTimeout(removeToast, duration);
+  t.addEventListener('mouseenter', () => clearTimeout(timer));
+  t.addEventListener('mouseleave', () => { timer = setTimeout(removeToast, 2000); });
 }
 function formatDate(d) { 
   if(!d) return '-'; 
@@ -942,8 +953,14 @@ function formatDate(d) {
 function toggleMobileSidebar() {
   const mobileSidebar = document.getElementById('mobileSidebar');
   const overlay = document.getElementById('mobileOverlay');
-  mobileSidebar.classList.toggle('show');
+  const hamburger = document.getElementById('hamburgerBtn');
+
+  const isOpen = mobileSidebar.classList.toggle('show');
   overlay.classList.toggle('show');
+
+  if(hamburger) {
+    hamburger.style.display = isOpen ? 'none' : 'block';
+  }
 }
 
 // --- Auth ---
@@ -1028,6 +1045,7 @@ function showApp() {
   }
   if(u.canManageCodes) {
     document.getElementById('createCodeCard').style.display = 'block';
+    updateCodeForm();
   }
   
   renderMe();
@@ -1366,9 +1384,28 @@ function delMoney(id) {
 function loadLeave() {
   google.script.run
     .withSuccessHandler(r => {
-      leaveData = r || [];
+      console.log('loadLeave response:', r);
+      // Ensure we always have an array of leave requests
+      if (Array.isArray(r)) {
+        leaveData = r;
+      } else if (r && Array.isArray(r.data)) {
+        leaveData = r.data;
+      } else {
+        // Try to coerce array-like objects into an array
+        if (r && typeof r === 'object') {
+          const values = Object.values(r);
+          if (Array.isArray(values) && values.length && typeof values[0] === 'object') {
+            leaveData = values;
+          } else {
+            leaveData = [];
+          }
+        } else {
+          leaveData = [];
+        }
+      }
+
       renderLeave();
-      currentLvCount = leaveData.filter(l => l.status === 'PENDING').length;
+      currentLvCount = Array.isArray(leaveData) ? leaveData.filter(l => l.status === 'PENDING').length : 0;
     })
     .withFailureHandler(err => {
       leaveData = [];
@@ -1382,7 +1419,8 @@ function renderLeave() {
   const el = document.getElementById('listLeave');
   if (!el) return;
   
-  if (!leaveData || leaveData.length === 0) {
+  const list = Array.isArray(leaveData) ? leaveData : (leaveData ? Object.values(leaveData) : []);
+  if (!list || list.length === 0) {
     el.innerHTML = `
       <div class="card" style="text-align:center; padding:30px;">
         <div class="card-body" style="color:var(--text-muted);">
@@ -1393,12 +1431,12 @@ function renderLeave() {
     return;
   }
   
-  let list = leaveData;
+  let listFiltered = list;
   if (!u.canApproveLeave && u.studentNo) {
-    list = leaveData.filter(l => String(l.studentNo) === String(u.studentNo));
+    listFiltered = list.filter(l => String(l.studentNo) === String(u.studentNo));
   }
   
-  if (!list.length) {
+  if (!listFiltered.length) {
     el.innerHTML = `
       <div class="card" style="text-align:center; padding:30px;">
         <div class="card-body" style="color:var(--text-muted);">
@@ -1409,7 +1447,7 @@ function renderLeave() {
     return;
   }
   
-  el.innerHTML = list.map(l => {
+  el.innerHTML = listFiltered.map(l => {
     const isPending = l.status === 'PENDING';
     const badgeClass = isPending ? 'badge-pending' : (l.status === 'APPROVED' ? 'badge-approved' : 'badge-rejected');
     const badgeText = isPending ? 'รออนุมัติ' : (l.status === 'APPROVED' ? 'อนุมัติแล้ว' : 'ไม่อนุมัติ');
@@ -1603,6 +1641,12 @@ function updateCodeForm() {
           </select>
         </div>
       </div>`;
+  } else if (type === 'ADD_HW') {
+    el.innerHTML = `
+      <div class="form-group">
+        <label>จำนวนเครดิตตั้งการบ้าน</label>
+        <input type="number" id="hwCredits" min="1" value="1" placeholder="เช่น 1">
+      </div>`;
   } else if (type === 'ADD_MONEY') {
     el.innerHTML = `
       <div class="form-group">
@@ -1612,6 +1656,13 @@ function updateCodeForm() {
       <div class="form-group">
         <label>จำนวนเงินต่อคน (บาท)</label>
         <input type="number" id="codeAmt" placeholder="0">
+      </div>`;
+  } else {
+    // Fallback for any other code types
+    el.innerHTML = `
+      <div class="form-group">
+        <label>ค่าที่จะเก็บไว้ในโค้ด</label>
+        <input type="text" id="codeVal" placeholder="เช่น 1 หรือ 7">
       </div>`;
   }
 }
@@ -1623,26 +1674,44 @@ function toggleAllStudents(isCheck) {
 function createCode() {
   const type = document.getElementById('codeType').value;
   const note = document.getElementById('codeNote').value;
-  let val = '', details = {};
-  
-  if(type === 'ADD_MONEY') {
+  let val = '', details = { note };
+
+  if (type === 'ADD_MONEY') {
     val = '1';
     const checks = document.querySelectorAll('input[name="stud_sel"]:checked');
     const selected = Array.from(checks).map(c => c.value);
     details.title = document.getElementById('codeTitle').value;
     details.amount = document.getElementById('codeAmt').value;
     details.students = selected;
-    details.note = note;
-    
-    if(!details.title || !details.amount || selected.length === 0) { 
-      showToast('กรุณากรอกข้อมูลให้ครบและเลือกผู้เกี่ยวข้อง', 'error'); 
-      return; 
+
+    if(!details.title || !details.amount || selected.length === 0) {
+      showToast('กรุณากรอกข้อมูลให้ครบและเลือกผู้เกี่ยวข้อง', 'error');
+      return;
     }
+  } else if (type === 'TEMP_ACCESS') {
+    const qty = Number(document.getElementById('tempQty')?.value);
+    const unit = document.getElementById('tempUnit')?.value;
+    if(!qty || qty < 1) {
+      showToast('กรุณากรอกจำนวนวันที่จะให้สิทธิ์', 'error');
+      return;
+    }
+    val = String(qty);
+    details.unit = unit;
+  } else if (type === 'ADD_HW') {
+    const hw = Number(document.getElementById('hwCredits')?.value);
+    if(!hw || hw < 1) {
+      showToast('กรุณากรอกจำนวนเครดิตให้ถูกต้อง', 'error');
+      return;
+    }
+    val = String(hw);
   } else {
-    val = document.getElementById('codeVal').value;
-    details.note = note;
+    val = document.getElementById('codeVal')?.value || '';
+    if(!val) {
+      showToast('กรุณากรอกค่าที่จะเก็บไว้ในโค้ด', 'error');
+      return;
+    }
   }
-  
+
   showLoading();
   google.script.run
     .withSuccessHandler(r => {
@@ -1652,7 +1721,7 @@ function createCode() {
         document.getElementById('generatedCodeText').textContent = r.code;
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${r.code}&ecc=H`;
         document.getElementById('qrImage').src = qrUrl;
-        showToast('สร้างโค้ดสำเร็จ', 'success');
+        showToast('สร้างโค้ดสำเร็จ', 'success', 6000);
         document.getElementById('generatedCodeBox').scrollIntoView({ behavior: 'smooth' });
       }
     })
@@ -1710,13 +1779,14 @@ function showRedeemResult(message) {
   
   resultDiv.innerHTML = `
 <div class="redeem-result show">
+  <button class="btn btn-secondary btn-icon" style="position:absolute; top:12px; right:12px;" onclick="document.getElementById('redeemResult').style.display='none'">&times;</button>
   <i class="fas ${icon}"></i>
   <h3>${title}</h3>
   <p>${message}</p>
 </div>
 `;
   resultDiv.style.display = 'block';
-  setTimeout(() => { resultDiv.style.display = 'none'; }, 5000);
+  setTimeout(() => { resultDiv.style.display = 'none'; }, 10000);
 }
 
 function doLoginRedeem() { 
@@ -1730,7 +1800,10 @@ function startScanner() {
   document.getElementById('stopCamBtn').style.display = 'none';
   
   html5QrCode = new Html5Qrcode("reader");
-  const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+  const readerEl = document.getElementById('reader');
+  const maxSize = Math.min(360, readerEl.clientWidth || 360);
+  const qrSize = Math.max(200, Math.min(300, maxSize - 20));
+  const config = { fps: 10, qrbox: { width: qrSize, height: qrSize } };
   
   html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
     .then(() => {

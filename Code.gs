@@ -91,7 +91,17 @@ function doPost(e) {
 
     // ตรวจสอบว่ามีฟังก์ชันนั้นๆ ในระบบหรือไม่
     if (typeof this[action] === 'function') {
-      const result = this[action](...args);
+      let result = this[action](...args);
+
+      // Ensure `getLeaveRequests` always returns an array (prevents client runtime errors)
+      if (action === 'getLeaveRequests' && !Array.isArray(result)) {
+        if (result && Array.isArray(result.data)) {
+          result = result.data;
+        } else {
+          result = [];
+        }
+      }
+
       output.setContent(JSON.stringify({ status: 'success', result: result }));
     } else {
       output.setContent(JSON.stringify({ status: 'error', message: 'Function not found: ' + action }));
