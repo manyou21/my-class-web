@@ -140,6 +140,22 @@ function uploadImageToDrive(base64Data, fileName) {
   }
 }
 
+function uploadToDrive(base64Data, fileName, folderName = "Classroom_Images") {
+  const folder = getOrCreateFolder(folderName);
+  const contentType = base64Data.substring(5, base64Data.indexOf(';'));
+  const bytes = Utilities.base64Decode(base64Data.split(',')[1]);
+  const blob = Utilities.newBlob(bytes, contentType, fileName);
+  const file = folder.createFile(blob);
+  file.setSharing(SpreadsheetApp.Access.ANYONE_WITH_LINK, SpreadsheetApp.Permission.VIEW);
+  return file.getUrl();
+}
+
+function getOrCreateFolder(name) {
+  const folders = DriveApp.getFoldersByName(name);
+  if (folders.hasNext()) return folders.next();
+  return DriveApp.createFolder(name);
+}
+
 function convertDriveToDirect(url) {
   if (!url) return '';
   const m = url.match(/[-\w]{25,}/);

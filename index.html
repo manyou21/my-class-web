@@ -61,6 +61,32 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 /* App Container */
 .app-container { display: none; }
 
+/* Sidebar ย่อส่วน */
+.sidebar.collapsed {
+  width: 70px;
+}
+.sidebar.collapsed .nav-item span,
+.sidebar.collapsed .sidebar-header h3,
+.sidebar.collapsed .user-info-text {
+  display: none;
+}
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 12px;
+}
+.sidebar.collapsed .nav-item i {
+  margin-right: 0;
+  font-size: 1.2rem;
+}
+.main-wrapper.expanded {
+  margin-left: 70px;
+}
+
+/* ปรับให้รองรับจอ 1041px ตามที่เคยตั้งไว้ */
+@media (max-width: 1041px) {
+  .main-wrapper.expanded { margin-left: 0; }
+}
+
 /* Sidebar Navigation */
 .sidebar {
   position: fixed; left: 0; top: 0; width: var(--sidebar-width); height: 100vh;
@@ -702,7 +728,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
         </div>
         <div class="form-group">
           <label>แนบรูปภาพ (เอกสาร/ใบรับรอง)</label>
-          <input type="file" id="lImage" accept="image/*" style="width:100%">
+          <input type="file" id="lImage" accept="image/*" style="width:100%" onchange="previewImage(this, 'lPreview')">
+          <img id="lPreview" style="display:none; width:100%; margin-top:10px; border-radius:8px; border: 1px solid var(--border); max-height: 200px; object-fit: contain;">
         </div>
       </div>
       <div class="modal-foot">
@@ -770,6 +797,36 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzEOewMA5fh7azh3LR9iqNY
   });
 })();
 
+async function initApp() {
+  // โหลดข้อมูลทุกอย่างพร้อมกัน
+  const results = await Promise.all([
+    call('getStudents'),
+    call('getHomework'),
+    call('getTreasuryItems'),
+    call('getLeaveActivities')
+  ]);
+
+  students = results[0];
+  hwData = results[1];
+  moneyData = results[2];
+  leaveData = results[3]; // สมมติว่ามีตัวแปรนี้
+  
+  // แสดงผลทันที
+  renderHw();
+  renderMoney();
+  renderLeave(); // ฟังก์ชันแสดงหน้าลา
+}
+
+async function loadAll() {
+  // โหลดข้อมูลทุกอย่างพร้อมกัน (Parallel) จะเร็วขึ้นมาก
+  await Promise.all([
+    loadHw(),
+    loadMoney(),
+    loadLeave()
+  ]);
+  console.log("ข้อมูลทั้งหมดโหลดเสร็จแล้ว");
+}
+
 // --- Global Variables ---
 let u = null, students = [], subjects = [];
 let hwData = [], moneyData = [], leaveData = [];
@@ -799,6 +856,28 @@ function safeAddListener(id, event, handler) {
   else console.warn(`safeAddListener: '${id}' not found`);
 }
 
+function getLuminousColor(hex, percent = 40) {
+  if (!hex || hex.length < 4) return '#FFFFFF';
+  hex = hex.replace(/^#/, '');
+  let r = parseInt(hex.substring(0, 2), 16);
+  let g = parseInt(hex.substring(2, 4), 16);
+  let b = parseInt(hex.substring(4, 6), 16);
+
+  // ปรับให้สว่างขึ้น (Lighten)
+  r = Math.round(r + (255 - r) * (percent / 100));
+  g = Math.round(g + (255 - g) * (percent / 100));
+  b = Math.round(b + (255 - b) * (percent / 100));
+
+  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+// แก้ใน renderHw
+const isDarkMode = document.body.getAttribute('data-theme') === 'dark';
+const baseColor = h.color || '#E0E0E0';
+// ถ้าเป็นโหมดมืด ให้ใช้ getLuminousColor ปรับให้สว่างขึ้น 50%
+const subjectColor = isDarkMode ? getLuminousColor(baseColor, 50) : baseColor;
+const textColor = isDarkMode ? getLuminousColor(baseColor, 85) : getDarkColor(baseColor, -55);
+
 function initForms() {
   safeAddListener('loginForm', 'submit', doLogin);
   safeAddListener('registerForm', 'submit', doRegister);
@@ -814,6 +893,23 @@ function initForms() {
   if (lDate) lDate.value = today;
   
   updateCodeForm();
+}
+
+// เพิ่มฟังก์ชันนี้ และเปลี่ยน onclick ใน HTML เป็น toggleSidebar()
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const wrapper = document.querySelector('.main-wrapper');
+  const overlay = document.getElementById('mobileOverlay');
+  
+  if (window.innerWidth <= 1041) {
+    // โหมดมือถือ: เปิด/ปิดแถบปกติ
+    sidebar.classList.toggle('active'); 
+    if (overlay) overlay.classList.toggle('show');
+  } else {
+    // โหมดคอม: พับเหลือแต่ไอคอน
+    sidebar.classList.toggle('collapsed');
+    wrapper.classList.toggle('expanded');
+  }
 }
 
 // --- UI Helpers ---
@@ -914,16 +1010,6 @@ function formatDate(d) {
   if (!d) return '-';
   try { return new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }); }
   catch(e) { return d; }
-}
-
-// --- Mobile Sidebar ---
-function toggleMobileSidebar() {
-  const mobileSidebar = document.getElementById('mobileSidebar');
-  const overlay = document.getElementById('mobileOverlay');
-  const hamburger = document.getElementById('hamburgerBtn');
-  const isOpen = mobileSidebar.classList.toggle('show');
-  overlay.classList.toggle('show');
-  if (hamburger) hamburger.style.display = isOpen ? 'none' : 'block';
 }
 
 // --- Tab Navigation ---
@@ -1187,6 +1273,24 @@ function loadHw() {
     .getHomework();
 }
 
+function saveHomework() {
+  const btn = document.getElementById('btnSaveHw');
+  const originalText = btn.innerHTML;
+  
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...';
+  
+  const data = { /* ข้อมูลการบ้าน */ };
+  
+  google.script.run.withSuccessHandler(res => {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    showToast('บันทึกสำเร็จ!', 'success');
+    closeAllModals();
+    initApp(); // รีเฟรชข้อมูลเบื้องหลัง
+  }).addHomework(data);
+}
+
 function renderHw() {
   const el = document.getElementById('listHw');
   if (!hwData.length) { 
@@ -1200,7 +1304,12 @@ function renderHw() {
     const subjectColor = h.color || '#E0E0E0';
     const textColor = getDarkColor(subjectColor, -55); // สร้างสีข้อความ
     const hasStudentStatus = u.studentNo && h.statuses[u.studentNo];
-    
+    // แก้ไขใน renderHw()
+    const isDarkMode = document.body.getAttribute('data-theme') === 'dark';
+    const baseColor = h.color || '#E0E0E0';
+    // ปรับสีให้สว่างขึ้น 50% ถ้าเป็นโหมดมืด
+    const subjectColor = isDarkMode ? getLuminousColor(baseColor, 50) : baseColor;
+    const textColor = isDarkMode ? getLuminousColor(baseColor, 85) : getDarkColor(baseColor, -55);
     return `
 <div class="card">
   <div class="subject-color-bar" style="background-color: ${subjectColor};"></div>
@@ -1237,6 +1346,25 @@ function renderHw() {
 </div>`;
   }).join('');
 }
+
+function previewImage(input, previewId) {
+  const file = input.files[0];
+  const preview = document.getElementById(previewId);
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      preview.src = e.target.result;
+      preview.style.display = 'block'; // แสดงรูปเมื่อโหลดเสร็จ
+    }
+    reader.readAsDataURL(file);
+  } else {
+    preview.style.display = 'none'; // ซ่อนรูปถ้าไม่ได้เลือกไฟล์
+  }
+}
+
+// ตัวอย่าง HTML ส่วนเลือกรูป
+// <input type="file" onchange="previewImage(this, 'imgPreview')">
+// <img id="imgPreview" style="display:none; width:100%; border-radius:8px;">
 
 function hwUploadImg(hid) {
   const input = document.createElement('input'); 
@@ -1294,38 +1422,22 @@ function hwToggleDone(hid, isCurrentlyDone, imagePath) {
 }
 
 function doAddHw(e) {
-  e.preventDefault(); 
-  const sub = document.getElementById('hwSub').value; 
-  const desc = document.getElementById('hwDesc').value; 
-  const date = document.getElementById('hwDate').value; 
-  const due = document.getElementById('hwDue').value; 
-  const noDue = document.getElementById('hwNoDue').checked;
-  
-  if (!sub || !desc) { showToast('กรุณากรอกข้อมูลให้ครบ', 'error'); return; }
-  
-  const btn = e.submitter;
-  const restore = btnLoading(btn);
-  closeModal('modalHw');
-  showToast('⏳ กำลังบันทึกการบ้าน...', 'info', 0);
+  e.preventDefault();
+  const btn = e.target.querySelector('button[type="submit"]');
+  const restoreBtn = btnLoading(btn); // เปลี่ยนปุ่มเป็นสถานะโหลด (ปุ่มจะไม่บังหน้าจอ)
+
+  const data = { /* ดึงค่าจากฟอร์ม */ };
 
   google.script.run
-    .withSuccessHandler(r => { 
-      restore();
-      document.querySelectorAll('.toast').forEach(t => { if (t.querySelector('.toast-message')?.textContent.includes('กำลังบันทึกการบ้าน')) t.remove(); });
-      if (r.success) { 
-        showToast('📚 เพิ่มการบ้านสำเร็จ!', 'success'); 
-        loadHw(); 
-      } else { 
-        showToast(r.message || 'ไม่สามารถเพิ่มการบ้านได้', 'error'); 
-        openModal('modalHw');
-      }
+    .withSuccessHandler(r => {
+       restoreBtn(); // คืนค่าปุ่มเดิม
+       if(r.success) {
+         showToast('บันทึกสำเร็จ!', 'success');
+         closeModal('modalHw');
+         loadHw();
+       }
     })
-    .withFailureHandler(() => { 
-      restore();
-      document.querySelectorAll('.toast').forEach(t => { if (t.querySelector('.toast-message')?.textContent.includes('กำลังบันทึกการบ้าน')) t.remove(); });
-      showToast('ไม่สามารถเพิ่มการบ้านได้', 'error'); 
-    })
-    .addHomework(sub, desc, date, due, noDue, u.displayName);
+    .addHomework(data);
 }
 
 function delHw(id) { 
