@@ -47,6 +47,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .btn-success { background: var(--success); color: white; }
 .btn-danger { background: var(--danger); color: white; }
 .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); }
+.btn-warning { background: var(--warning); color: white; }
 .btn-sm { padding: 6px 12px; font-size: 0.85rem; }
 .btn-icon { width: 34px; height: 34px; padding: 0; border-radius: 6px; }
 /* Login */
@@ -60,119 +61,52 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 /* App Container */
 .app-container { display: none; }
 
-/* 🔷 Sidebar Navigation (Desktop/Tablet) */
+/* Sidebar Navigation */
 .sidebar {
-  position: fixed;
-  left: 0;
-  top: 0;
-  width: var(--sidebar-width);
-  height: 100vh;
-  background: var(--bg-secondary);
-  border-right: 1px solid var(--border);
-  padding: 20px 0;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  transition: var(--transition);
+  position: fixed; left: 0; top: 0; width: var(--sidebar-width); height: 100vh;
+  background: var(--bg-secondary); border-right: 1px solid var(--border); padding: 20px 0;
+  z-index: 1000; display: flex; flex-direction: column; transition: var(--transition);
 }
 .sidebar-brand {
-  padding: 0 20px 20px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 600;
-  font-size: 1.2rem;
+  padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 20px;
+  display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 1.2rem;
 }
 .sidebar-brand i { color: var(--accent); font-size: 1.5rem; }
 .sidebar-menu { flex: 1; padding: 0 10px; overflow-y: auto; }
 .sidebar-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 15px;
-  margin-bottom: 5px;
-  border-radius: 8px;
-  cursor: pointer;
-  color: var(--text-secondary);
-  transition: var(--transition);
-  font-weight: 500;
+  display: flex; align-items: center; gap: 12px; padding: 12px 15px; margin-bottom: 5px;
+  border-radius: 8px; cursor: pointer; color: var(--text-secondary); transition: var(--transition); font-weight: 500;
 }
 .sidebar-item:hover { background: var(--bg-tertiary); color: var(--accent); }
 .sidebar-item.active { background: var(--accent-light); color: var(--accent); }
 .sidebar-item i { width: 20px; text-align: center; }
-.sidebar-footer {
-  padding: 20px;
-  border-top: 1px solid var(--border);
-}
+.sidebar-footer { padding: 20px; border-top: 1px solid var(--border); }
 .sidebar-user {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  background: var(--bg-tertiary);
-  border-radius: 8px;
-  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 10px; padding: 10px;
+  background: var(--bg-tertiary); border-radius: 8px; margin-bottom: 10px;
 }
 .sidebar-user-info { flex: 1; }
 .sidebar-user-name { font-weight: 600; font-size: 0.9rem; }
 .sidebar-user-role { font-size: 0.75rem; background: var(--accent); color: white; padding: 2px 8px; border-radius: 10px; display: inline-block; margin-top: 3px; }
 .sidebar-actions { display: flex; gap: 5px; }
 
-/* Main Content Area (Desktop/Tablet) */
-.main-wrapper {
-  margin-left: var(--sidebar-width);
-  min-height: 100vh;
-  transition: var(--transition);
-}
+/* Main Content Area */
+.main-wrapper { margin-left: var(--sidebar-width); min-height: 100vh; transition: var(--transition); }
 
 /* Mobile Overlay */
-.mobile-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.5);
-  z-index: 999;
-  display: none;
-}
+.mobile-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; display: none; }
 .mobile-overlay.show { display: block; }
 
-/* 🔥 Floating Hamburger Button (Mobile Only) */
+/* Floating Hamburger Button (Mobile Only) */
 .hamburger-float {
-  display: none;
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  z-index: 1001;
-  background: var(--accent);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
-  font-size: 1.5rem;
-  box-shadow: var(--shadow);
-  cursor: pointer;
-  transition: transform 0.2s;
+  display: none; position: fixed; top: 20px; left: 20px; z-index: 1001;
+  background: var(--accent); color: white; border: none; border-radius: 50%;
+  width: 50px; height: 50px; font-size: 1.5rem; box-shadow: var(--shadow);
+  cursor: pointer; transition: transform 0.2s;
 }
 .hamburger-float:active { transform: scale(0.9); }
-
-/* Mobile Sidebar */
-.sidebar.mobile {
-  transform: translateX(-100%);
-  display: flex; /* Ensure flex properties apply */
-}
-.sidebar.mobile.show {
-  transform: translateX(0);
-}
-
-/* Tab Navigation (Mobile Only) - Hidden in this version per request */
-.tab-nav { display: none; background: var(--bg-secondary); border-bottom: 1px solid var(--border); overflow-x: auto; white-space: nowrap; }
-.tab-btn { flex: 1; padding: 14px 5px; border: none; background: none; cursor: pointer; font-family: inherit; color: var(--text-secondary); border-bottom: 3px solid transparent; transition: var(--transition); font-weight: 500; min-width: 80px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg-tertiary); }
+.sidebar.mobile { transform: translateX(-100%); display: flex; }
+.sidebar.mobile.show { transform: translateX(0); }
 
 /* Main Content */
 .main { padding: 20px; max-width: 1200px; margin: 0 auto; }
@@ -207,11 +141,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .modal-foot { padding: 16px 20px; border-top: 1px solid var(--border); text-align: right; background: var(--bg-tertiary); display: flex; justify-content: flex-end; gap: 10px; }
 
 /* Toast */
-.toast-container { position: fixed; top: 70px; right: 20px; z-index: 5000; display: flex; flex-direction: column; gap: 8px; width: 300px; }
-.toast { padding: 12px 20px; border-radius: 8px; color: white; animation: slideIn 0.3s ease; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.toast-container { position: fixed; top: 20px; right: 20px; z-index: 5000; display: flex; flex-direction: column; gap: 8px; width: 300px; }
+.toast { padding: 12px 20px; border-radius: 8px; color: white; animation: slideIn 0.3s ease; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); position: relative; }
 .toast.success { background: var(--success); }
 .toast.error { background: var(--danger); }
 .toast.info { background: var(--accent); }
+.toast-message { flex: 1; }
+.toast-close { background: none; border: none; color: white; cursor: pointer; font-size: 1.1rem; padding: 0; opacity: 0.8; }
+.toast-close:hover { opacity: 1; }
 @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
 /* Checkbox Grid (Money) */
@@ -229,103 +166,26 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
 /* QR Scanner */
 #reader { width: 100%; max-width: 380px; min-height: 250px; margin: 0 auto; border-radius: 12px; overflow: hidden; }
-#qr-shaded-region { border-color: var(--accent) !important; }
 
 /* Redeem Input */
 .redeem-input-large {
-  font-size: 2.5rem;
-  text-align: center;
-  padding: 20px;
-  letter-spacing: 8px;
-  border: 2px dashed var(--accent);
-  background: var(--bg-tertiary);
-  text-transform: uppercase;
-  font-weight: 600;
+  font-size: 2.5rem; text-align: center; padding: 20px; letter-spacing: 8px;
+  border: 2px dashed var(--accent); background: var(--bg-tertiary);
+  text-transform: uppercase; font-weight: 600;
 }
-.redeem-input-large::placeholder {
-  font-size: 1.2rem;
-  letter-spacing: normal;
-  color: var(--text-muted);
-}
+.redeem-input-large::placeholder { font-size: 1.2rem; letter-spacing: normal; color: var(--text-muted); }
 
-/* ซ่อนปุ่มเบอร์เกอร์เมื่อเมนูเปิด (Mobile) */
-.mobile-overlay.show ~ .hamburger-float { display: none; }
-
-/* สไตล์สำหรับการเลือกเลขที่ในหน้าเงินห้อง */
-.selection-grid { 
-  display: grid; 
-  grid-template-columns: repeat(auto-fill, minmax(55px, 1fr)); 
-  gap: 8px; 
-  margin-top: 15px;
-}
-.select-no-card {
-  padding: 10px;
-  text-align: center;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  background: var(--bg-tertiary);
-}
-.select-no-card.active {
-  background: var(--success) !important;
-  color: white !important;
-  border-color: var(--success);
-}
-
-.student-selector {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
-  gap: 8px;
-  max-height: 300px;
-  overflow-y: auto;
-  padding: 10px;
-  background: var(--bg-tertiary);
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  margin-top: 10px;
-}
-.student-check-item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px 0;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: var(--transition);
-}
-.student-check-item:hover { border-color: var(--accent); }
-.student-check-item.checked { background: var(--success-light); border-color: var(--success); color: #000; }
-.student-check-item input { display: none; }
-
-/* 🔶 Responsive - Mobile (< 768px) */
+/* Responsive - Mobile (< 768px) */
 @media (max-width: 768px) {
-  /* Hide Desktop Sidebar */
   .sidebar { display: none; }
-  /* Main wrapper takes full width */
   .main-wrapper { margin-left: 0; }
-  
-  /* Show Mobile Sidebar (controlled by JS) */
   .sidebar.mobile { display: flex; }
-  
-  /* Show Floating Hamburger */
   .hamburger-float { display: block; }
-  
-  /* Hide Top Nav and Bottom Tab Nav */
-  .nav { display: none; }
-  .tab-nav { display: none; }
-  
   .title { font-size: 1.2rem; }
-  .main { padding: 15px; padding-top: 80px; } /* Add padding top for floating button */
+  .main { padding: 15px; padding-top: 80px; }
 }
-
-/* 🔶 Responsive - Tablet/Desktop (>= 769px) */
+/* Responsive - Tablet/Desktop (>= 769px) */
 @media (min-width: 769px) {
-  .nav { display: none; }
-  .tab-nav { display: none; }
   .hamburger-float { display: none; }
   .sidebar { display: flex; }
   .main-wrapper { margin-left: var(--sidebar-width); }
@@ -347,11 +207,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 </button>
 
 <!-- Mobile Overlay -->
-<div class="mobile-overlay" id="mobileOverlay"></div>
+<div class="mobile-overlay" id="mobileOverlay" onclick="toggleMobileSidebar()"></div>
 
 <!-- Login -->
 <div class="login-container" id="loginPage">
-  <div class="login-box">
+  <div class="login-box" id="loginBox">
     <div class="logo"><i class="fas fa-school"></i></div>
     <h2 style="text-align:center; margin-bottom:20px;">เข้าสู่ระบบ</h2>
     <div class="error-box" id="loginError"></div>
@@ -369,16 +229,18 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
       </button>
     </form>
     <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
-      <p style="text-align:center; font-size: 0.9rem; color: var(--text-secondary); margin-bottom:10px;">มีโค้ด? กรอกที่นี่</p>
+      <p style="text-align:center; font-size: 0.9rem; color: var(--text-secondary); margin-bottom:10px;">
+        <i class="fas fa-user-clock" style="color:var(--accent);"></i> มีโค้ดสิทธิ์ชั่วคราว?
+      </p>
       <div style="display:flex; gap:10px;">
-        <input type="text" id="loginCode" placeholder="Code" style="flex:1; padding: 10px;">
-        <button type="button" class="btn btn-secondary" onclick="doLoginRedeem()">
-          <i class="fas fa-gift"></i>
+        <input type="text" id="loginCode" placeholder="กรอกโค้ดที่นี่" style="flex:1; padding: 10px; text-transform: uppercase;" oninput="this.value=this.value.toUpperCase()">
+        <button type="button" class="btn btn-success" onclick="doLoginRedeem()" style="width:auto;" title="ใช้โค้ดสิทธิ์ชั่วคราว">
+          <i class="fas fa-key"></i>
         </button>
       </div>
       <div style="margin-top:10px; text-align:center;">
         <div id="loginReader" style="margin-bottom:8px;"></div>
-        <button type="button" class="btn btn-success btn-sm" onclick="startLoginScanner()"><i class="fas fa-camera"></i> สแกนโค้ด</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="startLoginScanner()"><i class="fas fa-camera"></i> สแกนโค้ด</button>
         <button type="button" class="btn btn-danger btn-sm" id="stopLoginCamBtn" onclick="stopLoginScanner()" style="display:none; margin-left:8px;"><i class="fas fa-stop"></i> ปิดกล้อง</button>
       </div>
     </div>
@@ -429,7 +291,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 <!-- App -->
 <div class="app-container" id="app">
   
-  <!-- 🔷 Sidebar (Desktop) -->
+  <!-- Sidebar (Desktop) -->
   <div class="sidebar" id="sidebar">
     <div class="sidebar-brand">
       <i class="fas fa-th-large"></i>
@@ -437,24 +299,19 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
     </div>
     <div class="sidebar-menu">
       <div class="sidebar-item active" onclick="setTab('hw')" data-tab="hw">
-        <i class="fas fa-book"></i>
-        <span>การบ้าน</span>
+        <i class="fas fa-book"></i><span>การบ้าน</span>
       </div>
       <div class="sidebar-item" onclick="setTab('money')" data-tab="money">
-        <i class="fas fa-coins"></i>
-        <span>เงินห้อง</span>
+        <i class="fas fa-coins"></i><span>เงินห้อง</span>
       </div>
       <div class="sidebar-item" onclick="setTab('leave')" data-tab="leave">
-        <i class="fas fa-calendar-times"></i>
-        <span>ลา / กิจกรรม</span>
+        <i class="fas fa-calendar-times"></i><span>ลา / กิจกรรม</span>
       </div>
       <div class="sidebar-item" onclick="setTab('redeem')" data-tab="redeem">
-        <i class="fas fa-gift"></i>
-        <span>Redeem Code</span>
+        <i class="fas fa-gift"></i><span>Redeem Code</span>
       </div>
       <div class="sidebar-item" onclick="setTab('me')" data-tab="me">
-        <i class="fas fa-user"></i>
-        <span>โปรไฟล์</span>
+        <i class="fas fa-user"></i><span>โปรไฟล์</span>
       </div>
     </div>
     <div class="sidebar-footer">
@@ -465,20 +322,20 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
         </div>
       </div>
       <div class="sidebar-actions">
-        <button class="btn btn-secondary btn-sm" onclick="toggleTheme()" style="flex:1;">
+        <button class="btn btn-secondary btn-sm" onclick="toggleTheme()" style="flex:1;" title="เปลี่ยนธีม">
           <i class="fas fa-adjust"></i>
         </button>
-        <button class="btn btn-secondary btn-sm" onclick="manualRefresh()" style="flex:1;">
+        <button class="btn btn-secondary btn-sm" onclick="manualRefresh()" style="flex:1;" title="รีเฟรช">
           <i class="fas fa-sync-alt"></i>
         </button>
-        <button class="btn btn-danger btn-sm" onclick="logout()" style="flex:1;">
+        <button class="btn btn-danger btn-sm" onclick="logout()" style="flex:1;" title="ออกจากระบบ">
           <i class="fas fa-sign-out-alt"></i>
         </button>
       </div>
     </div>
   </div>
 
-  <!-- 🔥 Mobile Sidebar (Hidden by default) -->
+  <!-- Mobile Sidebar -->
   <div class="sidebar mobile" id="mobileSidebar">
     <div class="sidebar-brand">
       <i class="fas fa-th-large"></i>
@@ -489,27 +346,21 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
     </div>
     <div class="sidebar-menu">
       <div class="sidebar-item active" onclick="setTab('hw'); toggleMobileSidebar();" data-tab="hw">
-        <i class="fas fa-book"></i>
-        <span>การบ้าน</span>
+        <i class="fas fa-book"></i><span>การบ้าน</span>
       </div>
       <div class="sidebar-item" onclick="setTab('money'); toggleMobileSidebar();" data-tab="money">
-        <i class="fas fa-coins"></i>
-        <span>เงินห้อง</span>
+        <i class="fas fa-coins"></i><span>เงินห้อง</span>
       </div>
       <div class="sidebar-item" onclick="setTab('leave'); toggleMobileSidebar();" data-tab="leave">
-        <i class="fas fa-calendar-times"></i>
-        <span>ลา / กิจกรรม</span>
+        <i class="fas fa-calendar-times"></i><span>ลา / กิจกรรม</span>
       </div>
       <div class="sidebar-item" onclick="setTab('redeem'); toggleMobileSidebar();" data-tab="redeem">
-        <i class="fas fa-gift"></i>
-        <span>Redeem Code</span>
+        <i class="fas fa-gift"></i><span>Redeem Code</span>
       </div>
       <div class="sidebar-item" onclick="setTab('me'); toggleMobileSidebar();" data-tab="me">
-        <i class="fas fa-user"></i>
-        <span>โปรไฟล์</span>
+        <i class="fas fa-user"></i><span>โปรไฟล์</span>
       </div>
     </div>
-    <!-- 🔥 Footer ใน Mobile Sidebar (แสดงโปรไฟล์ครบถ้วน) -->
     <div class="sidebar-footer">
       <div class="sidebar-user">
         <div class="sidebar-user-info">
@@ -576,11 +427,10 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
         <div class="card">
           <div class="card-head"><b><i class="fas fa-keyboard"></i> กรอกโค้ด</b></div>
           <div class="card-body">
-            <input type="text" id="redeemInput" class="redeem-input-large" placeholder="XXXXX" autocomplete="off">
+            <input type="text" id="redeemInput" class="redeem-input-large" placeholder="XXXXX" autocomplete="off" style="text-transform:uppercase;">
             <button class="btn btn-primary" style="width:100%; margin-top:15px; padding:15px; font-size:1.1rem;" onclick="doRedeem()">
               <i class="fas fa-paper-plane"></i> ยืนยันโค้ด
             </button>
-            <div id="redeemResult" class="redeem-result"></div>
           </div>
         </div>
 
@@ -590,7 +440,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
             <div id="reader"></div>
             <div style="padding:15px; text-align:center;">
               <p id="scanStatus" style="margin-bottom:10px; color:var(--text-secondary);">กดปุ่มด้านล่างเพื่อเปิดกล้อง</p>
-              <button class="btn btn-success" onclick="startScanner()">
+              <button class="btn btn-success" id="startCamBtn" onclick="startScanner()">
                 <i class="fas fa-camera"></i> เปิดกล้อง
               </button>
               <button class="btn btn-danger" style="display:none;" id="stopCamBtn" onclick="stopScanner()">
@@ -667,6 +517,36 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   </div>
 </div>
 
+<!-- Modal: Pre-Login Redeem (TEMP_ACCESS only) -->
+<div class="modal" id="modalPreLoginRedeem">
+  <div class="modal-content" style="max-width:420px;">
+    <div class="modal-head">
+      <b><i class="fas fa-user-clock" style="color:var(--accent);"></i> ยืนยันการใช้โค้ดสิทธิ์ชั่วคราว</b>
+      <button class="btn btn-secondary btn-icon" onclick="closeModal('modalPreLoginRedeem')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="preLoginRedeemCodeDisplay" style="text-align:center; background:var(--accent-light); border-radius:8px; padding:12px; margin-bottom:16px;">
+        <div style="font-size:0.85rem; color:var(--text-secondary);">โค้ดที่จะใช้</div>
+        <div id="preLoginCodeText" style="font-size:1.6rem; font-weight:700; letter-spacing:6px; color:var(--accent);"></div>
+      </div>
+      <p style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:12px;">
+        <i class="fas fa-info-circle"></i> กรอกชื่อบัญชีที่ต้องการรับสิทธิ์ ระบบจะเพิ่มเวลาสิทธิ์ให้กับบัญชีนั้น
+      </p>
+      <div class="form-group">
+        <label>ชื่อบัญชีผู้ใช้</label>
+        <input type="text" id="preLoginRedeemName" placeholder="กรอกชื่อ-นามสกุล (ตามที่สมัครไว้)">
+      </div>
+      <div id="preLoginRedeemResult" style="display:none; padding:12px; border-radius:8px; font-size:0.9rem;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary btn-sm" onclick="closeModal('modalPreLoginRedeem')">ยกเลิก</button>
+      <button class="btn btn-success" onclick="confirmPreLoginRedeem()" id="btnConfirmPreRedeem">
+        <i class="fas fa-check"></i> ยืนยัน
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Modals -->
 <div class="modal" id="modalForgot">
   <div class="modal-content">
@@ -711,7 +591,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
           <label>กำหนดส่ง</label>
           <div style="display: flex; align-items: center; gap: 10px;">
              <input type="date" id="hwDue" style="flex:1;">
-             <label style="display:flex; align-items:center; gap:5px; white-space: nowrap; cursor:pointer; font-size:0.9rem;">
+             <label style="display:flex; align-items:center; gap:5px; white-space: nowrap; cursor:pointer; font-size:0.9rem; margin-bottom:0;">
                <input type="checkbox" id="hwNoDue" onchange="document.getElementById('hwDue').disabled=this.checked;"> ไม่มีกำหนด
              </label>
           </div>
@@ -740,7 +620,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
         </div>
         <div class="form-group">
           <label>จำนวน/คน (บาท)</label>
-          <input type="number" id="mAmt" style="width:100%" required>
+          <input type="number" id="mAmt" style="width:100%" required min="1">
         </div>
       </div>
       <div class="modal-foot">
@@ -794,10 +674,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
 <script>
 // ============================================
-// 🔧 CONFIGURATION FOR GITHUB PAGES
+// 🔧 CONFIGURATION
 // ============================================
-// ใส่ URL ของ Web App ที่ Deploy จาก Google Apps Script ตรงนี้
-// ตัวอย่าง: https://script.google.com/macros/s/AKfycb.../exec
 const API_URL = 'https://script.google.com/macros/s/AKfycbzEOewMA5fh7azh3LR9iqNY6hqQGeaFjt1BRaNRWvmnwNuQIleWzOyKqFkOZTU8Z4ywEg/exec';
 
 // ============================================
@@ -813,16 +691,8 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzEOewMA5fh7azh3LR9iqNY
       this.successCallback = () => {};
       this.failureCallback = () => {};
     }
-
-    withSuccessHandler(callback) {
-      this.successCallback = callback;
-      return this;
-    }
-
-    withFailureHandler(callback) {
-      this.failureCallback = callback;
-      return this;
-    }
+    withSuccessHandler(callback) { this.successCallback = callback; return this; }
+    withFailureHandler(callback) { this.failureCallback = callback; return this; }
 
     async callServer(functionName, args) {
       try {
@@ -830,16 +700,10 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzEOewMA5fh7azh3LR9iqNY
           method: 'POST',
           mode: 'cors',
           cache: 'no-cache',
-          headers: {
-            'Content-Type': 'text/plain',
-          },
+          headers: { 'Content-Type': 'text/plain' },
           body: JSON.stringify({ action: functionName, args: args }),
         });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         if (data.status === 'success') {
           this.successCallback(data.result);
@@ -855,9 +719,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzEOewMA5fh7azh3LR9iqNY
 
   window.google.script.run = new Proxy(new ExternalRunner(), {
     get: function(target, prop) {
-      if (prop in target) {
-        return target[prop];
-      }
+      if (prop in target) return target[prop];
       return function(...args) {
         target.callServer(prop, args);
         return target;
@@ -873,7 +735,8 @@ let lastTheme = localStorage.getItem('theme') || 'light';
 let currentHwCount = 0, currentTrCount = 0, currentLvCount = 0;
 let currentTrPayCounter = -1;
 let autoRefreshTimer = null;
-let loadingCount = 0; // Used to keep loading overlay shown when multiple requests are pending
+let loadingCount = 0;
+let loadingTimeout = null;
 let html5QrCode = null;
 let html5QrCodeLogin = null;
 
@@ -913,56 +776,46 @@ function initForms() {
 
 // --- UI Helpers ---
 function openModal(id) { 
-  if(id === 'modalHw') populateSubjects(); 
+  if (id === 'modalHw') populateSubjects(); 
   document.getElementById(id).classList.add('show'); 
 }
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
 function toggleTheme() { 
   lastTheme = lastTheme === 'light' ? 'dark' : 'light'; 
   localStorage.setItem('theme', lastTheme); 
   applyTheme(); 
 }
 function applyTheme() { document.documentElement.setAttribute('data-theme', lastTheme); }
-let loadingTimeout = null;
+
 function showLoading() {
   loadingCount = Math.max(0, loadingCount + 1);
-  console.debug('showLoading', loadingCount);
-  if (loadingCount > 0) {
-    document.getElementById('loadingOverlay').classList.add('show');
-  }
+  document.getElementById('loadingOverlay').classList.add('show');
   if (loadingTimeout) clearTimeout(loadingTimeout);
   loadingTimeout = setTimeout(() => {
     console.warn('loading timeout auto-hide');
-    loadingCount = 0;
-    document.getElementById('loadingOverlay').classList.remove('show');
+    resetLoadingOverlay();
   }, 15000);
 }
 function hideLoading() {
   loadingCount = Math.max(0, loadingCount - 1);
-  console.debug('hideLoading', loadingCount);
-  if (loadingCount <= 0) {
-    loadingCount = 0;
-    document.getElementById('loadingOverlay').classList.remove('show');
-    if (loadingTimeout) {
-      clearTimeout(loadingTimeout);
-      loadingTimeout = null;
-    }
-  }
+  if (loadingCount <= 0) resetLoadingOverlay();
 }
 function resetLoadingOverlay() {
   loadingCount = 0;
   document.getElementById('loadingOverlay').classList.remove('show');
-  if (loadingTimeout) {
-    clearTimeout(loadingTimeout);
-    loadingTimeout = null;
-  }
+  if (loadingTimeout) { clearTimeout(loadingTimeout); loadingTimeout = null; }
 }
+
 function showError(id, m) {
   const el = document.getElementById(id);
+  if (!el) return;
   el.textContent = m;
   el.style.display = 'block';
 }
-function showToast(m, type, duration = 0) {
+
+// FIX: Toast now supports auto-close and manual close consistently
+function showToast(m, type, duration = 4000) {
   const c = document.getElementById('toastContainer');
   const t = document.createElement('div');
   t.className = `toast ${type}`;
@@ -974,8 +827,7 @@ function showToast(m, type, duration = 0) {
   c.appendChild(t);
 
   const removeToast = () => { if (t.parentElement) t.remove(); };
-  const closeBtn = t.querySelector('.toast-close');
-  if (closeBtn) closeBtn.addEventListener('click', removeToast);
+  t.querySelector('.toast-close').addEventListener('click', removeToast);
 
   if (duration > 0) {
     let timer = setTimeout(removeToast, duration);
@@ -983,11 +835,11 @@ function showToast(m, type, duration = 0) {
     t.addEventListener('mouseleave', () => { timer = setTimeout(removeToast, 2000); });
   }
 }
+
 function formatDate(d) {
-  if(!d) return '-';
-  try {
-    return new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
-  } catch(e) { return d; }
+  if (!d) return '-';
+  try { return new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }); }
+  catch(e) { return d; }
 }
 
 // --- Mobile Sidebar ---
@@ -995,43 +847,50 @@ function toggleMobileSidebar() {
   const mobileSidebar = document.getElementById('mobileSidebar');
   const overlay = document.getElementById('mobileOverlay');
   const hamburger = document.getElementById('hamburgerBtn');
-
   const isOpen = mobileSidebar.classList.toggle('show');
   overlay.classList.toggle('show');
+  if (hamburger) hamburger.style.display = isOpen ? 'none' : 'block';
+}
 
-  if(hamburger) {
-    hamburger.style.display = isOpen ? 'none' : 'block';
+// --- Tab Navigation ---
+// FIX: setTab now syncs both desktop and mobile sidebar active states
+function setTab(id) {
+  document.querySelectorAll('.sidebar-item').forEach(item => {
+    item.classList.toggle('active', item.dataset.tab === id);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel' + id.charAt(0).toUpperCase() + id.slice(1)).classList.add('active');
+  if (id !== 'redeem' && html5QrCode) { 
+    try { html5QrCode.stop(); } catch(e) {} 
   }
 }
 
 // --- Auth ---
 function doLogin(e) {
   e.preventDefault(); 
-  const id = document.getElementById('loginId').value; 
+  const id = document.getElementById('loginId').value.trim(); 
   const pw = document.getElementById('loginPw').value; 
-  const loginCode = document.getElementById('loginCode')?.value?.trim();
+  const loginCode = document.getElementById('loginCode')?.value?.trim().toUpperCase();
   showLoading();
   
   google.script.run
     .withSuccessHandler(r => { 
       hideLoading(); 
-      if(r.success) { 
+      if (r.success) { 
         u = r.user; 
         localStorage.setItem('user', JSON.stringify(u)); 
-        showApp(); 
-        if(loginCode) {
+        showApp();
+        // FIX: Pass u.id when redeeming code after login
+        if (loginCode) {
           showLoading();
-          google.script.run.withSuccessHandler(rr => {
+          google.script.run
+            .withSuccessHandler(rr => {
               hideLoading();
-              if(rr.success) {
-                showToast(rr.message, 'success', 0);
-              } else {
-                showToast(rr.message, 'error', 0);
-              }
-            }).withFailureHandler(err => {
-              hideLoading();
-              showToast('Redeem error', 'error', 0);
-            }).redeemCode(loginCode, u.id);
+              showToast(rr.success ? rr.message : rr.message, rr.success ? 'success' : 'error');
+              if (rr.success) manualRefresh();
+            })
+            .withFailureHandler(() => { hideLoading(); showToast('Redeem error', 'error'); })
+            .redeemCode(loginCode, u.id);
         }
       } else {
         showError('loginError', r.message); 
@@ -1039,16 +898,16 @@ function doLogin(e) {
     })
     .withFailureHandler(err => { 
       hideLoading(); 
-      showError('loginError', "Server Error"); 
+      showError('loginError', 'เชื่อมต่อ Server ไม่ได้'); 
     })
     .loginUser(id, pw);
 }
 
 function doRegister(e) {
   e.preventDefault(); 
-  const n = document.getElementById('regName').value; 
-  const em = document.getElementById('regEmail').value; 
-  const c = document.getElementById('regCode').value; 
+  const n = document.getElementById('regName').value.trim(); 
+  const em = document.getElementById('regEmail').value.trim(); 
+  const c = document.getElementById('regCode').value.trim(); 
   const p = document.getElementById('regPw').value; 
   const cp = document.getElementById('regCPw').value; 
   const h = document.getElementById('regHint').value; 
@@ -1057,30 +916,32 @@ function doRegister(e) {
   google.script.run
     .withSuccessHandler(r => { 
       hideLoading(); 
-      if(r.success) { 
+      if (r.success) { 
         showToast(r.message, 'success'); 
         toggleForm('login'); 
       } else {
         showError('regError', r.message); 
       }
     })
-    .withFailureHandler(err => {
-      hideLoading();
-      showError('regError', 'Server error (register)');
-    })
+    .withFailureHandler(err => { hideLoading(); showError('regError', 'Server error (register)'); })
     .registerUser(n, em, p, cp, c, h);
 }
 
 function checkSession() { 
   resetLoadingOverlay();
   const saved = localStorage.getItem('user'); 
-  if(saved) { 
-    u = JSON.parse(saved); 
-    showApp(); 
+  if (saved) { 
+    try {
+      u = JSON.parse(saved); 
+      showApp(); 
+    } catch(e) {
+      localStorage.clear();
+    }
   } 
 }
 
 function logout() { 
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
   localStorage.clear(); 
   location.reload(); 
 }
@@ -1089,22 +950,15 @@ function showApp() {
   document.getElementById('loginPage').style.display = 'none'; 
   document.getElementById('app').style.display = 'block';
   
-  // Update sidebar user info
   document.getElementById('sidebarUserName').textContent = u.displayName;
   document.getElementById('sidebarUserRole').textContent = u.role;
-  
-  // Update Mobile Sidebar Footer Info
   document.getElementById('mobileSidebarUserName').textContent = u.displayName;
   document.getElementById('mobileSidebarUserRole').textContent = u.role;
   document.getElementById('mobileSidebarCredits').textContent = u.hwCredits || 0;
   
-  if(u.canManageHomework || u.hwCredits > 0) {
-    document.getElementById('btnAddHw').style.display = 'inline-flex';
-  }
-  if(u.canManageTreasury) {
-    document.getElementById('btnAddMoney').style.display = 'inline-flex';
-  }
-  if(u.canManageCodes) {
+  if (u.canManageHomework || u.hwCredits > 0) document.getElementById('btnAddHw').style.display = 'inline-flex';
+  if (u.canManageTreasury) document.getElementById('btnAddMoney').style.display = 'inline-flex';
+  if (u.canManageCodes) {
     document.getElementById('createCodeCard').style.display = 'block';
     updateCodeForm();
   }
@@ -1125,7 +979,7 @@ function loadMasters() {
       loadAll();
     })
     .withFailureHandler(err => {
-      console.error("loadMasters failed:", err);
+      console.error('loadMasters failed:', err);
       subjects = SUBJECTS_FALLBACK;
       populateSubjects();
       loadAll();
@@ -1135,51 +989,45 @@ function loadMasters() {
 
 function populateSubjects() {
   const sel = document.getElementById('hwSub'); 
-  if(!sel) return;
-  
+  if (!sel) return;
   sel.innerHTML = '<option value="">-- เลือกวิชา --</option>';
-  if(subjects && subjects.length > 0) {
-    subjects.forEach(s => sel.innerHTML += `<option value="${s}">${s}</option>`);
-    sel.innerHTML += `<option value="อื่นๆ">อื่นๆ</option>`;
-  }
+  (subjects && subjects.length ? subjects : SUBJECTS_FALLBACK).forEach(s => {
+    sel.innerHTML += `<option value="${s}">${s}</option>`;
+  });
 }
 
 // --- Main Loaders ---
 function loadAll() { loadHw(); loadMoney(); loadLeave(); }
 
-function manualRefresh() {
-  loadAll();
-  showToast('รีเฟรชข้อมูลแล้ว', 'info');
-}
+function manualRefresh() { loadAll(); showToast('รีเฟรชข้อมูลแล้ว', 'info'); }
 
 function startAutoRefresh() {
-  if(autoRefreshTimer) clearInterval(autoRefreshTimer);
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
   autoRefreshTimer = setInterval(checkChanges, 5000);
 }
 
+// FIX: Fixed logic — each counter updates independently and correctly
 function checkChanges() {
   google.script.run
     .withSuccessHandler(r => {
-      if(!r || !r.success) return;
-      
-          if(r.hwCount !== currentHwCount) { 
+      if (!r || !r.success) return;
+      if (r.hwCount !== currentHwCount) { 
         loadHw(); 
-        showToast('มีการอัปเดตการบ้าน', 'info', 0); 
+        showToast('มีการอัปเดตการบ้าน', 'info'); 
       }
-      if(r.trCount !== currentTrCount) { 
+      if (r.trCount !== currentTrCount) { 
         loadMoney(); 
-        showToast('มีการอัปเดตเงิน', 'info', 0); 
+        showToast('มีการอัปเดตเงิน', 'info'); 
       }
-      if(r.trPayCounter !== currentTrPayCounter) {
+      // FIX: trPayCounter check is now independent from trCount check
+      if (r.trPayCounter !== currentTrPayCounter && currentTrPayCounter !== -1) {
         loadMoney();
-        currentTrPayCounter = r.trPayCounter;
       }
-      if(r.pendingLeaveCount !== currentLvCount) {
-        if(r.pendingLeaveCount > currentLvCount) {
-          if(u.canApproveLeave) {
-            const typeName = r.lastPendingType || 'รายการ';
-            showToast(`🚨 มี ${typeName} ใหม่รออนุมัติ!`, 'error', 0);
-          }
+      currentTrPayCounter = r.trPayCounter;
+
+      if (r.pendingLeaveCount !== currentLvCount) {
+        if (r.pendingLeaveCount > currentLvCount && u.canApproveLeave) {
+          showToast(`🚨 มี ${r.lastPendingType || 'รายการ'} ใหม่รออนุมัติ!`, 'error', 0);
         }
         loadLeave();
       }
@@ -1187,43 +1035,20 @@ function checkChanges() {
     .getLastUpdate();
 }
 
-function setTab(id) {
-  // Update sidebar items
-  document.querySelectorAll('.sidebar-item').forEach(item => {
-    item.classList.remove('active');
-    if(item.dataset.tab === id) {
-      item.classList.add('active');
-    }
-  });
-  
-  // Update panels
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('panel' + id.charAt(0).toUpperCase() + id.slice(1)).classList.add('active');
-  
-  if(id !== 'redeem' && html5QrCode) { 
-    try { html5QrCode.stop(); } catch(e){} 
-  }
-}
-
 // --- Homework ---
 function loadHw() {
   showLoading();
   google.script.run
     .withSuccessHandler(r => {
-      try {
-        hwData = (r && r.success) ? r.homework : [];
-        renderHw();
-        currentHwCount = hwData.length;
-      } catch (e) {
-        console.error('loadHw render error', e);
-      } finally {
-        hideLoading();
-      }
+      hwData = (r && r.success) ? (r.homework || []) : [];
+      renderHw();
+      currentHwCount = hwData.length;
+      hideLoading();
     })
     .withFailureHandler(err => {
       console.error('loadHw failed', err);
       hwData = [];
-      try { renderHw(); } catch (e) { console.error('renderHw failed in failure', e); }
+      renderHw();
       hideLoading();
     })
     .getHomework();
@@ -1231,7 +1056,7 @@ function loadHw() {
 
 function renderHw() {
   const el = document.getElementById('listHw');
-  if(!hwData.length) { 
+  if (!hwData.length) { 
     el.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding: 40px;">ไม่มีการบ้าน</p>'; 
     return; 
   }
@@ -1240,6 +1065,7 @@ function renderHw() {
     const isDone = u.studentNo && h.statuses[u.studentNo]?.status === 'completed';
     const imagePath = h.statuses[u.studentNo]?.imagePath;
     const subjectColor = h.color || '#E0E0E0';
+    const hasStudentStatus = u.studentNo && h.statuses[u.studentNo];
     
     return `
 <div class="card">
@@ -1256,9 +1082,9 @@ function renderHw() {
       <i class="fas fa-calendar-alt"></i> สั่ง: ${formatDate(h.assignedDate)} | 
       <i class="fas fa-calendar-check"></i> ส่ง: ${h.noDueDate ? 'ไม่มีกำหนด' : formatDate(h.dueDate)}
     </p>
-    ${u.studentNo && h.statuses[u.studentNo] ? `
+    ${hasStudentStatus ? `
     <div style="background:var(--bg-tertiary); padding:10px; border-radius:8px; margin-top:10px;">
-      <div style="margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+      <div style="margin-bottom:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
         <span class="badge ${isDone ? 'badge-approved' : 'badge-pending'}">${isDone ? 'ส่งแล้ว' : 'ยังไม่ส่ง'}</span>
         ${imagePath ? '<span style="font-size:0.8rem; color:var(--success);"><i class="fas fa-image"></i> มีรูป</span>' : ''}
       </div>
@@ -1267,7 +1093,7 @@ function renderHw() {
         <button class="btn btn-secondary btn-sm" onclick="hwUploadImg('${h.id}')">
           <i class="fas fa-camera"></i> แนบรูปภาพ
         </button>
-        <button class="btn ${isDone ? 'btn-danger' : 'btn-success'} btn-sm" onclick="hwToggleDone('${h.id}', ${isDone}, '${imagePath}')">
+        <button class="btn ${isDone ? 'btn-danger' : 'btn-success'} btn-sm" onclick="hwToggleDone('${h.id}', ${isDone}, '${imagePath || ''}')">
           <i class="fas ${isDone ? 'fa-undo' : 'fa-check'}"></i> ${isDone ? 'ย้อนสถานะ' : 'ทำเสร็จแล้ว'}
         </button>
       </div>
@@ -1282,24 +1108,16 @@ function hwUploadImg(hid) {
   const input = document.createElement('input'); 
   input.type = 'file'; 
   input.accept = 'image/*';
-  
   input.onchange = e => {
     const file = e.target.files[0]; 
+    if (!file) return;
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = () => {
       showLoading();
       google.script.run
-        .withSuccessHandler(r => { 
-          hideLoading(); 
-          loadHw(); 
-          showToast('แนบรูปสำเร็จ', 'success'); 
-        })
-        .withFailureHandler(err => {
-          hideLoading();
-          console.error('updateHomeworkStatus failed', err);
-          showToast('ไม่สามารถอัปโหลดรูปได้', 'error');
-        })
+        .withSuccessHandler(r => { hideLoading(); loadHw(); showToast('แนบรูปสำเร็จ', 'success'); })
+        .withFailureHandler(err => { hideLoading(); showToast('ไม่สามารถอัปโหลดรูปได้', 'error'); })
         .updateHomeworkStatus(hid, u.studentNo, null, reader.result);
     };
   };
@@ -1307,22 +1125,14 @@ function hwUploadImg(hid) {
 }
 
 function hwToggleDone(hid, isCurrentlyDone, imagePath) {
-  if(!isCurrentlyDone && !imagePath) {
-    if(!confirm("คุณจะไม่แนบรูปภาพจริงๆใช่ไหม?")) return;
+  if (!isCurrentlyDone && !imagePath) {
+    if (!confirm("คุณจะไม่แนบรูปภาพจริงๆใช่ไหม?")) return;
   }
   const newStatus = isCurrentlyDone ? 'pending' : 'completed';
   showLoading();
   google.script.run
-    .withSuccessHandler(r => { 
-      hideLoading(); 
-      loadHw(); 
-      showToast('อัปเดตสถานะแล้ว', 'success'); 
-    })
-    .withFailureHandler(err => {
-      hideLoading();
-      console.error('updateHomeworkStatus failed', err);
-      showToast('ไม่สามารถอัปเดตสถานะได้', 'error');
-    })
+    .withSuccessHandler(r => { hideLoading(); loadHw(); showToast('อัปเดตสถานะแล้ว', 'success'); })
+    .withFailureHandler(err => { hideLoading(); showToast('ไม่สามารถอัปเดตสถานะได้', 'error'); })
     .updateHomeworkStatus(hid, u.studentNo, newStatus, null);
 }
 
@@ -1334,40 +1144,25 @@ function doAddHw(e) {
   const due = document.getElementById('hwDue').value; 
   const noDue = document.getElementById('hwNoDue').checked;
   
-  if(!sub || !desc) { 
-    showToast('กรุณากรอกข้อมูลให้ครบ', 'error'); 
-    return; 
-  }
+  if (!sub || !desc) { showToast('กรุณากรอกข้อมูลให้ครบ', 'error'); return; }
   
   showLoading();
   google.script.run
     .withSuccessHandler(r => { 
       hideLoading(); 
-      closeModal('modalHw'); 
-      loadHw(); 
-      showToast('เพิ่มการบ้านสำเร็จ', 'success'); 
+      if (r.success) { closeModal('modalHw'); loadHw(); showToast('เพิ่มการบ้านสำเร็จ', 'success'); }
+      else showToast(r.message || 'ไม่สามารถเพิ่มการบ้านได้', 'error');
     })
-    .withFailureHandler(err => {
-      hideLoading();
-      console.error('addHomework failed', err);
-      showToast('ไม่สามารถเพิ่มการบ้านได้', 'error');
-    })
+    .withFailureHandler(err => { hideLoading(); showToast('ไม่สามารถเพิ่มการบ้านได้', 'error'); })
     .addHomework(sub, desc, date, due, noDue, u.displayName);
 }
 
 function delHw(id) { 
-  if(confirm('ยืนยันลบ?')) { 
+  if (confirm('ยืนยันลบ?')) { 
     showLoading(); 
     google.script.run
-      .withSuccessHandler(r => {
-        hideLoading(); 
-        loadHw();
-      })
-      .withFailureHandler(err => {
-        hideLoading();
-        console.error('deleteHomework failed', err);
-        showToast('ไม่สามารถลบการบ้านได้', 'error');
-      })
+      .withSuccessHandler(r => { hideLoading(); loadHw(); })
+      .withFailureHandler(err => { hideLoading(); showToast('ไม่สามารถลบการบ้านได้', 'error'); })
       .deleteHomework(id); 
   } 
 }
@@ -1380,20 +1175,22 @@ function loadMoney() {
   google.script.run
     .withSuccessHandler(r => {
       if (!r || !r.success) { 
-        el.innerHTML = '<p style="text-align:center; color:var(--danger);">โหลดล้มเหลว</p>'; 
+        el.innerHTML = '<p style="text-align:center; color:var(--danger); padding:20px;">โหลดล้มเหลว</p>'; 
         return; 
       }
       moneyData = r.treasury || [];
-      renderMoney();
       currentTrCount = moneyData.length;
+      renderMoney();
+    })
+    .withFailureHandler(() => {
+      el.innerHTML = '<p style="text-align:center; color:var(--danger); padding:20px;">เชื่อมต่อไม่ได้</p>';
     })
     .getTreasuryItems();
 }
 
 function renderMoney() {
   const el = document.getElementById('listMoney');
-  if(!students || students.length === 0) return;
-  if(!moneyData.length) { 
+  if (!moneyData.length) { 
     el.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding: 40px;">ไม่มีรายการ</p>'; 
     return; 
   }
@@ -1412,9 +1209,10 @@ function renderMoney() {
       ${Object.entries(m.payments || {}).map(([no, p]) => { 
         const std = students.find(s => String(s.no) === String(no)); 
         const isComplete = p.amountPaid >= m.amountPerPerson; 
+        const canEdit = u.canManageTreasury;
         return `
-<label class="check-card ${isComplete ? 'checked' : ''}" onclick="${u.canManageTreasury ? `handleCheck('${m.id}', ${no}, ${p.amountPaid}, ${m.amountPerPerson}, this)` : ''}">
-  <input type="checkbox" ${isComplete ? 'checked' : ''} ${!u.canManageTreasury ? 'disabled' : ''}>
+<label class="check-card ${isComplete ? 'checked' : ''}" ${canEdit ? `onclick="handleCheck('${m.id}', ${no}, ${p.amountPaid}, ${m.amountPerPerson}, this)"` : ''} style="${!canEdit ? 'cursor:default;' : ''}">
+  <input type="checkbox" ${isComplete ? 'checked' : ''} ${!canEdit ? 'disabled' : ''}>
   <span class="check-mark"><i class="fas fa-check"></i></span>
   <div class="check-card-content">
     <div class="check-no">เลขที่ ${no}</div>
@@ -1425,50 +1223,52 @@ function renderMoney() {
       }).join('')}
     </div>
     <div style="margin-top:15px; padding-top:10px; border-top:1px solid var(--border); text-align:right; font-size:0.9rem; color:var(--text-secondary);">
-      คืบหน้า: <b style="color:var(--success)">${m.summary.completedCount || 0}</b>/40 คน
+      คืบหน้า: <b style="color:var(--success)">${m.summary.completedCount || 0}</b>/${Object.keys(m.payments || {}).length} คน
     </div>
   </div>
 </div>
 `).join('');
 }
 
+// FIX: handleCheck now calls loadMoney on failure to revert optimistic UI
 function handleCheck(tid, sno, currentPaid, required, element) {
-  if(!u.canManageTreasury) return;
-  const checkbox = element.querySelector('input');
+  if (!u.canManageTreasury) return;
   const willPay = (currentPaid < required) ? required : 0;
+  // Optimistic UI update
+  const checkbox = element.querySelector('input');
   checkbox.checked = (willPay > 0);
   element.classList.toggle('checked', willPay > 0);
   const amtDiv = element.querySelector('.check-amt');
-  if(amtDiv) amtDiv.textContent = (willPay > 0) ? `${required}/${required}` : `0/${required}`;
-  google.script.run.withSuccessHandler().updatePayment(tid, sno, willPay);
+  if (amtDiv) amtDiv.textContent = willPay > 0 ? `${required}/${required}` : `0/${required}`;
+
+  google.script.run
+    .withSuccessHandler(r => { if (!r || !r.success) loadMoney(); })
+    .withFailureHandler(() => { showToast('บันทึกไม่สำเร็จ', 'error'); loadMoney(); })
+    .updatePayment(tid, sno, willPay);
 }
 
 function doAddMoney(e) {
   e.preventDefault(); 
-  const t = document.getElementById('mTitle').value; 
+  const t = document.getElementById('mTitle').value.trim(); 
   const a = document.getElementById('mAmt').value;
-  
-  if(!t || !a) return; 
+  if (!t || !a) return; 
   showLoading();
-  
   google.script.run
     .withSuccessHandler(r => { 
       hideLoading(); 
-      closeModal('modalMoney'); 
-      loadMoney(); 
-      showToast('ตั้งเก็บเงินสำเร็จ', 'success'); 
+      if (r.success) { closeModal('modalMoney'); document.getElementById('formMoney').reset(); loadMoney(); showToast('ตั้งเก็บเงินสำเร็จ', 'success'); }
+      else showToast(r.message || 'ไม่สำเร็จ', 'error');
     })
+    .withFailureHandler(() => { hideLoading(); showToast('เกิดข้อผิดพลาด', 'error'); })
     .addTreasuryItem(t, parseFloat(a), u.displayName);
 }
 
 function delMoney(id) { 
-  if(confirm('ยืนยันลบ?')) { 
+  if (confirm('ยืนยันลบ?')) { 
     showLoading(); 
     google.script.run
-      .withSuccessHandler(r => {
-        hideLoading(); 
-        loadMoney();
-      })
+      .withSuccessHandler(() => { hideLoading(); loadMoney(); })
+      .withFailureHandler(() => { hideLoading(); showToast('ลบไม่สำเร็จ', 'error'); })
       .deleteTreasuryItem(id); 
   } 
 }
@@ -1477,33 +1277,16 @@ function delMoney(id) {
 function loadLeave() {
   google.script.run
     .withSuccessHandler(r => {
-      console.log('loadLeave response:', r);
-      // Ensure we always have an array of leave requests
-      if (Array.isArray(r)) {
-        leaveData = r;
-      } else if (r && Array.isArray(r.data)) {
-        leaveData = r.data;
-      } else {
-        // Try to coerce array-like objects into an array
-        if (r && typeof r === 'object') {
-          const values = Object.values(r);
-          if (Array.isArray(values) && values.length && typeof values[0] === 'object') {
-            leaveData = values;
-          } else {
-            leaveData = [];
-          }
-        } else {
-          leaveData = [];
-        }
-      }
-
+      if (Array.isArray(r)) leaveData = r;
+      else if (r && Array.isArray(r.data)) leaveData = r.data;
+      else leaveData = [];
       renderLeave();
-      currentLvCount = Array.isArray(leaveData) ? leaveData.filter(l => l.status === 'PENDING').length : 0;
+      currentLvCount = leaveData.filter(l => l.status === 'PENDING').length;
     })
     .withFailureHandler(err => {
       leaveData = [];
       renderLeave();
-      showToast("เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว (ลา)", "error");
+      showToast('เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว (ลา)', 'error');
     })
     .getLeaveRequests();
 }
@@ -1512,38 +1295,27 @@ function renderLeave() {
   const el = document.getElementById('listLeave');
   if (!el) return;
   
-  const list = Array.isArray(leaveData) ? leaveData : (leaveData ? Object.values(leaveData) : []);
-  if (!list || list.length === 0) {
-    el.innerHTML = `
-      <div class="card" style="text-align:center; padding:30px;">
-        <div class="card-body" style="color:var(--text-muted);">
-          <i class="fas fa-calendar-times" style="font-size:1.6rem; margin-bottom:10px;"></i><br>
-          ไม่มีคำขอลา / กิจกรรม
-        </div>
-      </div>`;
-    return;
-  }
-  
-  let listFiltered = list;
+  let list = Array.isArray(leaveData) ? leaveData : [];
   if (!u.canApproveLeave && u.studentNo) {
-    listFiltered = list.filter(l => String(l.studentNo) === String(u.studentNo));
+    list = list.filter(l => String(l.studentNo) === String(u.studentNo));
   }
   
-  if (!listFiltered.length) {
+  if (!list.length) {
     el.innerHTML = `
-      <div class="card" style="text-align:center; padding:30px;">
-        <div class="card-body" style="color:var(--text-muted);">
-          <i class="fas fa-user-clock" style="font-size:1.6rem; margin-bottom:10px;"></i><br>
-          ไม่มีคำขอของคุณ
+      <div class="card">
+        <div class="card-body" style="text-align:center; color:var(--text-muted); padding:30px;">
+          <i class="fas fa-calendar-times" style="font-size:1.6rem; margin-bottom:10px; display:block;"></i>
+          ${u.canApproveLeave ? 'ไม่มีคำขอลา / กิจกรรม' : 'ไม่มีคำขอของคุณ'}
         </div>
       </div>`;
     return;
   }
   
-  el.innerHTML = listFiltered.map(l => {
+  el.innerHTML = list.map(l => {
     const isPending = l.status === 'PENDING';
     const badgeClass = isPending ? 'badge-pending' : (l.status === 'APPROVED' ? 'badge-approved' : 'badge-rejected');
     const badgeText = isPending ? 'รออนุมัติ' : (l.status === 'APPROVED' ? 'อนุมัติแล้ว' : 'ไม่อนุมัติ');
+    const isOwner = String(l.studentNo) === String(u.studentNo);
     
     return `
 <div class="card">
@@ -1559,10 +1331,7 @@ function renderLeave() {
       <i class="fas fa-calendar-alt"></i> วันที่: ${formatDate(l.date)}<br>
       <i class="fas fa-comment-dots"></i> เหตุผล: ${l.reason}
     </p>
-
-    ${l.proofImage ? `
-    <img src="${l.proofImage}" style="max-width:180px; border-radius:8px; margin:10px 0; border:1px solid var(--border);">
-    ` : ''}
+    ${l.proofImage ? `<img src="${l.proofImage}" style="max-width:180px; border-radius:8px; margin:10px 0; border:1px solid var(--border);">` : ''}
     ${isPending ? `
     <div style="margin-top:12px; padding:10px; background:var(--bg-tertiary); border-radius:8px;">
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -1572,23 +1341,17 @@ function renderLeave() {
         </button>
         <button class="btn btn-danger btn-sm" onclick="updLeave('${l.id}', 'REJECTED')">
           <i class="fas fa-times"></i> ไม่อนุมัติ
-        </button>
-        ` : ''}
-
-        ${String(l.studentNo) === String(u.studentNo) && !l.proofImage ? `
+        </button>` : ''}
+        ${isOwner && !l.proofImage ? `
         <button class="btn btn-secondary btn-sm" onclick="confirmLeave('${l.id}')">
           <i class="fas fa-camera"></i> แนบ/อัพเดทรูป
-        </button>
-        ` : ''}
-
-        ${String(l.studentNo) === String(u.studentNo) && l.proofImage ? `
+        </button>` : ''}
+        ${isOwner && l.proofImage ? `
         <span style="color:var(--success); font-size:0.9rem; line-height:32px;">
           <i class="fas fa-check-circle"></i> แนบรูปแล้ว
-        </span>
-        ` : ''}
+        </span>` : ''}
       </div>
-    </div>
-    ` : ''}
+    </div>` : ''}
   </div>
 </div>`;
   }).join('');
@@ -1601,34 +1364,10 @@ function doAddLeave(e) {
   const reason = document.getElementById('lReason').value;
   const file = document.getElementById('lImage').files[0];
   
-  if (!type || !date || !reason) {
-    showToast('กรุณากรอกข้อมูลให้ครบ', 'error');
-    return;
-  }
-  
+  if (!type || !date || !reason) { showToast('กรุณากรอกข้อมูลให้ครบ', 'error'); return; }
   if (!file && !confirm("คุณจะส่งคำขอโดยไม่มีรูปภาพจริง ๆ ใช่ไหม?")) return;
   
-  if (file) {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      showLoading();
-      google.script.run
-        .withSuccessHandler(r => {
-          hideLoading();
-          closeModal('modalLeave');
-          document.getElementById('formLeave').reset();
-          loadLeave();
-          showToast('ส่งคำขอสำเร็จ', 'success');
-        })
-        .withFailureHandler(err => {
-          hideLoading();
-          console.error('submitLeaveRequest failed', err);
-          showToast('ส่งคำขอไม่สำเร็จ', 'error');
-        })
-        .submitLeaveRequest(u.studentNo, u.displayName, type, date, reason, reader.result);
-    };
-  } else {
+  const doSubmit = (imageData) => {
     showLoading();
     google.script.run
       .withSuccessHandler(r => {
@@ -1636,30 +1375,26 @@ function doAddLeave(e) {
         closeModal('modalLeave');
         document.getElementById('formLeave').reset();
         loadLeave();
-        showToast('ส่งคำขอสำเร็จ (ไม่มีรูป)', 'success');
+        showToast(imageData ? 'ส่งคำขอสำเร็จ' : 'ส่งคำขอสำเร็จ (ไม่มีรูป)', 'success');
       })
-      .withFailureHandler(err => {
-        hideLoading();
-        console.error('submitLeaveRequest failed', err);
-        showToast('ส่งคำขอไม่สำเร็จ', 'error');
-      })
-      .submitLeaveRequest(u.studentNo, u.displayName, type, date, reason, null);
+      .withFailureHandler(err => { hideLoading(); showToast('ส่งคำขอไม่สำเร็จ', 'error'); })
+      .submitLeaveRequest(u.studentNo, u.displayName, type, date, reason, imageData || null);
+  };
+  
+  if (file) {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => doSubmit(reader.result);
+  } else {
+    doSubmit(null);
   }
 }
 
 function updLeave(id, stat) {
   showLoading();
   google.script.run
-    .withSuccessHandler(r => {
-      hideLoading();
-      loadLeave();
-      showToast('อัปเดตสถานะเรียบร้อย', 'success');
-    })
-    .withFailureHandler(err => {
-      hideLoading();
-      console.error('updateLeaveStatus failed', err);
-      showToast('ไม่สามารถอัปเดตสถานะได้', 'error');
-    })
+    .withSuccessHandler(r => { hideLoading(); loadLeave(); showToast('อัปเดตสถานะเรียบร้อย', 'success'); })
+    .withFailureHandler(err => { hideLoading(); showToast('ไม่สามารถอัปเดตสถานะได้', 'error'); })
     .updateLeaveStatus(id, stat);
 }
 
@@ -1675,16 +1410,8 @@ function confirmLeave(id) {
     reader.onload = () => {
       showLoading();
       google.script.run
-        .withSuccessHandler(r => {
-          hideLoading();
-          loadLeave();
-          showToast('อัปโหลดรูปยืนยันสำเร็จ', 'success');
-        })
-        .withFailureHandler(err => {
-          hideLoading();
-          console.error('confirmLeaveRequest failed', err);
-          showToast('ไม่สามารถอัปโหลดรูปได้', 'error');
-        })
+        .withSuccessHandler(r => { hideLoading(); loadLeave(); showToast('อัปโหลดรูปยืนยันสำเร็จ', 'success'); })
+        .withFailureHandler(err => { hideLoading(); showToast('ไม่สามารถอัปโหลดรูปได้', 'error'); })
         .confirmLeaveRequest(id, reader.result);
     };
   };
@@ -1697,49 +1424,34 @@ function doChangePw(e) {
   const n = document.getElementById('pwNew').value; 
   const c = document.getElementById('pwConf').value; 
   showLoading(); 
-  
   google.script.run
-    .withSuccessHandler(r => { 
-      hideLoading(); 
-      showToast(r.message, r.success ? 'success' : 'error'); 
-    })
-    .withFailureHandler(err => {
-      hideLoading();
-      console.error('changePassword failed', err);
-      showToast('ไม่สามารถเปลี่ยนรหัสผ่านได้', 'error');
-    })
+    .withSuccessHandler(r => { hideLoading(); showToast(r.message, r.success ? 'success' : 'error'); })
+    .withFailureHandler(err => { hideLoading(); showToast('ไม่สามารถเปลี่ยนรหัสผ่านได้', 'error'); })
     .changePassword(u.id, o, n, c); 
 }
 
 // --- Utilities ---
 function toggleForm(t) { 
-  document.getElementById('loginForm').parentElement.style.display = t === 'reg' ? 'none' : 'block'; 
+  document.getElementById('loginBox').style.display = t === 'reg' ? 'none' : 'block'; 
   document.getElementById('regForm').style.display = t === 'reg' ? 'block' : 'none'; 
   document.getElementById('loginError').style.display = 'none'; 
   document.getElementById('regError').style.display = 'none'; 
 }
 
 function getHint() { 
-  const name = document.getElementById('forgotName').value; 
-  if(!name) return; 
+  const name = document.getElementById('forgotName').value.trim(); 
+  if (!name) return; 
   const res = document.getElementById('forgotResult'); 
   showLoading(); 
-  
   google.script.run
     .withSuccessHandler(r => { 
       hideLoading(); 
-      if(r.success) { 
-        res.innerHTML = `<b>คำใบ้:</b> ${r.hint}`; 
-        res.style.color = 'var(--text-primary)'; 
-      } else { 
-        res.innerHTML = r.message; 
-        res.style.color = 'var(--danger)'; 
-      } 
+      res.innerHTML = r.success ? `<b>คำใบ้:</b> ${r.hint}` : r.message;
+      res.style.color = r.success ? 'var(--text-primary)' : 'var(--danger)';
       res.style.display = 'block'; 
     })
     .withFailureHandler(err => {
       hideLoading();
-      console.error('getPasswordHint failed', err);
       res.innerHTML = 'เกิดข้อผิดพลาดในการเชื่อมต่อ';
       res.style.color = 'var(--danger)';
       res.style.display = 'block';
@@ -1749,8 +1461,11 @@ function getHint() {
 
 // --- Code Form Dynamic ---
 function updateCodeForm() {
-  const type = document.getElementById('codeType').value;
+  const typeEl = document.getElementById('codeType');
+  if (!typeEl) return;
+  const type = typeEl.value;
   const el = document.getElementById('codeFormDynamic');
+  if (!el) return;
   
   if (type === 'TEMP_ACCESS') {
     el.innerHTML = `
@@ -1780,154 +1495,162 @@ function updateCodeForm() {
       </div>
       <div class="form-group">
         <label>จำนวนเงินต่อคน (บาท)</label>
-        <input type="number" id="codeAmt" placeholder="0">
-      </div>`;
-  } else {
-    // Fallback for any other code types
-    el.innerHTML = `
-      <div class="form-group">
-        <label>ค่าที่จะเก็บไว้ในโค้ด</label>
-        <input type="text" id="codeVal" placeholder="เช่น 1 หรือ 7">
+        <input type="number" id="codeAmt" placeholder="0" min="1">
       </div>`;
   }
-}
-
-function toggleAllStudents(isCheck) {
-  document.querySelectorAll('input[name="stud_sel"]').forEach(c => c.checked = isCheck);
 }
 
 function createCode() {
   const type = document.getElementById('codeType').value;
   const note = document.getElementById('codeNote').value;
-  let val = '', details = { note };
+  let val = '';
+  const details = { note };
 
   if (type === 'ADD_MONEY') {
-    val = '1';
-    const checks = document.querySelectorAll('input[name="stud_sel"]:checked');
-    const selected = Array.from(checks).map(c => c.value);
-    details.title = document.getElementById('codeTitle').value;
-    details.amount = document.getElementById('codeAmt').value;
-    details.students = selected;
-
-    if(!details.title || !details.amount || selected.length === 0) {
-      showToast('กรุณากรอกข้อมูลให้ครบและเลือกผู้เกี่ยวข้อง', 'error');
+    details.title = document.getElementById('codeTitle')?.value?.trim();
+    details.amount = document.getElementById('codeAmt')?.value;
+    if (!details.title || !details.amount) {
+      showToast('กรุณากรอกชื่อรายการและจำนวนเงิน', 'error');
       return;
     }
+    val = '1';
   } else if (type === 'TEMP_ACCESS') {
     const qty = Number(document.getElementById('tempQty')?.value);
-    const unit = document.getElementById('tempUnit')?.value;
-    if(!qty || qty < 1) {
-      showToast('กรุณากรอกจำนวนวันที่จะให้สิทธิ์', 'error');
-      return;
-    }
-    val = String(qty);
+    const unit = document.getElementById('tempUnit')?.value || 'days';
+    if (!qty || qty < 1) { showToast('กรุณากรอกจำนวนที่จะให้สิทธิ์', 'error'); return; }
+    // FIX: Store value as "qty_unit" so server can parse both qty and unit correctly
+    val = `${qty}_${unit.toUpperCase()}`;
     details.unit = unit;
   } else if (type === 'ADD_HW') {
     const hw = Number(document.getElementById('hwCredits')?.value);
-    if(!hw || hw < 1) {
-      showToast('กรุณากรอกจำนวนเครดิตให้ถูกต้อง', 'error');
-      return;
-    }
+    if (!hw || hw < 1) { showToast('กรุณากรอกจำนวนเครดิตให้ถูกต้อง', 'error'); return; }
     val = String(hw);
-  } else {
-    val = document.getElementById('codeVal')?.value || '';
-    if(!val) {
-      showToast('กรุณากรอกค่าที่จะเก็บไว้ในโค้ด', 'error');
-      return;
-    }
   }
 
   showLoading();
   google.script.run
     .withSuccessHandler(r => {
       hideLoading();
-      if(r.success) {
+      if (r.success) {
         document.getElementById('generatedCodeBox').style.display = 'block';
         document.getElementById('generatedCodeText').textContent = r.code;
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${r.code}&ecc=H`;
         document.getElementById('qrImage').src = qrUrl;
-        showToast('สร้างโค้ดสำเร็จ', 'success', 6000);
+        showToast('สร้างโค้ดสำเร็จ', 'success');
         document.getElementById('generatedCodeBox').scrollIntoView({ behavior: 'smooth' });
       } else {
         showToast(r.message || 'ไม่สามารถสร้างโค้ดได้', 'error');
       }
     })
-    .withFailureHandler(err => {
-      hideLoading();
-      console.error('generateCode failed', err);
-      showToast('เกิดข้อผิดพลาดสร้างโค้ด', 'error');
-    })
+    .withFailureHandler(err => { hideLoading(); showToast('เกิดข้อผิดพลาดสร้างโค้ด', 'error'); })
     .generateCode(type, val, details);
 }
 
 function copyCode() {
   const text = document.getElementById('generatedCodeText').textContent;
-  navigator.clipboard.writeText(text);
-  showToast('Copied!', 'success');
+  navigator.clipboard.writeText(text).then(() => showToast('Copied!', 'success'));
 }
 
+// FIX: doRedeem now always passes u.id to server
 function doRedeem() {
-  const code = document.getElementById('redeemInput').value;
-  if(!code) return;
+  const code = document.getElementById('redeemInput').value.trim().toUpperCase();
+  if (!code) { showToast('กรุณากรอกโค้ด', 'error'); return; }
   showLoading();
-  google.script.run.withSuccessHandler(r => {
-    hideLoading();
-    if(r.success) {
-      if(r.action === 'ADD_MONEY') {
-        setTab('money'); // ไปหน้าเงินห้อง
-        openGroupPaySelector(r.details.title, r.details.amount, code);
-      } else {
+  google.script.run
+    .withSuccessHandler(r => {
+      hideLoading();
+      if (r.success) {
         showToast(r.message, 'success');
+        document.getElementById('redeemInput').value = '';
         manualRefresh();
+        // If ADD_MONEY action, switch to money tab to show result
+        if (r.action === 'ADD_MONEY') {
+          setTab('money');
+        }
+        // FIX: Update local hwCredits if ADD_HW was redeemed
+        if (r.action === 'ADD_HW') {
+          u.hwCredits = (u.hwCredits || 0) + parseInt(r.addedCredits || 0);
+          localStorage.setItem('user', JSON.stringify(u));
+          document.getElementById('meHwCredits').textContent = u.hwCredits;
+          document.getElementById('mobileSidebarCredits').textContent = u.hwCredits;
+          document.getElementById('btnAddHw').style.display = 'inline-flex';
+        }
+      } else {
+        showToast(r.message, 'error');
       }
-    } else {
-      showToast(r.message, 'error');
-    }
-  }).withFailureHandler(err => {
-    hideLoading();
-    showToast('Server error redeem', 'error', 0);
-  }).redeemCode(code);
+    })
+    .withFailureHandler(() => { hideLoading(); showToast('Server error redeem', 'error'); })
+    .redeemCode(code, u.id);
 }
 
-function openGroupPaySelector(title, amt, code) {
-  // ฟังก์ชันแสดงหน้าต่างเลือกเลขที่นักเรียน
-  // เมื่อกดแต่ละเลขที่ ให้ toggle class 'active' (จะกลายเป็นสีเขียวตาม CSS)
-}
-
-function showRedeemResult(message) {
-  const resultDiv = document.getElementById('redeemResult');
-  let icon = 'fa-gift';
-  let title = 'สำเร็จ!';
-  
-  if(message.includes('ชั่วคราว')) { 
-    icon = 'fa-user-clock'; 
-    title = 'สิทธิ์ผู้ใช้งานชั่วคราว'; 
-  }
-  else if(message.includes('การบ้าน')) { 
-    icon = 'fa-book'; 
-    title = 'เพิ่มการบ้าน'; 
-  }
-  else if(message.includes('เก็บเงิน')) { 
-    icon = 'fa-coins'; 
-    title = 'เพิ่มเก็บเงิน'; 
-  }
-  
-  resultDiv.innerHTML = `
-<div class="redeem-result show">
-  <button class="btn btn-secondary btn-icon" style="position:absolute; top:12px; right:12px;" onclick="document.getElementById('redeemResult').style.display='none'">&times;</button>
-  <i class="fas ${icon}"></i>
-  <h3>${title}</h3>
-  <p>${message}</p>
-</div>
-`;
-  resultDiv.style.display = 'block';
-  setTimeout(() => { resultDiv.style.display = 'none'; }, 10000);
-}
-
+// --- Pre-Login Redeem (TEMP_ACCESS only) ---
+// Step 1: User clicks the key button with a code entered
 function doLoginRedeem() {
-  const code = document.getElementById('loginCode')?.value?.trim();
-  if(!code) { showToast('กรุณาใส่โค้ดก่อน', 'error', 0); return; }
-  showToast('กรุณาล็อกอินก่อน แล้วจะใช้โค้ดอัตโนมัติ', 'info', 0);
+  const code = document.getElementById('loginCode')?.value?.trim().toUpperCase();
+  if (!code) { showToast('กรุณากรอกโค้ดก่อน', 'error'); return; }
+
+  // Preview the code in the confirm modal, then ask for username
+  document.getElementById('preLoginCodeText').textContent = code;
+  document.getElementById('preLoginRedeemName').value = '';
+  const res = document.getElementById('preLoginRedeemResult');
+  res.style.display = 'none';
+  res.textContent = '';
+  document.getElementById('btnConfirmPreRedeem').disabled = false;
+  openModal('modalPreLoginRedeem');
+  setTimeout(() => document.getElementById('preLoginRedeemName').focus(), 300);
+}
+
+// Step 2: User confirms with their username
+function confirmPreLoginRedeem() {
+  const code = document.getElementById('preLoginCodeText').textContent.trim();
+  const name = document.getElementById('preLoginRedeemName').value.trim();
+  const res = document.getElementById('preLoginRedeemResult');
+
+  if (!name) { 
+    res.style.display = 'block';
+    res.style.background = 'var(--danger-light)';
+    res.style.color = 'var(--danger)';
+    res.innerHTML = '<i class="fas fa-exclamation-circle"></i> กรุณากรอกชื่อบัญชีก่อน';
+    return; 
+  }
+
+  document.getElementById('btnConfirmPreRedeem').disabled = true;
+  res.style.display = 'block';
+  res.style.background = 'var(--bg-tertiary)';
+  res.style.color = 'var(--text-secondary)';
+  res.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังตรวจสอบ...';
+
+  showLoading();
+  google.script.run
+    .withSuccessHandler(r => {
+      hideLoading();
+      document.getElementById('btnConfirmPreRedeem').disabled = false;
+      if (r.success) {
+        res.style.background = 'var(--success-light)';
+        res.style.color = 'var(--success)';
+        res.innerHTML = `<i class="fas fa-check-circle"></i> ${r.message}`;
+        // Pre-fill the login name field to make login easier
+        document.getElementById('loginId').value = name;
+        setTimeout(() => {
+          closeModal('modalPreLoginRedeem');
+          document.getElementById('loginCode').value = '';
+          showToast(r.message, 'success');
+          document.getElementById('loginPw').focus();
+        }, 2000);
+      } else {
+        res.style.background = 'var(--danger-light)';
+        res.style.color = 'var(--danger)';
+        res.innerHTML = `<i class="fas fa-times-circle"></i> ${r.message}`;
+      }
+    })
+    .withFailureHandler(err => {
+      hideLoading();
+      document.getElementById('btnConfirmPreRedeem').disabled = false;
+      res.style.background = 'var(--danger-light)';
+      res.style.color = 'var(--danger)';
+      res.innerHTML = '<i class="fas fa-times-circle"></i> เชื่อมต่อ Server ไม่ได้';
+    })
+    .redeemCodeByName(code, name);
 }
 
 // --- QR Scanner ---
@@ -1935,83 +1658,77 @@ function startScanner() {
   document.getElementById('scanStatus').textContent = "กำลังขอสิทธิ์กล้อง...";
   document.getElementById('scanStatus').style.color = 'var(--text-secondary)';
   document.getElementById('stopCamBtn').style.display = 'none';
+  document.getElementById('startCamBtn').style.display = 'none';
   
   html5QrCode = new Html5Qrcode("reader");
   const readerEl = document.getElementById('reader');
   const maxSize = Math.min(360, readerEl.clientWidth || 360);
   const qrSize = Math.max(200, Math.min(300, maxSize - 20));
-  const config = { fps: 10, qrbox: { width: qrSize, height: qrSize } };
   
-  html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
+  html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: qrSize, height: qrSize } }, onScanSuccess, () => {})
     .then(() => {
-       document.getElementById('scanStatus').textContent = "สแกน QR Code ที่นี่";
-       document.getElementById('stopCamBtn').style.display = 'inline-flex';
+      document.getElementById('scanStatus').textContent = "สแกน QR Code ที่นี่";
+      document.getElementById('stopCamBtn').style.display = 'inline-flex';
     })
     .catch((err) => {
-       let errMsg = "เกิดข้อผิดพลาด: " + err;
-       if (String(err).includes("NotAllowedError") || String(err).includes("Permission denied")) {
-          errMsg = "🚫 คุณปฏิเสธการเข้าถึงกล้อง <br>กรุณาคลิกไอคอนลูกกุญแจ/กล้องใน Address Bar เพื่ออนุญาตสิทธิ์";
-       } else if (String(err).includes("NotFoundError")) {
-          errMsg = "❌ ไม่พบกล้องในอุปกรณ์นี้";
-       }
-       document.getElementById('scanStatus').innerHTML = `<span style="color:var(--danger)">${errMsg}</span>`;
-       document.getElementById('stopCamBtn').style.display = 'none';
+      document.getElementById('startCamBtn').style.display = 'inline-flex';
+      let errMsg = "เกิดข้อผิดพลาด";
+      if (String(err).includes("NotAllowedError") || String(err).includes("Permission denied")) {
+        errMsg = "🚫 ถูกปฏิเสธการเข้าถึงกล้อง กรุณาอนุญาตสิทธิ์กล้องในเบราว์เซอร์";
+      } else if (String(err).includes("NotFoundError")) {
+        errMsg = "❌ ไม่พบกล้องในอุปกรณ์นี้";
+      }
+      document.getElementById('scanStatus').innerHTML = `<span style="color:var(--danger)">${errMsg}</span>`;
     });
 }
 
 function stopScanner() {
-  if(html5QrCode) {
-    html5QrCode.stop().then(ignore => {}).catch(err => {});
-    document.getElementById('stopCamBtn').style.display = 'none';
-    document.getElementById('scanStatus').textContent = "กดปุ่มด้านล่างเพื่อเปิดกล้อง";
+  if (html5QrCode) {
+    html5QrCode.stop().catch(() => {}).finally(() => {
+      document.getElementById('stopCamBtn').style.display = 'none';
+      document.getElementById('startCamBtn').style.display = 'inline-flex';
+      document.getElementById('scanStatus').textContent = "กดปุ่มด้านล่างเพื่อเปิดกล้อง";
+    });
   }
 }
 
-function onScanSuccess(decodedText, decodedResult) {
+function onScanSuccess(decodedText) {
   stopScanner();
-  document.getElementById('redeemInput').value = decodedText;
+  document.getElementById('redeemInput').value = decodedText.toUpperCase();
   doRedeem();
-}
-
-function loginDecodeSuccess(decodedText, decodedResult) {
-  stopLoginScanner();
-  const loginCodeEl = document.getElementById('loginCode');
-  if(loginCodeEl) loginCodeEl.value = decodedText;
-  showToast('สแกนโค้ดสำเร็จแล้ว', 'success', 0);
 }
 
 function startLoginScanner() {
   const loginReader = document.getElementById('loginReader');
-  if(!loginReader) return;
+  if (!loginReader) return;
   loginReader.innerHTML = '<div id="loginReaderInner" style="width:100%; min-height:220px;"></div>';
-  if (html5QrCodeLogin) {
-    try { html5QrCodeLogin.stop(); } catch(e){}
-  }
+  if (html5QrCodeLogin) { try { html5QrCodeLogin.stop(); } catch(e) {} }
   html5QrCodeLogin = new Html5Qrcode('loginReaderInner');
   const maxSize = Math.min(320, loginReader.clientWidth || 320);
   const qrSize = Math.max(200, Math.min(300, maxSize - 20));
-  const config = { fps: 10, qrbox: { width: qrSize, height: qrSize } };
-  html5QrCodeLogin.start({ facingMode: 'environment' }, config, loginDecodeSuccess, (err) => {})
-    .then(() => {
-      document.getElementById('stopLoginCamBtn').style.display = 'inline-flex';
-      showToast('เปิดกล้องสแกนโค้ดแล้ว', 'info', 0);
-    })
-    .catch(err => {
-      showToast('ไม่สามารถเปิดกล้องได้', 'error', 0);
-    });
+  html5QrCodeLogin.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: qrSize, height: qrSize } }, loginDecodeSuccess, () => {})
+    .then(() => { document.getElementById('stopLoginCamBtn').style.display = 'inline-flex'; })
+    .catch(() => { showToast('ไม่สามารถเปิดกล้องได้', 'error'); });
 }
 
 function stopLoginScanner() {
   if (html5QrCodeLogin) {
-    html5QrCodeLogin.stop().then(() => {
-      document.getElementById('stopLoginCamBtn').style.display = 'none';
-    }).catch(() => {
+    html5QrCodeLogin.stop().catch(() => {}).finally(() => {
       document.getElementById('stopLoginCamBtn').style.display = 'none';
     });
   }
 }
 
-function onScanFailure(error) { }
+function loginDecodeSuccess(decodedText) {
+  stopLoginScanner();
+  const loginCodeEl = document.getElementById('loginCode');
+  if (loginCodeEl) {
+    loginCodeEl.value = decodedText.toUpperCase();
+    showToast('สแกนโค้ดสำเร็จ', 'success');
+    // Auto-open the confirm modal immediately after scan
+    doLoginRedeem();
+  }
+}
 
 function renderMe() {
   document.getElementById('meName').textContent = u.displayName;

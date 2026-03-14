@@ -72,37 +72,19 @@ const SUBJECT_COLORS = [
 ];
 
 // ============================================
-// 🔥 NEW: API Endpoint for GitHub Pages
+// 🔥 API Endpoint for GitHub Pages (CORS)
 // ============================================
 function doPost(e) {
   try {
-    // อนุญาตให้ทุกโดเมนเรียกใช้งานได้ (CORS)
     const output = ContentService.createTextOutput();
     output.setMimeType(ContentService.MimeType.JSON);
-    
-    // แก้ไข CORS Preflight (OPTIONS request) กรณีพิเศษ
-    if (e.method === 'OPTIONS') {
-      return output;
-    }
 
-    // Parse ข้อมูลที่ส่งมา
     const data = JSON.parse(e.postData.contents);
     const action = data.action;
     const args = data.args || [];
 
-    // ตรวจสอบว่ามีฟังก์ชันนั้นๆ ในระบบหรือไม่
     if (typeof this[action] === 'function') {
-      let result = this[action](...args);
-
-      // Ensure `getLeaveRequests` always returns an array (prevents client runtime errors)
-      if (action === 'getLeaveRequests' && !Array.isArray(result)) {
-        if (result && Array.isArray(result.data)) {
-          result = result.data;
-        } else {
-          result = [];
-        }
-      }
-
+      const result = this[action](...args);
       output.setContent(JSON.stringify({ status: 'success', result: result }));
     } else {
       output.setContent(JSON.stringify({ status: 'error', message: 'Function not found: ' + action }));
@@ -114,7 +96,6 @@ function doPost(e) {
   }
 }
 
-// ต้องมี doGet เพื่อรองรับการทดสอบหรือ Error handling
 function doGet(e) {
   return HtmlService.createHtmlOutput('API is running. Please use POST requests.');
 }
@@ -144,12 +125,12 @@ function getSubjectColor(subjectName) {
 function uploadImageToDrive(base64Data, fileName) {
   try {
     if (!base64Data) return null;
-    let split = base64Data.split(',');
-    let type = split[0].split(';')[0].split(':')[1];
-    let data = Utilities.base64Decode(split[1]);
-    let blob = Utilities.newBlob(data, type, fileName);
-    let folder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
-    let file = folder.createFile(blob);
+    const split = base64Data.split(',');
+    const type = split[0].split(';')[0].split(':')[1];
+    const data = Utilities.base64Decode(split[1]);
+    const blob = Utilities.newBlob(data, type, fileName);
+    const folder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
+    const file = folder.createFile(blob);
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     return 'https://drive.google.com/uc?export=view&id=' + file.getId();
   } catch (e) {
@@ -168,7 +149,7 @@ function ensureSheetsExist() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   if (!ss.getSheetByName(SHEETS.USERS)) ss.insertSheet(SHEETS.USERS).appendRow(['ID','DisplayName','Email','PasswordHash','Hint','StudentNo','Role','CreatedAt','LastLogin','TempRoleExpiry','HwCredits']);
   if (!ss.getSheetByName(SHEETS.STUDENT_CODES)) { 
-    let sc = ss.insertSheet(SHEETS.STUDENT_CODES); 
+    const sc = ss.insertSheet(SHEETS.STUDENT_CODES); 
     sc.appendRow(['StudentNo','StudentCode','StudentName','IsRegistered']); 
     STUDENTS.forEach(s => sc.appendRow([s.no, s.code, s.name, false])); 
   }
@@ -247,6 +228,7 @@ function loginUser(id, pw) {
 
       if ((nameMatch || emailMatch) && pwMatch) {
         let rK = row[6];
+        // Check temporary role expiry
         if (row.length > 9 && row[9]) {
           const expiry = new Date(row[9]);
           if (expiry > new Date()) rK = 'TEACHER';
@@ -306,9 +288,7 @@ function getPasswordHint(username) {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
   const data = ss.getSheetByName(SHEETS.USERS).getDataRange().getValues();
   for (let i = 1; i < data.length; i++) { 
-    if (data[i][1] === username) { 
-      return { success: true, hint: data[i][4] || 'ไม่มีคำใบ้' }; 
-    } 
+    if (data[i][1] === username) return { success: true, hint: data[i][4] || 'ไม่มีคำใบ้' }; 
   }
   return { success: false, message: 'ไม่พบผู้ใช้นี้' };
 }
@@ -316,7 +296,7 @@ function getPasswordHint(username) {
 // ============================================
 // 📦 MASTER DATA
 // ============================================
-function getStudents() { return { success: true, students: STUDENTS }; }
+function getStudents() { return { success: true, students: STUDENTS, subjects: SUBJECTS }; }
 function getSubjects() { return { success: true, subjects: SUBJECTS }; }
 
 // ============================================
@@ -345,6 +325,7 @@ function addHomework(sub, desc, ad, dd, nd, by) {
             uSheet.getRange(i + 1, 11).setValue(credits - 1);
           }
         }
+        // Check temp access
         if (!hasPerm && uData[i].length > 9 && uData[i][9]) {
           const expiry = new Date(uData[i][9]);
           if (expiry > new Date()) hasPerm = true;
@@ -428,14 +409,14 @@ function updateHomeworkStatus(hid, sno, stat, imgBase64) {
       if (d[i][0] === hid && String(d[i][1]) === String(sno)) {
         if (stat) stS.getRange(i + 1, 3).setValue(stat);
         if (imgBase64) {
-          var url = uploadImageToDrive(imgBase64, 'HW_' + sno + '_' + hid);
+          const url = uploadImageToDrive(imgBase64, 'HW_' + sno + '_' + hid);
           if (url) stS.getRange(i + 1, 4).setValue(url);
         }
         if (stat === 'completed') stS.getRange(i + 1, 5).setValue(new Date());
         return { success: true };
       }
     }
-    return { success: false };
+    return { success: false, message: 'ไม่พบรายการที่จะอัปเดต' };
   } catch (e) { 
     return { success: false, message: e.toString() }; 
   }
@@ -447,11 +428,11 @@ function deleteHomework(id) {
     const hS = ss.getSheetByName(SHEETS.HOMEWORK); 
     const sS = ss.getSheetByName(SHEETS.HOMEWORK_STATUS);
 
-    var hd = hS.getDataRange().getValues();
+    const hd = hS.getDataRange().getValues();
     for (let i = hd.length - 1; i >= 1; i--) {
       if (hd[i][0] === id) hS.deleteRow(i + 1);
     }
-    var sd = sS.getDataRange().getValues();
+    const sd = sS.getDataRange().getValues();
     for (let i = sd.length - 1; i >= 1; i--) {
       if (sd[i][0] === id) sS.deleteRow(i + 1);
     }
@@ -474,13 +455,12 @@ function submitLeaveRequest(studentNo, studentName, type, date, reason, base64Im
 
     if (base64Image) {
       try { 
-        var split = base64Image.split(','); 
-        var mimeMatch = split[0].match(/:(.*?);/); 
-        var contentType = mimeMatch ? mimeMatch[1] : 'image/jpeg'; 
-        var base64Data = split[1]; 
-        var blob = Utilities.newBlob(Utilities.base64Decode(base64Data), contentType, 'leave_' + studentNo + '_' + id); 
-        var folder = DriveApp.getFolderById(DRIVE_FOLDER_ID); 
-        var file = folder.createFile(blob); 
+        const split = base64Image.split(','); 
+        const mimeMatch = split[0].match(/:(.*?);/); 
+        const contentType = mimeMatch ? mimeMatch[1] : 'image/jpeg'; 
+        const blob = Utilities.newBlob(Utilities.base64Decode(split[1]), contentType, 'leave_' + studentNo + '_' + id); 
+        const folder = DriveApp.getFolderById(DRIVE_FOLDER_ID); 
+        const file = folder.createFile(blob); 
         file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); 
         imageUrl = file.getUrl(); 
       } catch (imgErr) { 
@@ -502,20 +482,18 @@ function getLeaveRequests() {
     const sheet = ss.getSheetByName(SHEETS.LEAVE_REQUESTS); 
     const data = sheet.getDataRange().getValues(); 
     if (data.length <= 1) return [];
-    return data.slice(1).map(row => {
-      return {
-        id: row[0],
-        studentNo: row[1],
-        studentName: row[2],
-        type: row[3],
-        date: row[4],
-        reason: row[5],
-        status: row[6],
-        proofImage: convertDriveToDirect(row[7]),
-        confirmed: row[8] || false,
-        timestamp: row[9] || ''
-      };
-    });
+    return data.slice(1).map(row => ({
+      id: row[0],
+      studentNo: row[1],
+      studentName: row[2],
+      type: row[3],
+      date: row[4],
+      reason: row[5],
+      status: row[6],
+      proofImage: convertDriveToDirect(row[7]),
+      confirmed: row[8] || false,
+      timestamp: row[9] || ''
+    }));
   } catch (e) { 
     Logger.log('getLeaveRequests Error: ' + e.toString()); 
     return []; 
@@ -529,13 +507,13 @@ function confirmLeaveRequest(id, imgBase64) {
     const data = sheet.getDataRange().getValues(); 
     for (let i = 1; i < data.length; i++) {
       if (data[i][0] === id) {
-        var url = uploadImageToDrive(imgBase64, 'LeaveConfirm_' + id);
+        const url = uploadImageToDrive(imgBase64, 'LeaveConfirm_' + id);
         if (url) sheet.getRange(i + 1, 8).setValue(url);
         sheet.getRange(i + 1, 9).setValue(true);
         return { success: true };
       }
     }
-    return { success: false };
+    return { success: false, message: 'ไม่พบคำขอนี้' };
   } catch (e) { 
     return { success: false, message: e.toString() }; 
   }
@@ -553,7 +531,7 @@ function updateLeaveStatus(id, status) {
         return { success: true };
       }
     }
-    return { success: false };
+    return { success: false, message: 'ไม่พบคำขอนี้' };
   } catch (e) { 
     return { success: false, message: e.toString() }; 
   }
@@ -643,44 +621,9 @@ function updatePayment(tid, sno, paid) {
         return { success: true };
       }
     }
-    return { success: false };
+    return { success: false, message: 'ไม่พบรายการ' };
   } catch (e) { 
     return { success: false, message: e.toString() }; 
-  }
-}
-
-function setTreasuryMembers(treasuryId, studentNos, payerStudentNo, isPaid) {
-  try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const tSheet = ss.getSheetByName(SHEETS.TREASURY);
-    const pSheet = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS);
-    
-    const tData = tSheet.getDataRange().getValues();
-    let amount = 0;
-    for (let i = 1; i < tData.length; i++) {
-      if (tData[i][0] === treasuryId) {
-        amount = parseFloat(tData[i][2]) || 0;
-        break;
-      }
-    }
-    
-    const pData = pSheet.getDataRange().getValues();
-    for (let i = pData.length - 1; i >= 1; i--) {
-      if (pData[i][0] === treasuryId) {
-        pSheet.deleteRow(i + 1);
-      }
-    }
-    
-    if (studentNos && studentNos.length > 0) {
-      const rows = studentNos.map(sNo => {
-        const paid = (String(sNo) === String(payerStudentNo) && isPaid) ? amount : 0;
-        return [treasuryId, sNo, paid, paid > 0 ? new Date() : '', ''];
-      });
-      pSheet.getRange(pSheet.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
-    }
-    return { success: true };
-  } catch(e) {
-    return { success: false, message: e.toString() };
   }
 }
 
@@ -690,11 +633,11 @@ function deleteTreasuryItem(id) {
     const tS = ss.getSheetByName(SHEETS.TREASURY); 
     const pS = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS);
 
-    var td = tS.getDataRange().getValues();
+    const td = tS.getDataRange().getValues();
     for (let i = td.length - 1; i >= 1; i--) {
       if (td[i][0] === id) tS.deleteRow(i + 1);
     }
-    var pd = pS.getDataRange().getValues();
+    const pd = pS.getDataRange().getValues();
     for (let i = pd.length - 1; i >= 1; i--) {
       if (pd[i][0] === id) pS.deleteRow(i + 1);
     }
@@ -782,15 +725,97 @@ function cleanupOldQrFiles() {
     const oneDay = 24 * 60 * 60 * 1000;
     while (files.hasNext()) {
       const f = files.next();
-      if (now - f.getDateCreated().getTime() > oneDay) {
-        f.setTrashed(true);
-      }
+      if (now - f.getDateCreated().getTime() > oneDay) f.setTrashed(true);
     }
   } catch (e) {
     console.error('cleanupOldQrFiles error:', e.toString());
   }
 }
 
+// ============================================
+// 🔑 PRE-LOGIN REDEEM: TEMP_ACCESS only
+// ใช้งานได้โดยไม่ต้อง login — รับเฉพาะโค้ดประเภท TEMP_ACCESS เท่านั้น
+// ผู้ใช้ระบุชื่อบัญชีที่ต้องการรับสิทธิ์
+// ============================================
+function redeemCodeByName(code, displayName) {
+  try {
+    ensureSheetsExist();
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const codeSheet = ss.getSheetByName(SHEETS.REDEEM_CODES);
+    const userSheet = ss.getSheetByName(SHEETS.USERS);
+
+    if (!code || !displayName) {
+      return { success: false, message: 'กรุณากรอกโค้ดและชื่อบัญชีให้ครบ' };
+    }
+
+    // ค้นหาโค้ด
+    const codeData = codeSheet.getDataRange().getValues();
+    let codeRow = null, codeRowIndex = -1;
+    for (let i = 1; i < codeData.length; i++) {
+      if (String(codeData[i][0]).toUpperCase() === String(code).toUpperCase()) {
+        codeRow = codeData[i];
+        codeRowIndex = i;
+        break;
+      }
+    }
+
+    if (!codeRow) return { success: false, message: 'ไม่พบโค้ดนี้ กรุณาตรวจสอบอีกครั้ง' };
+
+    // ตรวจสอบว่าเป็น TEMP_ACCESS เท่านั้น
+    if (codeRow[1] !== 'TEMP_ACCESS') {
+      return { success: false, message: 'โค้ดนี้ไม่ใช่โค้ดสิทธิ์ชั่วคราว กรุณาล็อกอินก่อนใช้งาน' };
+    }
+
+    // ตรวจสอบจำนวนครั้งที่ใช้
+    const maxUses = codeRow[4];
+    const usesCount = codeRow[5];
+    if (usesCount >= maxUses) return { success: false, message: 'โค้ดนี้ถูกใช้งานครบแล้ว' };
+
+    // ค้นหาบัญชีผู้ใช้ตามชื่อ
+    const uData = userSheet.getDataRange().getValues();
+    let userRow = null, userRowIndex = -1;
+    for (let j = 1; j < uData.length; j++) {
+      if (String(uData[j][1]).trim() === String(displayName).trim()) {
+        userRow = uData[j];
+        userRowIndex = j;
+        break;
+      }
+    }
+
+    if (!userRow) {
+      return { success: false, message: `ไม่พบบัญชีชื่อ "${displayName}" กรุณาตรวจสอบชื่อให้ตรงกับที่สมัครไว้` };
+    }
+
+    // คำนวณวันหมดอายุ
+    const val = String(codeRow[2]);
+    const parts = val.split('_');
+    const num = parseInt(parts[0]) || 1;
+    const unit = (parts[1] || 'DAYS').toUpperCase();
+    const expiry = new Date();
+    if (unit === 'DAYS')        expiry.setDate(expiry.getDate() + num);
+    else if (unit === 'WEEKS')  expiry.setDate(expiry.getDate() + (num * 7));
+    else if (unit === 'MONTHS') expiry.setMonth(expiry.getMonth() + num);
+    else if (unit === 'YEARS')  expiry.setFullYear(expiry.getFullYear() + num);
+
+    // อัปเดตสิทธิ์ชั่วคราวในบัญชีผู้ใช้
+    userSheet.getRange(userRowIndex + 1, 10).setValue(expiry);
+
+    // นับจำนวนครั้งที่ใช้โค้ด
+    codeSheet.getRange(codeRowIndex + 1, 6).setValue(usesCount + 1);
+
+    const unitTh = unit === 'DAYS' ? 'วัน' : unit === 'WEEKS' ? 'อาทิตย์' : unit === 'MONTHS' ? 'เดือน' : 'ปี';
+    const expiryStr = expiry.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+
+    return {
+      success: true,
+      message: `✅ ให้สิทธิ์ชั่วคราว ${num} ${unitTh} แก่ "${displayName}" สำเร็จ! (หมดอายุ ${expiryStr}) กรุณาล็อกอินเพื่อใช้งาน`
+    };
+  } catch (e) {
+    return { success: false, message: 'เกิดข้อผิดพลาด: ' + e.toString() };
+  }
+}
+// FIX: ADD_MONEY now creates TreasuryPayments rows for all students
+// FIX: Returns addedCredits for ADD_HW so client can update local state
 function redeemCode(code, userId) {
   try {
     ensureSheetsExist(); 
@@ -807,43 +832,54 @@ function redeemCode(code, userId) {
         if (usesCount >= maxUses) return { success: false, message: 'โค้ดนี้ถูกใช้งานครบแล้ว' };
 
         const action = codeData[i][1];
-        const val = codeData[i][2];
+        const val = String(codeData[i][2]);
         const details = JSON.parse(codeData[i][3] || '{}');
 
+        // Mark code as used
         codeSheet.getRange(i + 1, 6).setValue(usesCount + 1);
         cleanupOldQrFiles();
 
         let resultMsg = 'ใช้โค้ดสำเร็จ';
-        let extraData = {};
+        const extraData = { action: action };
         const uData = userSheet.getDataRange().getValues();
 
         for (let j = 1; j < uData.length; j++) {
           if (uData[j][0] === userId) {
 
             if (action === 'TEMP_ACCESS') {
-              const parts = String(val).split('_');
+              // FIX: Parse "qty_UNIT" format (e.g. "7_DAYS", "2_WEEKS")
+              const parts = val.split('_');
               const num = parseInt(parts[0]) || 1;
-              const unit = parts[1] || 'DAYS';
+              const unit = (parts[1] || 'DAYS').toUpperCase();
               const expiry = new Date();
-              if (unit === 'DAYS') expiry.setDate(expiry.getDate() + num);
-              else if (unit === 'WEEKS') expiry.setDate(expiry.getDate() + (num * 7));
+              if (unit === 'DAYS')   expiry.setDate(expiry.getDate() + num);
+              else if (unit === 'WEEKS')  expiry.setDate(expiry.getDate() + (num * 7));
               else if (unit === 'MONTHS') expiry.setMonth(expiry.getMonth() + num);
-              else if (unit === 'YEARS') expiry.setFullYear(expiry.getFullYear() + num);
+              else if (unit === 'YEARS')  expiry.setFullYear(expiry.getFullYear() + num);
               userSheet.getRange(j + 1, 10).setValue(expiry);
-              resultMsg = 'ได้รับสิทธิ์ผู้ใช้ชั่วคราว ' + num + ' ' + unit;
+              resultMsg = `ได้รับสิทธิ์ผู้ใช้ชั่วคราว ${num} ${unit === 'DAYS' ? 'วัน' : unit === 'WEEKS' ? 'อาทิตย์' : unit === 'MONTHS' ? 'เดือน' : 'ปี'}`;
             }
             else if (action === 'ADD_HW') {
+              const addAmt = parseInt(val) || 1;
               const cur = (uData[j].length > 10 && uData[j][10]) ? Number(uData[j][10]) : 0;
-              userSheet.getRange(j + 1, 11).setValue(cur + parseInt(val));
-              resultMsg = 'ได้รับเครดิตตั้งการบ้าน ' + val + ' ครั้ง';
+              userSheet.getRange(j + 1, 11).setValue(cur + addAmt);
+              resultMsg = `ได้รับเครดิตตั้งการบ้าน ${addAmt} ครั้ง`;
+              extraData.addedCredits = addAmt;
             }
             else if (action === 'ADD_MONEY') {
+              // FIX: Create treasury item AND payment rows for all students
               const tSheet = ss.getSheetByName(SHEETS.TREASURY);
+              const pSheet = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS);
               const tId = Utilities.getUuid();
               const title = details.title || 'รายการพิเศษ';
               const amt = parseFloat(details.amount) || 0;
-              tSheet.appendRow([tId, title, amt, 'Code', new Date(), 'active']);
-              resultMsg = 'สร้างรายการเก็บเงินกลุ่มแล้ว: ' + title;
+              tSheet.appendRow([tId, title, amt, 'Code:' + code, new Date(), 'active']);
+              // Create payment rows for all 40 students
+              const rows = STUDENTS.map(s => [tId, s.no, 0, '', '']);
+              if (rows.length > 0) {
+                pSheet.getRange(pSheet.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
+              }
+              resultMsg = `สร้างรายการเก็บเงิน "${title}" (${amt} บาท/คน) สำเร็จ`;
               extraData.treasuryId = tId;
               extraData.title = title;
               extraData.amount = amt;
@@ -851,10 +887,10 @@ function redeemCode(code, userId) {
             break;
           }
         }
-        return { success: true, message: resultMsg, data: extraData };
+        return { success: true, message: resultMsg, ...extraData };
       }
     }
-    return { success: false, message: 'ไม่พบโค้ดนี้' };
+    return { success: false, message: 'ไม่พบโค้ดนี้ หรือโค้ดไม่ถูกต้อง' };
   } catch (e) {
     return { success: false, message: 'เกิดข้อผิดพลาด: ' + e.toString() };
   }
