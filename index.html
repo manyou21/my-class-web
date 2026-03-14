@@ -925,15 +925,22 @@ function toggleTheme() {
 function applyTheme() { document.documentElement.setAttribute('data-theme', lastTheme); }
 function showLoading() {
   loadingCount = Math.max(0, loadingCount + 1);
-  if (loadingCount === 1) {
+  console.debug('showLoading', loadingCount);
+  if (loadingCount > 0) {
     document.getElementById('loadingOverlay').classList.add('show');
   }
 }
 function hideLoading() {
   loadingCount = Math.max(0, loadingCount - 1);
-  if (loadingCount === 0) {
+  console.debug('hideLoading', loadingCount);
+  if (loadingCount <= 0) {
+    loadingCount = 0;
     document.getElementById('loadingOverlay').classList.remove('show');
   }
+}
+function resetLoadingOverlay() {
+  loadingCount = 0;
+  document.getElementById('loadingOverlay').classList.remove('show');
 }
 function showError(id, m) {
   const el = document.getElementById(id);
@@ -1089,6 +1096,7 @@ function showApp() {
   renderMe();
   loadMasters();
   startAutoRefresh();
+  resetLoadingOverlay();
 }
 
 // --- Load Masters ---
@@ -1186,15 +1194,20 @@ function loadHw() {
   showLoading();
   google.script.run
     .withSuccessHandler(r => {
-      hwData = (r && r.success) ? r.homework : [];
-      renderHw();
-      currentHwCount = hwData.length;
-      hideLoading();
+      try {
+        hwData = (r && r.success) ? r.homework : [];
+        renderHw();
+        currentHwCount = hwData.length;
+      } catch (e) {
+        console.error('loadHw render error', e);
+      } finally {
+        hideLoading();
+      }
     })
     .withFailureHandler(err => {
       console.error('loadHw failed', err);
       hwData = [];
-      renderHw();
+      try { renderHw(); } catch (e) { console.error('renderHw failed in failure', e); }
       hideLoading();
     })
     .getHomework();
