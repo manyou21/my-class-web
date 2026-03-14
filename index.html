@@ -230,8 +230,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 }
 .guest-login-title i { color: #7c3aed; }
 
-/* Responsive - Mobile (< 768px) */
-@media (max-width: 768px) {
+/* Responsive - Mobile (< 1041px) */
+@media (max-width: 1041px) {
   .sidebar { display: none; }
   .main-wrapper { margin-left: 0; }
   .sidebar.mobile { display: flex; }
@@ -239,8 +239,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   .title { font-size: 1.2rem; }
   .main { padding: 15px; padding-top: 80px; }
 }
-/* Responsive - Tablet/Desktop (>= 769px) */
-@media (min-width: 769px) {
+/* Responsive - Tablet/Desktop (>= 1042px) */
+@media (min-width: 1042px) {
   .hamburger-float { display: none; }
   .sidebar { display: flex; }
   .main-wrapper { margin-left: var(--sidebar-width); }
@@ -248,11 +248,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 </style>
 </head>
 <body>
-
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="spinner"></div>
-  <p style="margin-top:10px; color: white; font-weight: 500;">กำลังดำเนินการ...</p>
-</div>
 
 <div class="toast-container" id="toastContainer"></div>
 
@@ -835,20 +830,39 @@ function toggleTheme() {
 }
 function applyTheme() { document.documentElement.setAttribute('data-theme', lastTheme); }
 
-function showLoading() {
-  // Only used for login/register/guest-code flows — not for mutations
+let globalLoadingToast = null;
+
+function showLoading(msg = 'กำลังดำเนินการ...') {
   loadingCount = Math.max(0, loadingCount + 1);
-  document.getElementById('loadingOverlay').classList.add('show');
+  if (loadingCount === 1) {
+    const container = document.getElementById('toastContainer');
+    globalLoadingToast = document.createElement('div');
+    // ใช้คลาส info เพื่อให้เป็นสีฟ้าและมีไอคอนหมุน
+    globalLoadingToast.className = 'toast info';
+    globalLoadingToast.innerHTML = `
+      <i class="fas fa-spinner fa-spin"></i>
+      <span class="toast-message">${msg}</span>
+    `;
+    container.appendChild(globalLoadingToast);
+  } else if (globalLoadingToast) {
+    globalLoadingToast.querySelector('.toast-message').textContent = msg;
+  }
+  
   if (loadingTimeout) clearTimeout(loadingTimeout);
   loadingTimeout = setTimeout(() => { console.warn('loading timeout'); resetLoadingOverlay(); }, 15000);
 }
+
 function hideLoading() {
   loadingCount = Math.max(0, loadingCount - 1);
   if (loadingCount <= 0) resetLoadingOverlay();
 }
+
 function resetLoadingOverlay() {
   loadingCount = 0;
-  document.getElementById('loadingOverlay').classList.remove('show');
+  if (globalLoadingToast && globalLoadingToast.parentElement) {
+    globalLoadingToast.remove();
+    globalLoadingToast = null;
+  }
   if (loadingTimeout) { clearTimeout(loadingTimeout); loadingTimeout = null; }
 }
 
