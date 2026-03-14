@@ -87,6 +87,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   .main-wrapper.expanded { margin-left: 0; }
 }
 
+.sidebar-brand button{
+border:none;
+background:none;
+font-size:18px;
+cursor:pointer;
+margin-right:8px;
+}
+
 /* Sidebar Navigation */
 .sidebar {
   position: fixed; left: 0; top: 0; width: var(--sidebar-width); height: 100vh;
@@ -278,12 +286,12 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 <div class="toast-container" id="toastContainer"></div>
 
 <!-- Floating Hamburger Button (Mobile Only) -->
-<button id="hamburgerBtn" class="hamburger-float" onclick="toggleMobileSidebar()">
+<button id="hamburgerBtn" class="hamburger-float" onclick="toggleSidebar()">
   <i class="fas fa-bars"></i>
 </button>
 
 <!-- Mobile Overlay -->
-<div class="mobile-overlay" id="mobileOverlay" onclick="toggleMobileSidebar()"></div>
+<div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
 
 <!-- Login -->
 <div class="login-container" id="loginPage">
@@ -374,9 +382,13 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   <!-- Sidebar (Desktop) -->
   <div class="sidebar" id="sidebar">
     <div class="sidebar-brand">
-      <i class="fas fa-th-large"></i>
-      <span>ระบบห้องเรียน</span>
-    </div>
+  <button class="btn btn-icon" onclick="toggleSidebar()">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <i class="fas fa-th-large"></i>
+  <span>ระบบห้องเรียน</span>
+</div>
     <div class="sidebar-menu">
       <div class="sidebar-item active" onclick="setTab('hw')" data-tab="hw">
         <i class="fas fa-book"></i><span>การบ้าน</span>
@@ -423,26 +435,27 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   <!-- Mobile Sidebar -->
   <div class="sidebar mobile" id="mobileSidebar">
     <div class="sidebar-brand">
-      <i class="fas fa-th-large"></i>
-      <span>ระบบห้องเรียน</span>
-      <button class="btn btn-secondary btn-icon" onclick="toggleMobileSidebar()" style="margin-left:auto;">
-        <i class="fas fa-times"></i>
-      </button>
-    </div>
+  <button class="btn btn-icon" onclick="toggleSidebar()">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <i class="fas fa-th-large"></i>
+  <span>ระบบห้องเรียน</span>
+</div>
     <div class="sidebar-menu">
-      <div class="sidebar-item active" onclick="setTab('hw'); toggleMobileSidebar();" data-tab="hw">
+      <div class="sidebar-item active" onclick="setTab('hw'); toggleSidebar();" data-tab="hw">
         <i class="fas fa-book"></i><span>การบ้าน</span>
       </div>
-      <div class="sidebar-item" onclick="setTab('money'); toggleMobileSidebar();" data-tab="money">
+      <div class="sidebar-item" onclick="setTab('money'); toggleSidebar();" data-tab="money">
         <i class="fas fa-coins"></i><span>เงินห้อง</span>
       </div>
-      <div class="sidebar-item" onclick="setTab('leave'); toggleMobileSidebar();" data-tab="leave">
+      <div class="sidebar-item" onclick="setTab('leave'); toggleSidebar();" data-tab="leave">
         <i class="fas fa-calendar-times"></i><span>ลา / กิจกรรม</span>
       </div>
-      <div class="sidebar-item" onclick="setTab('redeem'); toggleMobileSidebar();" data-tab="redeem">
+      <div class="sidebar-item" onclick="setTab('redeem'); toggleSidebar();" data-tab="redeem">
         <i class="fas fa-gift"></i><span>Redeem Code</span>
       </div>
-      <div class="sidebar-item" onclick="setTab('me'); toggleMobileSidebar();" data-tab="me">
+      <div class="sidebar-item" onclick="setTab('me'); toggleSidebar();" data-tab="me">
         <i class="fas fa-user"></i><span>โปรไฟล์</span>
       </div>
     </div>
@@ -817,14 +830,22 @@ async function initApp() {
   renderLeave(); // ฟังก์ชันแสดงหน้าลา
 }
 
-async function loadAll() {
-  // โหลดข้อมูลทุกอย่างพร้อมกัน (Parallel) จะเร็วขึ้นมาก
-  await Promise.all([
-    loadHw(),
-    loadMoney(),
-    loadLeave()
+async function initApp() {
+  const results = await Promise.all([
+    call('getStudents'),
+    call('getHomework'),
+    call('getTreasuryItems'),
+    call('getLeaveActivities')
   ]);
-  console.log("ข้อมูลทั้งหมดโหลดเสร็จแล้ว");
+
+  students = results[0];
+  hwData = results[1];
+  moneyData = results[2];
+  leaveData = results[3];
+
+  renderHw();
+  renderMoney();
+  renderLeave();
 }
 
 // --- Global Variables ---
@@ -1521,6 +1542,37 @@ function handleCheck(tid, sno, currentPaid, required, element) {
     .withSuccessHandler(r => { if (!r || !r.success) loadMoney(); })
     .withFailureHandler(() => { showToast('บันทึกไม่สำเร็จ', 'error'); loadMoney(); })
     .updatePayment(tid, sno, willPay);
+}
+
+function showToast(m, type = 'info', duration = 4000) {
+
+  if (m === lastToastMessage) return; // กันแจ้งเตือนซ้ำ
+  lastToastMessage = m;
+
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+
+  const icon = type === 'success'
+    ? 'check-circle'
+    : type === 'error'
+    ? 'exclamation-circle'
+    : type === 'broadcast'
+    ? 'bell'
+    : 'info-circle';
+
+  t.innerHTML = `
+    <i class="fas fa-${icon}"></i>
+    <span class="toast-message">${m}</span>
+    <button class="toast-close">&times;</button>
+  `;
+
+  c.appendChild(t);
+
+  setTimeout(() => {
+    lastToastMessage = "";
+    t.remove();
+  }, duration);
 }
 
 function doAddMoney(e) {
