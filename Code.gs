@@ -544,16 +544,22 @@ function updateLeaveStatus(id, status) {
 function addTreasuryItem(title, amt, by) {
   try {
     ensureSheetsExist(); 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const tS = ss.getSheetByName(SHEETS.TREASURY); 
     const pS = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS); 
     const id = Utilities.getUuid(); 
-    tS.appendRow([id, title, amt, by, new Date(), 'active']);
+    
+    // เพิ่มการสร้างสีจากชื่อรายการ
+    const color = getSubjectColor(title); 
+    
+    // เพิ่ม color เป็นคอลัมน์ที่ 7
+    tS.appendRow([id, title, amt, by, new Date(), 'active', color]); 
+    
     const rows = STUDENTS.map(s => [id, s.no, 0, '', '']);
     if (rows.length > 0) pS.getRange(pS.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
     return { success: true, treasuryId: id };
   } catch (e) { 
-    return { success: false, message: e.toString() }; 
+    return { success: false, message: e.toString() };
   }
 }
 
@@ -596,7 +602,8 @@ function getTreasuryItems() {
         title: row[1] || '-',
         amountPerPerson: amtPerPerson,
         payments: payments,
-        summary: { completedCount: countDone }
+        summary: { completedCount: countDone },
+        color: row[6] || getSubjectColor(row[1] || '-') // ดึงค่าสี (หรือสร้างใหม่ถ้ารายการเก่าไม่มี)
       });
     }
     return { success: true, treasury: list };
@@ -921,14 +928,16 @@ function redeemCode(code, userId) {
               extraData.addedCredits = addAmt;
             }
             else if (action === 'ADD_MONEY') {
-              // FIX: Create treasury item AND payment rows for all students
               const tSheet = ss.getSheetByName(SHEETS.TREASURY);
               const pSheet = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS);
               const tId = Utilities.getUuid();
               const title = details.title || 'รายการพิเศษ';
               const amt = parseFloat(details.amount) || 0;
-              tSheet.appendRow([tId, title, amt, 'Code:' + code, new Date(), 'active']);
-              // Create payment rows for all 40 students
+              const color = getSubjectColor(title); // เพิ่มสี
+
+              // เพิ่ม color เข้าไปในแถว
+              tSheet.appendRow([tId, title, amt, 'Code:' + code, new Date(), 'active', color]); 
+              
               const rows = STUDENTS.map(s => [tId, s.no, 0, '', '']);
               if (rows.length > 0) {
                 pSheet.getRange(pSheet.getLastRow() + 1, 1, rows.length, 5).setValues(rows);

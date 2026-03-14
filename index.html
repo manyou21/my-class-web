@@ -140,16 +140,27 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .modal-body { padding: 20px; flex: 1; }
 .modal-foot { padding: 16px 20px; border-top: 1px solid var(--border); text-align: right; background: var(--bg-tertiary); display: flex; justify-content: flex-end; gap: 10px; }
 
-/* Toast */
-.toast-container { position: fixed; top: 20px; right: 20px; z-index: 5000; display: flex; flex-direction: column; gap: 8px; width: 300px; }
-.toast { padding: 12px 20px; border-radius: 8px; color: white; animation: slideIn 0.3s ease; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); position: relative; }
+/* Toast - bottom right */
+.toast-container { position: fixed; bottom: 24px; right: 20px; z-index: 5000; display: flex; flex-direction: column-reverse; gap: 8px; width: 320px; }
+.toast { padding: 12px 16px; border-radius: 10px; color: white; animation: slideInRight 0.3s ease; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); position: relative; }
 .toast.success { background: var(--success); }
 .toast.error { background: var(--danger); }
 .toast.info { background: var(--accent); }
-.toast-message { flex: 1; }
-.toast-close { background: none; border: none; color: white; cursor: pointer; font-size: 1.1rem; padding: 0; opacity: 0.8; }
+.toast.broadcast { background: linear-gradient(135deg,#7c3aed,#4f46e5); }
+.toast-message { flex: 1; font-size: 0.9rem; line-height: 1.4; }
+.toast-close { background: none; border: none; color: white; cursor: pointer; font-size: 1.1rem; padding: 0; opacity: 0.8; flex-shrink: 0; }
 .toast-close:hover { opacity: 1; }
-@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes slideInRight { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* Skeleton loading (replaces full-page spinner) */
+.skeleton { background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--border) 50%, var(--bg-tertiary) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 8px; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.skeleton-card { height: 100px; margin-bottom: 12px; }
+.skeleton-row { height: 18px; margin-bottom: 8px; border-radius: 4px; }
+
+/* Inline spinner for buttons */
+.btn-loading { opacity: 0.7; pointer-events: none; }
+.btn-loading::after { content: ''; display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; margin-left: 6px; }
 
 /* Checkbox Grid (Money) */
 .check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
@@ -825,13 +836,11 @@ function toggleTheme() {
 function applyTheme() { document.documentElement.setAttribute('data-theme', lastTheme); }
 
 function showLoading() {
+  // Only used for login/register/guest-code flows — not for mutations
   loadingCount = Math.max(0, loadingCount + 1);
   document.getElementById('loadingOverlay').classList.add('show');
   if (loadingTimeout) clearTimeout(loadingTimeout);
-  loadingTimeout = setTimeout(() => {
-    console.warn('loading timeout auto-hide');
-    resetLoadingOverlay();
-  }, 15000);
+  loadingTimeout = setTimeout(() => { console.warn('loading timeout'); resetLoadingOverlay(); }, 15000);
 }
 function hideLoading() {
   loadingCount = Math.max(0, loadingCount - 1);
@@ -843,6 +852,15 @@ function resetLoadingOverlay() {
   if (loadingTimeout) { clearTimeout(loadingTimeout); loadingTimeout = null; }
 }
 
+// Set a button to loading state, returns restore function
+function btnLoading(btn) {
+  if (!btn) return () => {};
+  const orig = btn.innerHTML;
+  btn.classList.add('btn-loading');
+  btn.innerHTML = orig + '<span class="btn-spin"></span>';
+  return () => { btn.classList.remove('btn-loading'); btn.innerHTML = orig; };
+}
+
 function showError(id, m) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -850,26 +868,32 @@ function showError(id, m) {
   el.style.display = 'block';
 }
 
-// FIX: Toast now supports auto-close and manual close consistently
-function showToast(m, type, duration = 4000) {
+// Toast — bottom-right, supports 'broadcast' type for cross-user notifications
+function showToast(m, type = 'info', duration = 4000) {
   const c = document.getElementById('toastContainer');
   const t = document.createElement('div');
   t.className = `toast ${type}`;
+  const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'broadcast' ? 'bell' : 'info-circle';
   t.innerHTML = `
-    <i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'exclamation' : 'info'}-circle"></i>
+    <i class="fas fa-${icon}"></i>
     <span class="toast-message">${m}</span>
     <button class="toast-close" aria-label="ปิด">&times;</button>
   `;
   c.appendChild(t);
-
   const removeToast = () => { if (t.parentElement) t.remove(); };
   t.querySelector('.toast-close').addEventListener('click', removeToast);
-
   if (duration > 0) {
     let timer = setTimeout(removeToast, duration);
     t.addEventListener('mouseenter', () => clearTimeout(timer));
     t.addEventListener('mouseleave', () => { timer = setTimeout(removeToast, 2000); });
   }
+}
+
+// Show skeleton placeholder while loading data
+function showSkeleton(containerId, count = 3) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = Array(count).fill(`<div class="skeleton skeleton-card"></div>`).join('');
 }
 
 function formatDate(d) {
@@ -1069,37 +1093,60 @@ function populateSubjects() {
 }
 
 // --- Main Loaders ---
+// Silent load — no overlay, just skeleton then render
 function loadAll() { loadHw(); loadMoney(); loadLeave(); }
 
-function manualRefresh() { loadAll(); showToast('รีเฟรชข้อมูลแล้ว', 'info'); }
+function manualRefresh() { loadAll(); showToast('รีเฟรชข้อมูลแล้ว', 'info', 2000); }
 
 function startAutoRefresh() {
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-  autoRefreshTimer = setInterval(checkChanges, 5000);
+  autoRefreshTimer = setInterval(checkChanges, 3000); // ลดเหลือ 3 วินาที
 }
 
-// FIX: Fixed logic — each counter updates independently and correctly
+// Broadcast notifications — tracks what already shown to avoid duplicate toasts
+let lastBroadcastHwCount = -1;
+let lastBroadcastTrCount = -1;
+let lastBroadcastLvCount = -1;
+
 function checkChanges() {
   google.script.run
     .withSuccessHandler(r => {
       if (!r || !r.success) return;
-      if (r.hwCount !== currentHwCount) { 
-        loadHw(); 
-        showToast('มีการอัปเดตการบ้าน', 'info'); 
+
+      // Homework changes
+      if (currentHwCount >= 0 && r.hwCount !== currentHwCount) {
+        loadHw();
+        if (lastBroadcastHwCount !== r.hwCount) {
+          lastBroadcastHwCount = r.hwCount;
+          if (r.hwCount > currentHwCount) showToast('📚 มีการบ้านใหม่!', 'broadcast', 5000);
+        }
       }
-      if (r.trCount !== currentTrCount) { 
-        loadMoney(); 
-        showToast('มีการอัปเดตเงิน', 'info'); 
+
+      // Treasury item changes
+      if (currentTrCount >= 0 && r.trCount !== currentTrCount) {
+        loadMoney();
+        if (lastBroadcastTrCount !== r.trCount) {
+          lastBroadcastTrCount = r.trCount;
+          if (r.trCount > currentTrCount) showToast('💰 มีรายการเงินใหม่!', 'broadcast', 5000);
+        }
       }
-      // FIX: trPayCounter check is now independent from trCount check
+
+      // Payment changes (silent refresh, no toast needed)
       if (r.trPayCounter !== currentTrPayCounter && currentTrPayCounter !== -1) {
         loadMoney();
       }
       currentTrPayCounter = r.trPayCounter;
 
+      // Leave/activity changes
       if (r.pendingLeaveCount !== currentLvCount) {
-        if (r.pendingLeaveCount > currentLvCount && u.canApproveLeave) {
-          showToast(`🚨 มี ${r.lastPendingType || 'รายการ'} ใหม่รออนุมัติ!`, 'error', 0);
+        if (r.pendingLeaveCount > currentLvCount) {
+          if (u.canApproveLeave && lastBroadcastLvCount !== r.pendingLeaveCount) {
+            lastBroadcastLvCount = r.pendingLeaveCount;
+            showToast(`🚨 มี${r.lastPendingType || 'คำขอ'}ใหม่รออนุมัติ!`, 'error', 0);
+          }
+          if (!u.canApproveLeave && lastBroadcastLvCount !== r.pendingLeaveCount) {
+            lastBroadcastLvCount = r.pendingLeaveCount;
+          }
         }
         loadLeave();
       }
@@ -1109,19 +1156,19 @@ function checkChanges() {
 
 // --- Homework ---
 function loadHw() {
-  showLoading();
+  const el = document.getElementById('listHw');
+  // Show skeleton only if list is currently empty
+  if (!hwData.length) showSkeleton('listHw', 2);
+
   google.script.run
     .withSuccessHandler(r => {
       hwData = (r && r.success) ? (r.homework || []) : [];
       renderHw();
       currentHwCount = hwData.length;
-      hideLoading();
     })
     .withFailureHandler(err => {
       console.error('loadHw failed', err);
-      hwData = [];
-      renderHw();
-      hideLoading();
+      if (!hwData.length) el.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:40px;">ไม่มีการบ้าน</p>';
     })
     .getHomework();
 }
@@ -1129,7 +1176,7 @@ function loadHw() {
 function renderHw() {
   const el = document.getElementById('listHw');
   if (!hwData.length) { 
-    el.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding: 40px;">ไม่มีการบ้าน</p>'; 
+    el.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding: 40px;">ไม่มีการบ้าน</p>';
     return; 
   }
   
@@ -1137,6 +1184,7 @@ function renderHw() {
     const isDone = u.studentNo && h.statuses[u.studentNo]?.status === 'completed';
     const imagePath = h.statuses[u.studentNo]?.imagePath;
     const subjectColor = h.color || '#E0E0E0';
+    const textColor = getDarkColor(subjectColor, -55); // สร้างสีข้อความ
     const hasStudentStatus = u.studentNo && h.statuses[u.studentNo];
     
     return `
@@ -1144,7 +1192,7 @@ function renderHw() {
   <div class="subject-color-bar" style="background-color: ${subjectColor};"></div>
   <div class="card-head">
     <div>
-      <span class="subject-title" style="background-color: ${subjectColor}40;">${h.subject}</span><br>
+      <span class="subject-title" style="background-color: ${subjectColor}40; color: ${textColor};">${h.subject}</span><br>
       <small style="color:var(--text-secondary)">${h.description}</small>
     </div>
     ${u.canManageHomework ? `<button class="btn btn-danger btn-icon" onclick="delHw('${h.id}')"><i class="fas fa-trash"></i></button>` : ''}
@@ -1183,13 +1231,22 @@ function hwUploadImg(hid) {
   input.onchange = e => {
     const file = e.target.files[0]; 
     if (!file) return;
+    // Show uploading toast immediately
+    showToast('⬆️ กำลังอัปโหลดรูป...', 'info', 0);
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = () => {
-      showLoading();
       google.script.run
-        .withSuccessHandler(r => { hideLoading(); loadHw(); showToast('แนบรูปสำเร็จ', 'success'); })
-        .withFailureHandler(err => { hideLoading(); showToast('ไม่สามารถอัปโหลดรูปได้', 'error'); })
+        .withSuccessHandler(r => { 
+          // Clear uploading toast and show result
+          document.querySelectorAll('.toast').forEach(t => { if (t.querySelector('.toast-message')?.textContent.includes('อัปโหลด')) t.remove(); });
+          showToast('📎 แนบรูปสำเร็จ', 'success'); 
+          loadHw(); 
+        })
+        .withFailureHandler(() => { 
+          document.querySelectorAll('.toast').forEach(t => { if (t.querySelector('.toast-message')?.textContent.includes('อัปโหลด')) t.remove(); });
+          showToast('ไม่สามารถอัปโหลดรูปได้', 'error'); 
+        })
         .updateHomeworkStatus(hid, u.studentNo, null, reader.result);
     };
   };
@@ -1201,10 +1258,24 @@ function hwToggleDone(hid, isCurrentlyDone, imagePath) {
     if (!confirm("คุณจะไม่แนบรูปภาพจริงๆใช่ไหม?")) return;
   }
   const newStatus = isCurrentlyDone ? 'pending' : 'completed';
-  showLoading();
+  // Optimistic update immediately
+  hwData = hwData.map(h => {
+    if (h.id === hid && u.studentNo && h.statuses[u.studentNo]) {
+      return { ...h, statuses: { ...h.statuses, [u.studentNo]: { ...h.statuses[u.studentNo], status: newStatus } } };
+    }
+    return h;
+  });
+  renderHw();
+
   google.script.run
-    .withSuccessHandler(r => { hideLoading(); loadHw(); showToast('อัปเดตสถานะแล้ว', 'success'); })
-    .withFailureHandler(err => { hideLoading(); showToast('ไม่สามารถอัปเดตสถานะได้', 'error'); })
+    .withSuccessHandler(r => { 
+      showToast(newStatus === 'completed' ? '✅ ทำเสร็จแล้ว!' : '↩️ ย้อนสถานะแล้ว', 'success'); 
+      loadHw(); // sync from server
+    })
+    .withFailureHandler(() => { 
+      showToast('ไม่สามารถอัปเดตสถานะได้', 'error'); 
+      loadHw(); // revert
+    })
     .updateHomeworkStatus(hid, u.studentNo, newStatus, null);
 }
 
@@ -1218,44 +1289,56 @@ function doAddHw(e) {
   
   if (!sub || !desc) { showToast('กรุณากรอกข้อมูลให้ครบ', 'error'); return; }
   
-  showLoading();
+  const btn = e.submitter;
+  const restore = btnLoading(btn);
+  closeModal('modalHw');
+  showToast('⏳ กำลังบันทึกการบ้าน...', 'info', 0);
+
   google.script.run
     .withSuccessHandler(r => { 
-      hideLoading(); 
-      if (r.success) { closeModal('modalHw'); loadHw(); showToast('เพิ่มการบ้านสำเร็จ', 'success'); }
-      else showToast(r.message || 'ไม่สามารถเพิ่มการบ้านได้', 'error');
+      restore();
+      document.querySelectorAll('.toast').forEach(t => { if (t.querySelector('.toast-message')?.textContent.includes('กำลังบันทึกการบ้าน')) t.remove(); });
+      if (r.success) { 
+        showToast('📚 เพิ่มการบ้านสำเร็จ!', 'success'); 
+        loadHw(); 
+      } else { 
+        showToast(r.message || 'ไม่สามารถเพิ่มการบ้านได้', 'error'); 
+        openModal('modalHw');
+      }
     })
-    .withFailureHandler(err => { hideLoading(); showToast('ไม่สามารถเพิ่มการบ้านได้', 'error'); })
+    .withFailureHandler(() => { 
+      restore();
+      document.querySelectorAll('.toast').forEach(t => { if (t.querySelector('.toast-message')?.textContent.includes('กำลังบันทึกการบ้าน')) t.remove(); });
+      showToast('ไม่สามารถเพิ่มการบ้านได้', 'error'); 
+    })
     .addHomework(sub, desc, date, due, noDue, u.displayName);
 }
 
 function delHw(id) { 
-  if (confirm('ยืนยันลบ?')) { 
-    showLoading(); 
+  if (confirm('ยืนยันลบการบ้าน?')) { 
+    // Optimistic remove
+    const backup = [...hwData];
+    hwData = hwData.filter(h => h.id !== id);
+    renderHw();
     google.script.run
-      .withSuccessHandler(r => { hideLoading(); loadHw(); })
-      .withFailureHandler(err => { hideLoading(); showToast('ไม่สามารถลบการบ้านได้', 'error'); })
+      .withSuccessHandler(() => { showToast('ลบการบ้านแล้ว', 'success'); loadHw(); })
+      .withFailureHandler(() => { showToast('ไม่สามารถลบการบ้านได้', 'error'); hwData = backup; renderHw(); })
       .deleteHomework(id); 
   } 
 }
 
 // --- Money ---
 function loadMoney() {
-  const el = document.getElementById('listMoney');
-  el.innerHTML = '<p style="text-align:center; padding:40px; color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> กำลังโหลด...</p>';
-  
+  if (!moneyData.length) showSkeleton('listMoney', 2);
   google.script.run
     .withSuccessHandler(r => {
-      if (!r || !r.success) { 
-        el.innerHTML = '<p style="text-align:center; color:var(--danger); padding:20px;">โหลดล้มเหลว</p>'; 
-        return; 
-      }
+      if (!r || !r.success) return;
       moneyData = r.treasury || [];
       currentTrCount = moneyData.length;
       renderMoney();
     })
     .withFailureHandler(() => {
-      el.innerHTML = '<p style="text-align:center; color:var(--danger); padding:20px;">เชื่อมต่อไม่ได้</p>';
+      if (!moneyData.length) document.getElementById('listMoney').innerHTML = '<p style="text-align:center;color:var(--danger);padding:20px;">เชื่อมต่อไม่ได้</p>';
     })
     .getTreasuryItems();
 }
@@ -1263,15 +1346,20 @@ function loadMoney() {
 function renderMoney() {
   const el = document.getElementById('listMoney');
   if (!moneyData.length) { 
-    el.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding: 40px;">ไม่มีรายการ</p>'; 
+    el.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding: 40px;">ไม่มีรายการ</p>';
     return; 
   }
   
-  el.innerHTML = moneyData.map(m => `
+  el.innerHTML = moneyData.map(m => {
+    const itemColor = m.color || '#E0E0E0';
+    const textColor = getDarkColor(itemColor, -55); // สร้างสีข้อความ
+    
+    return `
 <div class="card">
+  <div class="subject-color-bar" style="background-color: ${itemColor};"></div>
   <div class="card-head">
     <div>
-      <b style="font-size: 1.1rem;">${m.title}</b><br>
+      <span class="subject-title" style="background-color: ${itemColor}40; color: ${textColor};">${m.title}</span><br>
       <small style="color:var(--text-secondary)">จำนวน ${m.amountPerPerson} บาท/คน</small>
     </div>
     ${u.canManageTreasury ? `<button class="btn btn-danger btn-icon" onclick="delMoney('${m.id}')"><i class="fas fa-trash"></i></button>` : ''}
@@ -1299,7 +1387,8 @@ function renderMoney() {
     </div>
   </div>
 </div>
-`).join('');
+`;
+  }).join('');
 }
 
 // FIX: handleCheck now calls loadMoney on failure to revert optimistic UI
@@ -1323,42 +1412,53 @@ function doAddMoney(e) {
   e.preventDefault(); 
   const t = document.getElementById('mTitle').value.trim(); 
   const a = document.getElementById('mAmt').value;
-  if (!t || !a) return; 
-  showLoading();
+  if (!t || !a) return;
+  const btn = e.submitter;
+  const restore = btnLoading(btn);
+  closeModal('modalMoney');
+  document.getElementById('formMoney').reset();
+  showToast('⏳ กำลังบันทึก...', 'info', 0);
   google.script.run
     .withSuccessHandler(r => { 
-      hideLoading(); 
-      if (r.success) { closeModal('modalMoney'); document.getElementById('formMoney').reset(); loadMoney(); showToast('ตั้งเก็บเงินสำเร็จ', 'success'); }
+      restore();
+      document.querySelectorAll('.toast').forEach(el => { if (el.querySelector('.toast-message')?.textContent.includes('กำลังบันทึก')) el.remove(); });
+      if (r.success) { showToast('💰 ตั้งเก็บเงินสำเร็จ!', 'success'); loadMoney(); }
       else showToast(r.message || 'ไม่สำเร็จ', 'error');
     })
-    .withFailureHandler(() => { hideLoading(); showToast('เกิดข้อผิดพลาด', 'error'); })
+    .withFailureHandler(() => { 
+      restore();
+      document.querySelectorAll('.toast').forEach(el => { if (el.querySelector('.toast-message')?.textContent.includes('กำลังบันทึก')) el.remove(); });
+      showToast('เกิดข้อผิดพลาด', 'error'); 
+    })
     .addTreasuryItem(t, parseFloat(a), u.displayName);
 }
 
 function delMoney(id) { 
-  if (confirm('ยืนยันลบ?')) { 
-    showLoading(); 
+  if (confirm('ยืนยันลบรายการเงิน?')) { 
+    const backup = [...moneyData];
+    moneyData = moneyData.filter(m => m.id !== id);
+    renderMoney();
     google.script.run
-      .withSuccessHandler(() => { hideLoading(); loadMoney(); })
-      .withFailureHandler(() => { hideLoading(); showToast('ลบไม่สำเร็จ', 'error'); })
+      .withSuccessHandler(() => { showToast('ลบรายการแล้ว', 'success'); loadMoney(); })
+      .withFailureHandler(() => { showToast('ลบไม่สำเร็จ', 'error'); moneyData = backup; renderMoney(); })
       .deleteTreasuryItem(id); 
   } 
 }
 
 // --- Leave ---
 function loadLeave() {
+  if (!leaveData.length) showSkeleton('listLeave', 2);
   google.script.run
     .withSuccessHandler(r => {
       if (Array.isArray(r)) leaveData = r;
       else if (r && Array.isArray(r.data)) leaveData = r.data;
+      else if (Array.isArray(leaveData)) {} // keep existing
       else leaveData = [];
       renderLeave();
       currentLvCount = leaveData.filter(l => l.status === 'PENDING').length;
     })
-    .withFailureHandler(err => {
-      leaveData = [];
-      renderLeave();
-      showToast('เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว (ลา)', 'error');
+    .withFailureHandler(() => {
+      if (!leaveData.length) document.getElementById('listLeave').innerHTML = '<p style="text-align:center;color:var(--danger);padding:20px;">เชื่อมต่อไม่ได้</p>';
     })
     .getLeaveRequests();
 }
@@ -1439,17 +1539,21 @@ function doAddLeave(e) {
   if (!type || !date || !reason) { showToast('กรุณากรอกข้อมูลให้ครบ', 'error'); return; }
   if (!file && !confirm("คุณจะส่งคำขอโดยไม่มีรูปภาพจริง ๆ ใช่ไหม?")) return;
   
+  closeModal('modalLeave');
+  document.getElementById('formLeave').reset();
+  showToast('⏳ กำลังส่งคำขอ...', 'info', 0);
+
   const doSubmit = (imageData) => {
-    showLoading();
     google.script.run
       .withSuccessHandler(r => {
-        hideLoading();
-        closeModal('modalLeave');
-        document.getElementById('formLeave').reset();
+        document.querySelectorAll('.toast').forEach(el => { if (el.querySelector('.toast-message')?.textContent.includes('กำลังส่งคำขอ')) el.remove(); });
+        showToast(imageData ? '📋 ส่งคำขอลาสำเร็จ!' : '📋 ส่งคำขอลาสำเร็จ (ไม่มีรูป)', 'success');
         loadLeave();
-        showToast(imageData ? 'ส่งคำขอสำเร็จ' : 'ส่งคำขอสำเร็จ (ไม่มีรูป)', 'success');
       })
-      .withFailureHandler(err => { hideLoading(); showToast('ส่งคำขอไม่สำเร็จ', 'error'); })
+      .withFailureHandler(() => { 
+        document.querySelectorAll('.toast').forEach(el => { if (el.querySelector('.toast-message')?.textContent.includes('กำลังส่งคำขอ')) el.remove(); });
+        showToast('ส่งคำขอไม่สำเร็จ', 'error'); 
+      })
       .submitLeaveRequest(u.studentNo, u.displayName, type, date, reason, imageData || null);
   };
   
@@ -1463,10 +1567,15 @@ function doAddLeave(e) {
 }
 
 function updLeave(id, stat) {
-  showLoading();
+  // Optimistic update
+  leaveData = leaveData.map(l => l.id === id ? { ...l, status: stat } : l);
+  renderLeave();
   google.script.run
-    .withSuccessHandler(r => { hideLoading(); loadLeave(); showToast('อัปเดตสถานะเรียบร้อย', 'success'); })
-    .withFailureHandler(err => { hideLoading(); showToast('ไม่สามารถอัปเดตสถานะได้', 'error'); })
+    .withSuccessHandler(() => { 
+      showToast(stat === 'APPROVED' ? '✅ อนุมัติแล้ว' : '❌ ไม่อนุมัติ', 'success'); 
+      loadLeave(); 
+    })
+    .withFailureHandler(() => { showToast('ไม่สามารถอัปเดตสถานะได้', 'error'); loadLeave(); })
     .updateLeaveStatus(id, stat);
 }
 
@@ -1477,13 +1586,20 @@ function confirmLeave(id) {
   input.onchange = e => {
     const file = e.target.files[0];
     if (!file) return;
+    showToast('⬆️ กำลังอัปโหลดรูป...', 'info', 0);
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = () => {
-      showLoading();
       google.script.run
-        .withSuccessHandler(r => { hideLoading(); loadLeave(); showToast('อัปโหลดรูปยืนยันสำเร็จ', 'success'); })
-        .withFailureHandler(err => { hideLoading(); showToast('ไม่สามารถอัปโหลดรูปได้', 'error'); })
+        .withSuccessHandler(() => { 
+          document.querySelectorAll('.toast').forEach(el => { if (el.querySelector('.toast-message')?.textContent.includes('อัปโหลด')) el.remove(); });
+          showToast('📎 อัปโหลดรูปยืนยันสำเร็จ', 'success'); 
+          loadLeave(); 
+        })
+        .withFailureHandler(() => { 
+          document.querySelectorAll('.toast').forEach(el => { if (el.querySelector('.toast-message')?.textContent.includes('อัปโหลด')) el.remove(); });
+          showToast('ไม่สามารถอัปโหลดรูปได้', 'error'); 
+        })
         .confirmLeaveRequest(id, reader.result);
     };
   };
@@ -1494,12 +1610,29 @@ function doChangePw(e) {
   e.preventDefault(); 
   const o = document.getElementById('pwOld').value; 
   const n = document.getElementById('pwNew').value; 
-  const c = document.getElementById('pwConf').value; 
-  showLoading(); 
+  const c = document.getElementById('pwConf').value;
+  const btn = e.submitter;
+  const restore = btnLoading(btn);
   google.script.run
-    .withSuccessHandler(r => { hideLoading(); showToast(r.message, r.success ? 'success' : 'error'); })
-    .withFailureHandler(err => { hideLoading(); showToast('ไม่สามารถเปลี่ยนรหัสผ่านได้', 'error'); })
+    .withSuccessHandler(r => { restore(); showToast(r.message, r.success ? 'success' : 'error'); })
+    .withFailureHandler(() => { restore(); showToast('ไม่สามารถเปลี่ยนรหัสผ่านได้', 'error'); })
     .changePassword(u.id, o, n, c); 
+}
+
+// ฟังก์ชันปรับสีให้เข้มขึ้นสำหรับตัวอักษร
+function getDarkColor(hex, percent = -55) {
+  if (!hex || hex.length < 4) return '#333333';
+  hex = hex.replace(/^#/, '');
+  if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  let r = parseInt(hex.substring(0, 2), 16);
+  let g = parseInt(hex.substring(2, 4), 16);
+  let b = parseInt(hex.substring(4, 6), 16);
+
+  r = Math.max(0, Math.min(255, r + Math.round(255 * (percent / 100))));
+  g = Math.max(0, Math.min(255, g + Math.round(255 * (percent / 100))));
+  b = Math.max(0, Math.min(255, b + Math.round(255 * (percent / 100))));
+
+  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).padStart(6, '0');
 }
 
 // --- Utilities ---
@@ -1513,20 +1646,19 @@ function toggleForm(t) {
 function getHint() { 
   const name = document.getElementById('forgotName').value.trim(); 
   if (!name) return; 
-  const res = document.getElementById('forgotResult'); 
-  showLoading(); 
+  const res = document.getElementById('forgotResult');
+  res.style.display = 'block';
+  res.style.background = 'var(--bg-tertiary)';
+  res.style.color = 'var(--text-secondary)';
+  res.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังค้นหา...';
   google.script.run
     .withSuccessHandler(r => { 
-      hideLoading(); 
       res.innerHTML = r.success ? `<b>คำใบ้:</b> ${r.hint}` : r.message;
       res.style.color = r.success ? 'var(--text-primary)' : 'var(--danger)';
-      res.style.display = 'block'; 
     })
-    .withFailureHandler(err => {
-      hideLoading();
+    .withFailureHandler(() => {
       res.innerHTML = 'เกิดข้อผิดพลาดในการเชื่อมต่อ';
       res.style.color = 'var(--danger)';
-      res.style.display = 'block';
     })
     .getPasswordHint(name); 
 }
@@ -1599,22 +1731,23 @@ function createCode() {
     val = String(hw);
   }
 
-  showLoading();
+  const createBtn = document.querySelector('#createCodeCard .btn-success');
+  const restore = btnLoading(createBtn);
   google.script.run
     .withSuccessHandler(r => {
-      hideLoading();
+      restore();
       if (r.success) {
         document.getElementById('generatedCodeBox').style.display = 'block';
         document.getElementById('generatedCodeText').textContent = r.code;
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${r.code}&ecc=H`;
         document.getElementById('qrImage').src = qrUrl;
-        showToast('สร้างโค้ดสำเร็จ', 'success');
+        showToast('🎟️ สร้างโค้ดสำเร็จ!', 'success');
         document.getElementById('generatedCodeBox').scrollIntoView({ behavior: 'smooth' });
       } else {
         showToast(r.message || 'ไม่สามารถสร้างโค้ดได้', 'error');
       }
     })
-    .withFailureHandler(err => { hideLoading(); showToast('เกิดข้อผิดพลาดสร้างโค้ด', 'error'); })
+    .withFailureHandler(() => { restore(); showToast('เกิดข้อผิดพลาดสร้างโค้ด', 'error'); })
     .generateCode(type, val, details);
 }
 
@@ -1623,23 +1756,20 @@ function copyCode() {
   navigator.clipboard.writeText(text).then(() => showToast('Copied!', 'success'));
 }
 
-// FIX: doRedeem now always passes u.id to server
+// doRedeem — no overlay, use inline button spinner
 function doRedeem() {
   const code = document.getElementById('redeemInput').value.trim().toUpperCase();
   if (!code) { showToast('กรุณากรอกโค้ด', 'error'); return; }
-  showLoading();
+  const btn = document.querySelector('#panelRedeem .btn-primary');
+  const restore = btnLoading(btn);
   google.script.run
     .withSuccessHandler(r => {
-      hideLoading();
+      restore();
       if (r.success) {
         showToast(r.message, 'success');
         document.getElementById('redeemInput').value = '';
         manualRefresh();
-        // If ADD_MONEY action, switch to money tab to show result
-        if (r.action === 'ADD_MONEY') {
-          setTab('money');
-        }
-        // FIX: Update local hwCredits if ADD_HW was redeemed
+        if (r.action === 'ADD_MONEY') setTab('money');
         if (r.action === 'ADD_HW') {
           u.hwCredits = (u.hwCredits || 0) + parseInt(r.addedCredits || 0);
           localStorage.setItem('user', JSON.stringify(u));
@@ -1651,7 +1781,7 @@ function doRedeem() {
         showToast(r.message, 'error');
       }
     })
-    .withFailureHandler(() => { hideLoading(); showToast('Server error redeem', 'error'); })
+    .withFailureHandler(() => { restore(); showToast('Server error redeem', 'error'); })
     .redeemCode(code, u.id);
 }
 
@@ -1666,18 +1796,17 @@ function doLoginRedeem() {
   const code = document.getElementById('loginCode')?.value?.trim().toUpperCase();
   if (!code) { showToast('กรุณากรอกโค้ดก่อน', 'error'); return; }
 
+  // Keep showLoading here — this transitions to a new page (login → app)
   showLoading();
   google.script.run
     .withSuccessHandler(r => {
       hideLoading();
       if (r.success) {
-        // Server created the guest account and returned a full user object
         u = r.user;
         localStorage.setItem('user', JSON.stringify(u));
-        // Store the exact expiry timestamp for the countdown
         localStorage.setItem('guestExpiresAt', r.expiresAt);
         showApp();
-        showToast(`🎉 เข้าสู่ระบบในฐานะ "${u.displayName}" สำเร็จ!`, 'success');
+        showToast(`🎉 เข้าสู่ระบบในฐานะ "${u.displayName}" สำเร็จ! (${r.durationText})`, 'success');
         startGuestCountdown(r.expiresAt);
       } else {
         showToast(r.message, 'error');
