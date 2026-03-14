@@ -53,7 +53,8 @@ const ROLES = {
   SECRETARY:    { name: 'เลขานุการ',      canManageHomework: true,  canManageTreasury: false, canApproveLeave: false, canManageCodes: false },
   TREASURER:    { name: 'เหรัญญิก',       canManageHomework: true,  canManageTreasury: true,  canApproveLeave: false, canManageCodes: false },
   TEACHER:      { name: 'ครูที่ปรึกษา',   canManageHomework: false, canManageTreasury: false, canApproveLeave: true,  canManageCodes: false },
-  STUDENT:      { name: 'นักเรียน',       canManageHomework: false, canManageTreasury: false, canApproveLeave: false, canManageCodes: false }
+  STUDENT:      { name: 'นักเรียน',       canManageHomework: false, canManageTreasury: false, canApproveLeave: false, canManageCodes: false },
+  GUEST:        { name: 'ผู้ใช้ชั่วคราว', canManageHomework: false, canManageTreasury: false, canApproveLeave: false, canManageCodes: false }
 };
 
 const ROLE_MAPPING = {
@@ -733,20 +734,19 @@ function cleanupOldQrFiles() {
 }
 
 // ============================================
-// 🔑 PRE-LOGIN REDEEM: TEMP_ACCESS only
-// ใช้งานได้โดยไม่ต้อง login — รับเฉพาะโค้ดประเภท TEMP_ACCESS เท่านั้น
-// ผู้ใช้ระบุชื่อบัญชีที่ต้องการรับสิทธิ์
+// 🔑 GUEST ACCOUNT SYSTEM
+// createGuestAccount: ใส่โค้ด TEMP_ACCESS → สร้างบัญชี GUEST อัตโนมัติ → login ทันที
+// deleteGuestAccount: ลบบัญชี GUEST เมื่อหมดเวลาหรือออกจากระบบ
 // ============================================
-function redeemCodeByName(code, displayName) {
+
+function createGuestAccount(code) {
   try {
     ensureSheetsExist();
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const codeSheet = ss.getSheetByName(SHEETS.REDEEM_CODES);
     const userSheet = ss.getSheetByName(SHEETS.USERS);
 
-    if (!code || !displayName) {
-      return { success: false, message: 'กรุณากรอกโค้ดและชื่อบัญชีให้ครบ' };
-    }
+    if (!code) return { success: false, message: 'กรุณากรอกโค้ด' };
 
     // ค้นหาโค้ด
     const codeData = codeSheet.getDataRange().getValues();
@@ -761,59 +761,113 @@ function redeemCodeByName(code, displayName) {
 
     if (!codeRow) return { success: false, message: 'ไม่พบโค้ดนี้ กรุณาตรวจสอบอีกครั้ง' };
 
-    // ตรวจสอบว่าเป็น TEMP_ACCESS เท่านั้น
+    // ต้องเป็น TEMP_ACCESS เท่านั้น
     if (codeRow[1] !== 'TEMP_ACCESS') {
       return { success: false, message: 'โค้ดนี้ไม่ใช่โค้ดสิทธิ์ชั่วคราว กรุณาล็อกอินก่อนใช้งาน' };
     }
 
-    // ตรวจสอบจำนวนครั้งที่ใช้
-    const maxUses = codeRow[4];
-    const usesCount = codeRow[5];
+    // ตรวจจำนวนการใช้
+    const maxUses = Number(codeRow[4]) || 1;
+    const usesCount = Number(codeRow[5]) || 0;
     if (usesCount >= maxUses) return { success: false, message: 'โค้ดนี้ถูกใช้งานครบแล้ว' };
 
-    // ค้นหาบัญชีผู้ใช้ตามชื่อ
-    const uData = userSheet.getDataRange().getValues();
-    let userRow = null, userRowIndex = -1;
-    for (let j = 1; j < uData.length; j++) {
-      if (String(uData[j][1]).trim() === String(displayName).trim()) {
-        userRow = uData[j];
-        userRowIndex = j;
-        break;
-      }
-    }
-
-    if (!userRow) {
-      return { success: false, message: `ไม่พบบัญชีชื่อ "${displayName}" กรุณาตรวจสอบชื่อให้ตรงกับที่สมัครไว้` };
-    }
-
-    // คำนวณวันหมดอายุ
+    // คำนวณเวลาหมดอายุ
     const val = String(codeRow[2]);
     const parts = val.split('_');
     const num = parseInt(parts[0]) || 1;
     const unit = (parts[1] || 'DAYS').toUpperCase();
-    const expiry = new Date();
-    if (unit === 'DAYS')        expiry.setDate(expiry.getDate() + num);
-    else if (unit === 'WEEKS')  expiry.setDate(expiry.getDate() + (num * 7));
-    else if (unit === 'MONTHS') expiry.setMonth(expiry.getMonth() + num);
-    else if (unit === 'YEARS')  expiry.setFullYear(expiry.getFullYear() + num);
+    const expiresAt = new Date();
+    if (unit === 'DAYS')        expiresAt.setDate(expiresAt.getDate() + num);
+    else if (unit === 'WEEKS')  expiresAt.setDate(expiresAt.getDate() + (num * 7));
+    else if (unit === 'MONTHS') expiresAt.setMonth(expiresAt.getMonth() + num);
+    else if (unit === 'YEARS')  expiresAt.setFullYear(expiresAt.getFullYear() + num);
 
-    // อัปเดตสิทธิ์ชั่วคราวในบัญชีผู้ใช้
-    userSheet.getRange(userRowIndex + 1, 10).setValue(expiry);
+    // สร้าง ID และชื่อบัญชีชั่วคราว
+    const guestId   = 'GUEST_' + Utilities.getUuid().split('-')[0].toUpperCase();
+    const guestName = 'Guest_' + Utilities.getUuid().split('-')[0].slice(0, 5).toUpperCase();
 
-    // นับจำนวนครั้งที่ใช้โค้ด
+    // บันทึกบัญชีใหม่ใน Users sheet
+    // ID | DisplayName | Email | PasswordHash | Hint | StudentNo | Role | CreatedAt | LastLogin | TempRoleExpiry | HwCredits
+    userSheet.appendRow([
+      guestId, guestName, '', '', '', '', 'GUEST',
+      new Date(), new Date(), expiresAt, 0
+    ]);
+
+    // Mark code as used
     codeSheet.getRange(codeRowIndex + 1, 6).setValue(usesCount + 1);
 
     const unitTh = unit === 'DAYS' ? 'วัน' : unit === 'WEEKS' ? 'อาทิตย์' : unit === 'MONTHS' ? 'เดือน' : 'ปี';
-    const expiryStr = expiry.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+    const expiresAtISO = expiresAt.toISOString();
 
     return {
       success: true,
-      message: `✅ ให้สิทธิ์ชั่วคราว ${num} ${unitTh} แก่ "${displayName}" สำเร็จ! (หมดอายุ ${expiryStr}) กรุณาล็อกอินเพื่อใช้งาน`
+      expiresAt: expiresAtISO,
+      durationText: num + ' ' + unitTh,
+      user: {
+        id: guestId,
+        displayName: guestName,
+        email: '',
+        role: ROLES.GUEST.name,
+        roleKey: 'GUEST',
+        studentNo: null,
+        isGuest: true,
+        canManageHomework: false,
+        canManageTreasury: false,
+        canApproveLeave: false,
+        canManageCodes: false,
+        hwCredits: 0,
+        expiresAt: expiresAtISO
+      }
     };
   } catch (e) {
     return { success: false, message: 'เกิดข้อผิดพลาด: ' + e.toString() };
   }
 }
+
+function deleteGuestAccount(userId) {
+  try {
+    if (!userId || !String(userId).startsWith('GUEST_')) {
+      return { success: false, message: 'ไม่ใช่บัญชีชั่วคราว' };
+    }
+    ensureSheetsExist();
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const userSheet = ss.getSheetByName(SHEETS.USERS);
+    const data = userSheet.getDataRange().getValues();
+    for (let i = data.length - 1; i >= 1; i--) {
+      if (String(data[i][0]) === String(userId) && data[i][6] === 'GUEST') {
+        userSheet.deleteRow(i + 1);
+        return { success: true };
+      }
+    }
+    return { success: false, message: 'ไม่พบบัญชีชั่วคราวนี้' };
+  } catch (e) {
+    return { success: false, message: e.toString() };
+  }
+}
+
+// Time-based trigger: ลบบัญชี GUEST ที่หมดอายุทั้งหมด (ตั้ง trigger ทุก 1 ชม. ใน GAS)
+function cleanupExpiredGuestAccounts() {
+  try {
+    ensureSheetsExist();
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const userSheet = ss.getSheetByName(SHEETS.USERS);
+    const data = userSheet.getDataRange().getValues();
+    const now = new Date();
+    let deleted = 0;
+    for (let i = data.length - 1; i >= 1; i--) {
+      if (data[i][6] === 'GUEST' && data[i][9]) {
+        if (new Date(data[i][9]) < now) {
+          userSheet.deleteRow(i + 1);
+          deleted++;
+        }
+      }
+    }
+    return { success: true, deleted: deleted };
+  } catch (e) {
+    return { success: false, message: e.toString() };
+  }
+}
+
 // FIX: ADD_MONEY now creates TreasuryPayments rows for all students
 // FIX: Returns addedCredits for ADD_HW so client can update local state
 function redeemCode(code, userId) {

@@ -175,6 +175,50 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 }
 .redeem-input-large::placeholder { font-size: 1.2rem; letter-spacing: normal; color: var(--text-muted); }
 
+/* Countdown Timer (Guest Account) */
+.guest-timer-bar {
+  display: none;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+.guest-timer-bar.show { display: block; }
+.guest-timer-bar.urgent { background: linear-gradient(135deg, #dc2626, #b91c1c); animation: pulse-red 1s ease-in-out infinite; }
+@keyframes pulse-red { 0%,100% { opacity:1; } 50% { opacity:.75; } }
+.guest-timer-label { font-size: 0.75rem; opacity: 0.85; margin-bottom: 2px; }
+.guest-timer-digits { font-size: 1.4rem; font-weight: 700; letter-spacing: 3px; font-variant-numeric: tabular-nums; }
+.guest-timer-tag { font-size: 0.7rem; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 10px; margin-top: 4px; display: inline-block; }
+
+/* Countdown in sidebar footer */
+.sidebar-timer {
+  display: none;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  color: white;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+.sidebar-timer.show { display: block; }
+.sidebar-timer.urgent { background: linear-gradient(135deg, #dc2626, #b91c1c); animation: pulse-red 1s ease-in-out infinite; }
+.sidebar-timer-label { font-size: 0.7rem; opacity: 0.85; }
+.sidebar-timer-digits { font-size: 1.1rem; font-weight: 700; letter-spacing: 2px; font-variant-numeric: tabular-nums; }
+
+/* Guest login box special style */
+.guest-login-section {
+  margin-top: 15px;
+  border-top: 1px solid var(--border);
+  padding-top: 15px;
+}
+.guest-login-title {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 12px;
+}
+.guest-login-title i { color: #7c3aed; }
+
 /* Responsive - Mobile (< 768px) */
 @media (max-width: 768px) {
   .sidebar { display: none; }
@@ -228,14 +272,15 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
         <i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ
       </button>
     </form>
-    <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
-      <p style="text-align:center; font-size: 0.9rem; color: var(--text-secondary); margin-bottom:10px;">
-        <i class="fas fa-user-clock" style="color:var(--accent);"></i> มีโค้ดสิทธิ์ชั่วคราว?
-      </p>
+    <div class="guest-login-section">
+      <div class="guest-login-title">
+        <i class="fas fa-user-clock"></i>
+        <span>เข้าใช้งานด้วยโค้ดชั่วคราว</span>
+      </div>
       <div style="display:flex; gap:10px;">
-        <input type="text" id="loginCode" placeholder="กรอกโค้ดที่นี่" style="flex:1; padding: 10px; text-transform: uppercase;" oninput="this.value=this.value.toUpperCase()">
-        <button type="button" class="btn btn-success" onclick="doLoginRedeem()" style="width:auto;" title="ใช้โค้ดสิทธิ์ชั่วคราว">
-          <i class="fas fa-key"></i>
+        <input type="text" id="loginCode" placeholder="กรอกโค้ดที่นี่" style="flex:1; padding:10px; text-transform:uppercase; letter-spacing:3px; font-weight:600;" oninput="this.value=this.value.toUpperCase()">
+        <button type="button" class="btn btn-success" onclick="doLoginRedeem()" style="width:auto; background:linear-gradient(135deg,#7c3aed,#4f46e5);" title="เข้าสู่ระบบด้วยโค้ดชั่วคราว">
+          <i class="fas fa-bolt"></i>
         </button>
       </div>
       <div style="margin-top:10px; text-align:center;">
@@ -243,6 +288,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
         <button type="button" class="btn btn-secondary btn-sm" onclick="startLoginScanner()"><i class="fas fa-camera"></i> สแกนโค้ด</button>
         <button type="button" class="btn btn-danger btn-sm" id="stopLoginCamBtn" onclick="stopLoginScanner()" style="display:none; margin-left:8px;"><i class="fas fa-stop"></i> ปิดกล้อง</button>
       </div>
+      <p style="text-align:center; font-size:0.78rem; color:var(--text-muted); margin-top:10px;">
+        <i class="fas fa-info-circle"></i> สร้างบัญชีชั่วคราวอัตโนมัติ ไม่ต้องสมัครสมาชิก
+      </p>
     </div>
     <div class="link">
       <a onclick="openModal('modalForgot')">ลืมรหัสผ่าน?</a> | 
@@ -315,6 +363,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
       </div>
     </div>
     <div class="sidebar-footer">
+      <!-- Guest countdown timer -->
+      <div class="sidebar-timer" id="sidebarTimer">
+        <div class="sidebar-timer-label"><i class="fas fa-hourglass-half"></i> เวลาใช้งานคงเหลือ</div>
+        <div class="sidebar-timer-digits" id="sidebarTimerDigits">--:--:--</div>
+      </div>
       <div class="sidebar-user">
         <div class="sidebar-user-info">
           <div class="sidebar-user-name" id="sidebarUserName">-</div>
@@ -362,6 +415,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
       </div>
     </div>
     <div class="sidebar-footer">
+      <!-- Guest countdown timer (mobile) -->
+      <div class="sidebar-timer" id="mobileSidebarTimer">
+        <div class="sidebar-timer-label"><i class="fas fa-hourglass-half"></i> เวลาใช้งานคงเหลือ</div>
+        <div class="sidebar-timer-digits" id="mobileSidebarTimerDigits">--:--:--</div>
+      </div>
       <div class="sidebar-user">
         <div class="sidebar-user-info">
           <div class="sidebar-user-name" id="mobileSidebarUserName">-</div>
@@ -481,6 +539,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
       <!-- Me -->
       <div class="tab-panel" id="panelMe">
+        <!-- Guest countdown card (shown only for guest accounts) -->
+        <div class="card" id="guestTimerCard" style="display:none; background:linear-gradient(135deg,#7c3aed,#4f46e5); color:white;">
+          <div class="card-body" style="text-align:center; padding:24px;">
+            <div style="font-size:0.85rem; opacity:0.85; margin-bottom:6px;"><i class="fas fa-hourglass-half"></i> เวลาใช้งานคงเหลือ</div>
+            <div id="meTimerDigits" style="font-size:3rem; font-weight:700; letter-spacing:4px; font-variant-numeric:tabular-nums; line-height:1;">--:--:--</div>
+            <div style="font-size:0.78rem; opacity:0.75; margin-top:8px;">บัญชีชั่วคราวจะถูกลบอัตโนมัติเมื่อหมดเวลา</div>
+          </div>
+        </div>
         <div class="card">
           <div class="card-head"><b><i class="fas fa-id-card"></i> โปรไฟล์</b></div>
           <div class="card-body">
@@ -489,11 +555,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
               <div><strong>Email:</strong> <span id="meEmail"></span></div>
               <div><strong>บทบาท:</strong> <span id="meRole"></span></div>
               <div><strong>เลขที่:</strong> <span id="meNo"></span></div>
-              <div><strong>Credit ตั้งการบ้าน:</strong> <span id="meHwCredits" style="color:var(--accent); font-weight:bold;"></span></div>
+              <div id="hwCreditsRow"><strong>Credit ตั้งการบ้าน:</strong> <span id="meHwCredits" style="color:var(--accent); font-weight:bold;"></span></div>
             </div>
           </div>
         </div>
-        <div class="card">
+        <div class="card" id="changePwCard">
           <div class="card-head"><b><i class="fas fa-key"></i> เปลี่ยนรหัสผ่าน</b></div>
           <div class="card-body">
             <form id="formPw">
@@ -514,36 +580,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
         </div>
       </div>
     </main>
-  </div>
-</div>
-
-<!-- Modal: Pre-Login Redeem (TEMP_ACCESS only) -->
-<div class="modal" id="modalPreLoginRedeem">
-  <div class="modal-content" style="max-width:420px;">
-    <div class="modal-head">
-      <b><i class="fas fa-user-clock" style="color:var(--accent);"></i> ยืนยันการใช้โค้ดสิทธิ์ชั่วคราว</b>
-      <button class="btn btn-secondary btn-icon" onclick="closeModal('modalPreLoginRedeem')">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div id="preLoginRedeemCodeDisplay" style="text-align:center; background:var(--accent-light); border-radius:8px; padding:12px; margin-bottom:16px;">
-        <div style="font-size:0.85rem; color:var(--text-secondary);">โค้ดที่จะใช้</div>
-        <div id="preLoginCodeText" style="font-size:1.6rem; font-weight:700; letter-spacing:6px; color:var(--accent);"></div>
-      </div>
-      <p style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:12px;">
-        <i class="fas fa-info-circle"></i> กรอกชื่อบัญชีที่ต้องการรับสิทธิ์ ระบบจะเพิ่มเวลาสิทธิ์ให้กับบัญชีนั้น
-      </p>
-      <div class="form-group">
-        <label>ชื่อบัญชีผู้ใช้</label>
-        <input type="text" id="preLoginRedeemName" placeholder="กรอกชื่อ-นามสกุล (ตามที่สมัครไว้)">
-      </div>
-      <div id="preLoginRedeemResult" style="display:none; padding:12px; border-radius:8px; font-size:0.9rem;"></div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-secondary btn-sm" onclick="closeModal('modalPreLoginRedeem')">ยกเลิก</button>
-      <button class="btn btn-success" onclick="confirmPreLoginRedeem()" id="btnConfirmPreRedeem">
-        <i class="fas fa-check"></i> ยืนยัน
-      </button>
-    </div>
   </div>
 </div>
 
@@ -932,8 +968,23 @@ function checkSession() {
   const saved = localStorage.getItem('user'); 
   if (saved) { 
     try {
-      u = JSON.parse(saved); 
-      showApp(); 
+      u = JSON.parse(saved);
+      // Guest account: verify not expired before restoring session
+      if (u.isGuest) {
+        const expiresAt = localStorage.getItem('guestExpiresAt');
+        if (!expiresAt || new Date(expiresAt).getTime() <= Date.now()) {
+          // Expired — delete on server then clear
+          if (u.id) {
+            google.script.run
+              .withSuccessHandler(() => {})
+              .withFailureHandler(() => {})
+              .deleteGuestAccount(u.id);
+          }
+          localStorage.clear();
+          return;
+        }
+      }
+      showApp();
     } catch(e) {
       localStorage.clear();
     }
@@ -942,6 +993,14 @@ function checkSession() {
 
 function logout() { 
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  if (guestCountdownInterval) clearInterval(guestCountdownInterval);
+  // If guest, delete account on server before clearing
+  if (u && u.isGuest && u.id) {
+    google.script.run
+      .withSuccessHandler(() => {})
+      .withFailureHandler(() => {})
+      .deleteGuestAccount(u.id);
+  }
   localStorage.clear(); 
   location.reload(); 
 }
@@ -961,6 +1020,19 @@ function showApp() {
   if (u.canManageCodes) {
     document.getElementById('createCodeCard').style.display = 'block';
     updateCodeForm();
+  }
+
+  // --- Guest-specific UI ---
+  if (u.isGuest) {
+    // Show timer cards
+    document.getElementById('guestTimerCard').style.display = 'block';
+    document.getElementById('sidebarTimer').classList.add('show');
+    document.getElementById('mobileSidebarTimer').classList.add('show');
+    // Hide password change (guest has no password)
+    document.getElementById('changePwCard').style.display = 'none';
+    document.getElementById('hwCreditsRow').style.display = 'none';
+    // Restore countdown if refreshed
+    restoreGuestCountdownIfNeeded();
   }
   
   renderMe();
@@ -1583,74 +1655,139 @@ function doRedeem() {
     .redeemCode(code, u.id);
 }
 
-// --- Pre-Login Redeem (TEMP_ACCESS only) ---
-// Step 1: User clicks the key button with a code entered
+// ============================================
+// 🔑 GUEST ACCOUNT SYSTEM (TEMP_ACCESS)
+// ใส่โค้ด → สร้างบัญชี GUEST อัตโนมัติ → login เลย → countdown → kick + ลบบัญชี
+// ============================================
+
+let guestCountdownInterval = null;
+
 function doLoginRedeem() {
   const code = document.getElementById('loginCode')?.value?.trim().toUpperCase();
   if (!code) { showToast('กรุณากรอกโค้ดก่อน', 'error'); return; }
-
-  // Preview the code in the confirm modal, then ask for username
-  document.getElementById('preLoginCodeText').textContent = code;
-  document.getElementById('preLoginRedeemName').value = '';
-  const res = document.getElementById('preLoginRedeemResult');
-  res.style.display = 'none';
-  res.textContent = '';
-  document.getElementById('btnConfirmPreRedeem').disabled = false;
-  openModal('modalPreLoginRedeem');
-  setTimeout(() => document.getElementById('preLoginRedeemName').focus(), 300);
-}
-
-// Step 2: User confirms with their username
-function confirmPreLoginRedeem() {
-  const code = document.getElementById('preLoginCodeText').textContent.trim();
-  const name = document.getElementById('preLoginRedeemName').value.trim();
-  const res = document.getElementById('preLoginRedeemResult');
-
-  if (!name) { 
-    res.style.display = 'block';
-    res.style.background = 'var(--danger-light)';
-    res.style.color = 'var(--danger)';
-    res.innerHTML = '<i class="fas fa-exclamation-circle"></i> กรุณากรอกชื่อบัญชีก่อน';
-    return; 
-  }
-
-  document.getElementById('btnConfirmPreRedeem').disabled = true;
-  res.style.display = 'block';
-  res.style.background = 'var(--bg-tertiary)';
-  res.style.color = 'var(--text-secondary)';
-  res.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังตรวจสอบ...';
 
   showLoading();
   google.script.run
     .withSuccessHandler(r => {
       hideLoading();
-      document.getElementById('btnConfirmPreRedeem').disabled = false;
       if (r.success) {
-        res.style.background = 'var(--success-light)';
-        res.style.color = 'var(--success)';
-        res.innerHTML = `<i class="fas fa-check-circle"></i> ${r.message}`;
-        // Pre-fill the login name field to make login easier
-        document.getElementById('loginId').value = name;
-        setTimeout(() => {
-          closeModal('modalPreLoginRedeem');
-          document.getElementById('loginCode').value = '';
-          showToast(r.message, 'success');
-          document.getElementById('loginPw').focus();
-        }, 2000);
+        // Server created the guest account and returned a full user object
+        u = r.user;
+        localStorage.setItem('user', JSON.stringify(u));
+        // Store the exact expiry timestamp for the countdown
+        localStorage.setItem('guestExpiresAt', r.expiresAt);
+        showApp();
+        showToast(`🎉 เข้าสู่ระบบในฐานะ "${u.displayName}" สำเร็จ!`, 'success');
+        startGuestCountdown(r.expiresAt);
       } else {
-        res.style.background = 'var(--danger-light)';
-        res.style.color = 'var(--danger)';
-        res.innerHTML = `<i class="fas fa-times-circle"></i> ${r.message}`;
+        showToast(r.message, 'error');
       }
     })
-    .withFailureHandler(err => {
-      hideLoading();
-      document.getElementById('btnConfirmPreRedeem').disabled = false;
-      res.style.background = 'var(--danger-light)';
-      res.style.color = 'var(--danger)';
-      res.innerHTML = '<i class="fas fa-times-circle"></i> เชื่อมต่อ Server ไม่ได้';
-    })
-    .redeemCodeByName(code, name);
+    .withFailureHandler(() => { hideLoading(); showToast('เชื่อมต่อ Server ไม่ได้', 'error'); })
+    .createGuestAccount(code);
+}
+
+// Start countdown timer — runs every second, kicks out when expired
+function startGuestCountdown(expiresAtISO) {
+  if (guestCountdownInterval) clearInterval(guestCountdownInterval);
+
+  // Show the timer elements
+  document.getElementById('sidebarTimer')?.classList.add('show');
+  document.getElementById('mobileSidebarTimer')?.classList.add('show');
+
+  const expiresAt = new Date(expiresAtISO).getTime();
+
+  function tick() {
+    const now = Date.now();
+    const remaining = expiresAt - now;
+
+    if (remaining <= 0) {
+      // TIME'S UP — kick out and delete the account
+      clearInterval(guestCountdownInterval);
+      guestCountdownInterval = null;
+      expireGuestAccount();
+      return;
+    }
+
+    const totalSeconds = Math.floor(remaining / 1000);
+    const d = Math.floor(totalSeconds / 86400);
+    const h = Math.floor((totalSeconds % 86400) / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+
+    let display;
+    if (d > 0) {
+      display = `${d}วัน ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    } else {
+      display = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+
+    // Update all timer displays
+    const isUrgent = remaining < 5 * 60 * 1000; // last 5 minutes = urgent
+    ['sidebarTimerDigits','mobileSidebarTimerDigits','meTimerDigits'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = display;
+    });
+    ['sidebarTimer','mobileSidebarTimer','guestTimerCard'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('urgent', isUrgent);
+    });
+
+    // Warn at 5 minutes left (once)
+    if (remaining < 5 * 60 * 1000 && remaining > (5 * 60 * 1000 - 2000)) {
+      showToast('⚠️ เวลาใช้งานเหลือน้อยกว่า 5 นาที!', 'error', 0);
+    }
+    // Warn at 1 minute left (once)
+    if (remaining < 60 * 1000 && remaining > (60 * 1000 - 2000)) {
+      showToast('🚨 เวลาใช้งานเหลือน้อยกว่า 1 นาที!', 'error', 0);
+    }
+  }
+
+  tick(); // run immediately
+  guestCountdownInterval = setInterval(tick, 1000);
+}
+
+// Called when countdown hits zero
+function expireGuestAccount() {
+  const guestId = u?.id;
+  const guestName = u?.displayName || 'บัญชีชั่วคราว';
+
+  // Clear local session immediately
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  localStorage.clear();
+  u = null;
+
+  // Tell server to delete the guest account
+  if (guestId) {
+    google.script.run
+      .withSuccessHandler(() => {})
+      .withFailureHandler(() => {})
+      .deleteGuestAccount(guestId);
+  }
+
+  // Show expired overlay instead of just reloading
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginPage').style.display = 'flex';
+
+  // Show big toast
+  showToast(`⏰ เวลาใช้งาน "${guestName}" หมดแล้ว บัญชีถูกลบเรียบร้อย`, 'error', 0);
+
+  // Clear code input
+  const codeInput = document.getElementById('loginCode');
+  if (codeInput) codeInput.value = '';
+}
+
+// Restore countdown if user refreshes page while still within guest session
+function restoreGuestCountdownIfNeeded() {
+  if (!u || !u.isGuest) return;
+  const expiresAt = localStorage.getItem('guestExpiresAt');
+  if (!expiresAt) return;
+  if (new Date(expiresAt).getTime() <= Date.now()) {
+    // Already expired — clean up
+    expireGuestAccount();
+    return;
+  }
+  startGuestCountdown(expiresAt);
 }
 
 // --- QR Scanner ---
@@ -1732,7 +1869,7 @@ function loginDecodeSuccess(decodedText) {
 
 function renderMe() {
   document.getElementById('meName').textContent = u.displayName;
-  document.getElementById('meEmail').textContent = u.email || '-';
+  document.getElementById('meEmail').textContent = u.isGuest ? '(บัญชีชั่วคราว)' : (u.email || '-');
   document.getElementById('meRole').textContent = u.role;
   document.getElementById('meNo').textContent = u.studentNo || '-';
   document.getElementById('meHwCredits').textContent = u.hwCredits || 0;
