@@ -1042,6 +1042,10 @@ function doRegister(e) {
         showError('regError', r.message); 
       }
     })
+    .withFailureHandler(err => {
+      hideLoading();
+      showError('regError', 'Server error (register)');
+    })
     .registerUser(n, em, p, cp, c, h);
 }
 
@@ -1120,7 +1124,6 @@ function populateSubjects() {
 function loadAll() { loadHw(); loadMoney(); loadLeave(); }
 
 function manualRefresh() {
-  showLoading();
   loadAll();
   showToast('รีเฟรชข้อมูลแล้ว', 'info');
 }
@@ -1263,6 +1266,11 @@ function hwUploadImg(hid) {
           loadHw(); 
           showToast('แนบรูปสำเร็จ', 'success'); 
         })
+        .withFailureHandler(err => {
+          hideLoading();
+          console.error('updateHomeworkStatus failed', err);
+          showToast('ไม่สามารถอัปโหลดรูปได้', 'error');
+        })
         .updateHomeworkStatus(hid, u.studentNo, null, reader.result);
     };
   };
@@ -1280,6 +1288,11 @@ function hwToggleDone(hid, isCurrentlyDone, imagePath) {
       hideLoading(); 
       loadHw(); 
       showToast('อัปเดตสถานะแล้ว', 'success'); 
+    })
+    .withFailureHandler(err => {
+      hideLoading();
+      console.error('updateHomeworkStatus failed', err);
+      showToast('ไม่สามารถอัปเดตสถานะได้', 'error');
     })
     .updateHomeworkStatus(hid, u.studentNo, newStatus, null);
 }
@@ -1305,6 +1318,11 @@ function doAddHw(e) {
       loadHw(); 
       showToast('เพิ่มการบ้านสำเร็จ', 'success'); 
     })
+    .withFailureHandler(err => {
+      hideLoading();
+      console.error('addHomework failed', err);
+      showToast('ไม่สามารถเพิ่มการบ้านได้', 'error');
+    })
     .addHomework(sub, desc, date, due, noDue, u.displayName);
 }
 
@@ -1315,6 +1333,11 @@ function delHw(id) {
       .withSuccessHandler(r => {
         hideLoading(); 
         loadHw();
+      })
+      .withFailureHandler(err => {
+        hideLoading();
+        console.error('deleteHomework failed', err);
+        showToast('ไม่สามารถลบการบ้านได้', 'error');
       })
       .deleteHomework(id); 
   } 
@@ -1569,6 +1592,11 @@ function doAddLeave(e) {
           loadLeave();
           showToast('ส่งคำขอสำเร็จ', 'success');
         })
+        .withFailureHandler(err => {
+          hideLoading();
+          console.error('submitLeaveRequest failed', err);
+          showToast('ส่งคำขอไม่สำเร็จ', 'error');
+        })
         .submitLeaveRequest(u.studentNo, u.displayName, type, date, reason, reader.result);
     };
   } else {
@@ -1581,6 +1609,11 @@ function doAddLeave(e) {
         loadLeave();
         showToast('ส่งคำขอสำเร็จ (ไม่มีรูป)', 'success');
       })
+      .withFailureHandler(err => {
+        hideLoading();
+        console.error('submitLeaveRequest failed', err);
+        showToast('ส่งคำขอไม่สำเร็จ', 'error');
+      })
       .submitLeaveRequest(u.studentNo, u.displayName, type, date, reason, null);
   }
 }
@@ -1592,6 +1625,11 @@ function updLeave(id, stat) {
       hideLoading();
       loadLeave();
       showToast('อัปเดตสถานะเรียบร้อย', 'success');
+    })
+    .withFailureHandler(err => {
+      hideLoading();
+      console.error('updateLeaveStatus failed', err);
+      showToast('ไม่สามารถอัปเดตสถานะได้', 'error');
     })
     .updateLeaveStatus(id, stat);
 }
@@ -1613,6 +1651,11 @@ function confirmLeave(id) {
           loadLeave();
           showToast('อัปโหลดรูปยืนยันสำเร็จ', 'success');
         })
+        .withFailureHandler(err => {
+          hideLoading();
+          console.error('confirmLeaveRequest failed', err);
+          showToast('ไม่สามารถอัปโหลดรูปได้', 'error');
+        })
         .confirmLeaveRequest(id, reader.result);
     };
   };
@@ -1630,6 +1673,11 @@ function doChangePw(e) {
     .withSuccessHandler(r => { 
       hideLoading(); 
       showToast(r.message, r.success ? 'success' : 'error'); 
+    })
+    .withFailureHandler(err => {
+      hideLoading();
+      console.error('changePassword failed', err);
+      showToast('ไม่สามารถเปลี่ยนรหัสผ่านได้', 'error');
     })
     .changePassword(u.id, o, n, c); 
 }
@@ -1659,6 +1707,13 @@ function getHint() {
         res.style.color = 'var(--danger)'; 
       } 
       res.style.display = 'block'; 
+    })
+    .withFailureHandler(err => {
+      hideLoading();
+      console.error('getPasswordHint failed', err);
+      res.innerHTML = 'เกิดข้อผิดพลาดในการเชื่อมต่อ';
+      res.style.color = 'var(--danger)';
+      res.style.display = 'block';
     })
     .getPasswordHint(name); 
 }
@@ -1764,7 +1819,14 @@ function createCode() {
         document.getElementById('qrImage').src = qrUrl;
         showToast('สร้างโค้ดสำเร็จ', 'success', 6000);
         document.getElementById('generatedCodeBox').scrollIntoView({ behavior: 'smooth' });
+      } else {
+        showToast(r.message || 'ไม่สามารถสร้างโค้ดได้', 'error');
       }
+    })
+    .withFailureHandler(err => {
+      hideLoading();
+      console.error('generateCode failed', err);
+      showToast('เกิดข้อผิดพลาดสร้างโค้ด', 'error');
     })
     .generateCode(type, val, details);
 }
@@ -1792,6 +1854,9 @@ function doRedeem() {
     } else {
       showToast(r.message, 'error');
     }
+  }).withFailureHandler(err => {
+    hideLoading();
+    showToast('Server error redeem', 'error', 0);
   }).redeemCode(code);
 }
 
