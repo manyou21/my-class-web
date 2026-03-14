@@ -871,13 +871,6 @@ function getLuminousColor(hex, percent = 40) {
   return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 
-// แก้ใน renderHw
-const isDarkMode = document.body.getAttribute('data-theme') === 'dark';
-const baseColor = h.color || '#E0E0E0';
-// ถ้าเป็นโหมดมืด ให้ใช้ getLuminousColor ปรับให้สว่างขึ้น 50%
-const subjectColor = isDarkMode ? getLuminousColor(baseColor, 50) : baseColor;
-const textColor = isDarkMode ? getLuminousColor(baseColor, 85) : getDarkColor(baseColor, -55);
-
 function initForms() {
   safeAddListener('loginForm', 'submit', doLogin);
   safeAddListener('registerForm', 'submit', doRegister);
@@ -1301,13 +1294,9 @@ function renderHw() {
   el.innerHTML = hwData.map(h => {
     const isDone = u.studentNo && h.statuses[u.studentNo]?.status === 'completed';
     const imagePath = h.statuses[u.studentNo]?.imagePath;
-    const subjectColor = h.color || '#E0E0E0';
-    const textColor = getDarkColor(subjectColor, -55); // สร้างสีข้อความ
     const hasStudentStatus = u.studentNo && h.statuses[u.studentNo];
-    // แก้ไขใน renderHw()
     const isDarkMode = document.body.getAttribute('data-theme') === 'dark';
     const baseColor = h.color || '#E0E0E0';
-    // ปรับสีให้สว่างขึ้น 50% ถ้าเป็นโหมดมืด
     const subjectColor = isDarkMode ? getLuminousColor(baseColor, 50) : baseColor;
     const textColor = isDarkMode ? getLuminousColor(baseColor, 85) : getDarkColor(baseColor, -55);
     return `
