@@ -923,12 +923,19 @@ function toggleTheme() {
   applyTheme(); 
 }
 function applyTheme() { document.documentElement.setAttribute('data-theme', lastTheme); }
+let loadingTimeout = null;
 function showLoading() {
   loadingCount = Math.max(0, loadingCount + 1);
   console.debug('showLoading', loadingCount);
   if (loadingCount > 0) {
     document.getElementById('loadingOverlay').classList.add('show');
   }
+  if (loadingTimeout) clearTimeout(loadingTimeout);
+  loadingTimeout = setTimeout(() => {
+    console.warn('loading timeout auto-hide');
+    loadingCount = 0;
+    document.getElementById('loadingOverlay').classList.remove('show');
+  }, 15000);
 }
 function hideLoading() {
   loadingCount = Math.max(0, loadingCount - 1);
@@ -936,11 +943,19 @@ function hideLoading() {
   if (loadingCount <= 0) {
     loadingCount = 0;
     document.getElementById('loadingOverlay').classList.remove('show');
+    if (loadingTimeout) {
+      clearTimeout(loadingTimeout);
+      loadingTimeout = null;
+    }
   }
 }
 function resetLoadingOverlay() {
   loadingCount = 0;
   document.getElementById('loadingOverlay').classList.remove('show');
+  if (loadingTimeout) {
+    clearTimeout(loadingTimeout);
+    loadingTimeout = null;
+  }
 }
 function showError(id, m) {
   const el = document.getElementById(id);
@@ -1057,6 +1072,7 @@ function doRegister(e) {
 }
 
 function checkSession() { 
+  resetLoadingOverlay();
   const saved = localStorage.getItem('user'); 
   if(saved) { 
     u = JSON.parse(saved); 
