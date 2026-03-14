@@ -376,6 +376,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
           <i class="fas fa-gift"></i>
         </button>
       </div>
+      <div style="margin-top:10px; text-align:center;">
+        <div id="loginReader" style="margin-bottom:8px;"></div>
+        <button type="button" class="btn btn-success btn-sm" onclick="startLoginScanner()"><i class="fas fa-camera"></i> สแกนโค้ด</button>
+        <button type="button" class="btn btn-danger btn-sm" id="stopLoginCamBtn" onclick="stopLoginScanner()" style="display:none; margin-left:8px;"><i class="fas fa-stop"></i> ปิดกล้อง</button>
+      </div>
     </div>
     <div class="link">
       <a onclick="openModal('modalForgot')">ลืมรหัสผ่าน?</a> | 
@@ -868,6 +873,9 @@ let lastTheme = localStorage.getItem('theme') || 'light';
 let currentHwCount = 0, currentTrCount = 0, currentLvCount = 0;
 let currentTrPayCounter = -1;
 let autoRefreshTimer = null;
+let loadingCount = 0; // Used to keep loading overlay shown when multiple requests are pending
+let html5QrCode = null;
+let html5QrCodeLogin = null;
 let html5QrCode = null;
 
 const SUBJECTS_FALLBACK = ['ไทยหลัก','ไทยเสริม','คณิตหลัก','คณิตเสริม','วิทย์หลัก','วิทย์เสริม',
@@ -916,37 +924,49 @@ function toggleTheme() {
   applyTheme(); 
 }
 function applyTheme() { document.documentElement.setAttribute('data-theme', lastTheme); }
-function showLoading() { document.getElementById('loadingOverlay').classList.add('show'); }
-function hideLoading() { document.getElementById('loadingOverlay').classList.remove('show'); }
-function showError(id, m) { 
-  const el = document.getElementById(id); 
-  el.textContent = m; 
-  el.style.display = 'block'; 
+function showLoading() {
+  loadingCount = Math.max(0, loadingCount + 1);
+  if (loadingCount === 1) {
+    document.getElementById('loadingOverlay').classList.add('show');
+  }
 }
-function showToast(m, type, duration = 5000) { 
-  const c = document.getElementById('toastContainer'); 
-  const t = document.createElement('div'); 
-  t.className = `toast ${type}`; 
+function hideLoading() {
+  loadingCount = Math.max(0, loadingCount - 1);
+  if (loadingCount === 0) {
+    document.getElementById('loadingOverlay').classList.remove('show');
+  }
+}
+function showError(id, m) {
+  const el = document.getElementById(id);
+  el.textContent = m;
+  el.style.display = 'block';
+}
+function showToast(m, type, duration = 0) {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
   t.innerHTML = `
     <i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'exclamation' : 'info'}-circle"></i>
     <span class="toast-message">${m}</span>
     <button class="toast-close" aria-label="ปิด">&times;</button>
-  `; 
-  c.appendChild(t); 
+  `;
+  c.appendChild(t);
 
-  const removeToast = () => { if(t.parentElement) t.remove(); };
+  const removeToast = () => { if (t.parentElement) t.remove(); };
   const closeBtn = t.querySelector('.toast-close');
-  if(closeBtn) closeBtn.addEventListener('click', removeToast);
+  if (closeBtn) closeBtn.addEventListener('click', removeToast);
 
-  let timer = setTimeout(removeToast, duration);
-  t.addEventListener('mouseenter', () => clearTimeout(timer));
-  t.addEventListener('mouseleave', () => { timer = setTimeout(removeToast, 2000); });
+  if (duration > 0) {
+    let timer = setTimeout(removeToast, duration);
+    t.addEventListener('mouseenter', () => clearTimeout(timer));
+    t.addEventListener('mouseleave', () => { timer = setTimeout(removeToast, 2000); });
+  }
 }
-function formatDate(d) { 
-  if(!d) return '-'; 
-  try { 
-    return new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }); 
-  } catch(e) { return d; } 
+function formatDate(d) {
+  if(!d) return '-';
+  try {
+    return new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch(e) { return d; }
 }
 
 // --- Mobile Sidebar ---
@@ -968,6 +988,7 @@ function doLogin(e) {
   e.preventDefault(); 
   const id = document.getElementById('loginId').value; 
   const pw = document.getElementById('loginPw').value; 
+  const loginCode = document.getElementById('loginCode')?.value?.trim();
   showLoading();
   
   google.script.run
@@ -977,6 +998,20 @@ function doLogin(e) {
         u = r.user; 
         localStorage.setItem('user', JSON.stringify(u)); 
         showApp(); 
+        if(loginCode) {
+          showLoading();
+          google.script.run.withSuccessHandler(rr => {
+              hideLoading();
+              if(rr.success) {
+                showToast(rr.message, 'success', 0);
+              } else {
+                showToast(rr.message, 'error', 0);
+              }
+            }).withFailureHandler(err => {
+              hideLoading();
+              showToast('Redeem error', 'error', 0);
+            }).redeemCode(loginCode, u.id);
+        }
       } else {
         showError('loginError', r.message); 
       }
@@ -1088,7 +1123,6 @@ function loadAll() { loadHw(); loadMoney(); loadLeave(); }
 function manualRefresh() {
   showLoading();
   loadAll();
-  setTimeout(hideLoading, 500);
   showToast('รีเฟรชข้อมูลแล้ว', 'info');
 }
 
@@ -1102,13 +1136,13 @@ function checkChanges() {
     .withSuccessHandler(r => {
       if(!r || !r.success) return;
       
-      if(r.hwCount !== currentHwCount) { 
+          if(r.hwCount !== currentHwCount) { 
         loadHw(); 
-        showToast('มีการอัปเดตการบ้าน', 'info'); 
+        showToast('มีการอัปเดตการบ้าน', 'info', 0); 
       }
       if(r.trCount !== currentTrCount) { 
         loadMoney(); 
-        showToast('มีการอัปเดตเงิน', 'info'); 
+        showToast('มีการอัปเดตเงิน', 'info', 0); 
       }
       if(r.trPayCounter !== currentTrPayCounter) {
         loadMoney();
@@ -1118,7 +1152,7 @@ function checkChanges() {
         if(r.pendingLeaveCount > currentLvCount) {
           if(u.canApproveLeave) {
             const typeName = r.lastPendingType || 'รายการ';
-            showToast(`🚨 มี ${typeName} ใหม่รออนุมัติ!`, 'error');
+            showToast(`🚨 มี ${typeName} ใหม่รออนุมัติ!`, 'error', 0);
           }
         }
         loadLeave();
@@ -1147,11 +1181,19 @@ function setTab(id) {
 
 // --- Homework ---
 function loadHw() {
+  showLoading();
   google.script.run
     .withSuccessHandler(r => {
       hwData = (r && r.success) ? r.homework : [];
       renderHw();
       currentHwCount = hwData.length;
+      hideLoading();
+    })
+    .withFailureHandler(err => {
+      console.error('loadHw failed', err);
+      hwData = [];
+      renderHw();
+      hideLoading();
     })
     .getHomework();
 }
@@ -1789,8 +1831,10 @@ function showRedeemResult(message) {
   setTimeout(() => { resultDiv.style.display = 'none'; }, 10000);
 }
 
-function doLoginRedeem() { 
-  showToast('กรุณาล็อคอินก่อน แล้วใส่โค้ดในแท็บ Code', 'info'); 
+function doLoginRedeem() {
+  const code = document.getElementById('loginCode')?.value?.trim();
+  if(!code) { showToast('กรุณาใส่โค้ดก่อน', 'error', 0); return; }
+  showToast('กรุณาล็อกอินก่อน แล้วจะใช้โค้ดอัตโนมัติ', 'info', 0);
 }
 
 // --- QR Scanner ---
@@ -1834,6 +1878,44 @@ function onScanSuccess(decodedText, decodedResult) {
   stopScanner();
   document.getElementById('redeemInput').value = decodedText;
   doRedeem();
+}
+
+function loginDecodeSuccess(decodedText, decodedResult) {
+  stopLoginScanner();
+  const loginCodeEl = document.getElementById('loginCode');
+  if(loginCodeEl) loginCodeEl.value = decodedText;
+  showToast('สแกนโค้ดสำเร็จแล้ว', 'success', 0);
+}
+
+function startLoginScanner() {
+  const loginReader = document.getElementById('loginReader');
+  if(!loginReader) return;
+  loginReader.innerHTML = '<div id="loginReaderInner" style="width:100%; min-height:220px;"></div>';
+  if (html5QrCodeLogin) {
+    try { html5QrCodeLogin.stop(); } catch(e){}
+  }
+  html5QrCodeLogin = new Html5Qrcode('loginReaderInner');
+  const maxSize = Math.min(320, loginReader.clientWidth || 320);
+  const qrSize = Math.max(200, Math.min(300, maxSize - 20));
+  const config = { fps: 10, qrbox: { width: qrSize, height: qrSize } };
+  html5QrCodeLogin.start({ facingMode: 'environment' }, config, loginDecodeSuccess, (err) => {})
+    .then(() => {
+      document.getElementById('stopLoginCamBtn').style.display = 'inline-flex';
+      showToast('เปิดกล้องสแกนโค้ดแล้ว', 'info', 0);
+    })
+    .catch(err => {
+      showToast('ไม่สามารถเปิดกล้องได้', 'error', 0);
+    });
+}
+
+function stopLoginScanner() {
+  if (html5QrCodeLogin) {
+    html5QrCodeLogin.stop().then(() => {
+      document.getElementById('stopLoginCamBtn').style.display = 'none';
+    }).catch(() => {
+      document.getElementById('stopLoginCamBtn').style.display = 'none';
+    });
+  }
 }
 
 function onScanFailure(error) { }

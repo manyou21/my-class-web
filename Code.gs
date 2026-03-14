@@ -3,6 +3,7 @@
 // ============================================
 const SPREADSHEET_ID = '1cT-N8AHw613xstQ7FUNdOk-QnavT9TRsZh1SiJJfYWA';
 const DRIVE_FOLDER_ID = '1bv_ZpRpY5diAW9Sd_7Hkl8UCTeHU8YCn';
+const QR_FOLDER_ID = '190MePEweP8hVXejCx5yCU2B2KUbB_Xey';
 
 const SHEETS = {
   USERS: 'Users',
@@ -176,7 +177,7 @@ function ensureSheetsExist() {
   if (!ss.getSheetByName(SHEETS.TREASURY)) ss.insertSheet(SHEETS.TREASURY).appendRow(['ID','Title','AmountPerPerson','CreatedBy','CreatedAt','Status']);
   if (!ss.getSheetByName(SHEETS.TREASURY_PAYMENTS)) ss.insertSheet(SHEETS.TREASURY_PAYMENTS).appendRow(['TreasuryID','StudentNo','AmountPaid','PaidAt','Notes']);
   if (!ss.getSheetByName(SHEETS.LEAVE_REQUESTS)) ss.insertSheet(SHEETS.LEAVE_REQUESTS).appendRow(['ID','StudentNo','StudentName','Type','Date','Reason','Status','ProofImage','Confirmed','Timestamp']);
-  if (!ss.getSheetByName(SHEETS.REDEEM_CODES)) ss.insertSheet(SHEETS.REDEEM_CODES).appendRow(['Code','ActionType','Value','Details','MaxUses','UsesCount','CreatedBy','CreatedAt']);
+  if (!ss.getSheetByName(SHEETS.REDEEM_CODES)) ss.insertSheet(SHEETS.REDEEM_CODES).appendRow(['Code','ActionType','Value','Details','MaxUses','UsesCount','CreatedBy','CreatedAt','QrFileId','QrUrl','CreatedAtUTC']);
   return 'OK';
 }
 
@@ -745,14 +746,48 @@ function getLastUpdate() {
 // ============================================
 function generateCode(actionType, value, details) {
   try {
-    ensureSheetsExist(); 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
-    const sheet = ss.getSheetByName(SHEETS.REDEEM_CODES); 
+    ensureSheetsExist();
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(SHEETS.REDEEM_CODES);
     const code = Utilities.getUuid().split('-')[0].toUpperCase();
-    sheet.appendRow([code, actionType, value, JSON.stringify(details || {}), 1, 0, 'Owner', new Date()]);
-    return { success: true, code: code };
-  } catch (e) { 
-    return { success: false, message: e.toString() }; 
+    const qr = createQrInDrive(code);
+    const now = new Date();
+    sheet.appendRow([code, actionType, value, JSON.stringify(details || {}), 1, 0, 'Owner', now, qr.fileId || '', qr.url || '', now.toISOString()]);
+    return { success: true, code: code, qrUrl: qr.url };
+  } catch (e) {
+    return { success: false, message: e.toString() };
+  }
+}
+
+function createQrInDrive(code) {
+  try {
+    const url = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(code)}&ecc=H`;
+    const response = UrlFetchApp.fetch(url);
+    const blob = response.getBlob().setName(`Redeem_${code}.png`);
+    const folder = DriveApp.getFolderById(QR_FOLDER_ID);
+    const file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return { fileId: file.getId(), url: `https://drive.google.com/uc?export=view&id=${file.getId()}` };
+  } catch (e) {
+    console.error('QR create error:', e.toString());
+    return { fileId: '', url: '' };
+  }
+}
+
+function cleanupOldQrFiles() {
+  try {
+    const folder = DriveApp.getFolderById(QR_FOLDER_ID);
+    const files = folder.getFiles();
+    const now = new Date().getTime();
+    const oneDay = 24 * 60 * 60 * 1000;
+    while (files.hasNext()) {
+      const f = files.next();
+      if (now - f.getDateCreated().getTime() > oneDay) {
+        f.setTrashed(true);
+      }
+    }
+  } catch (e) {
+    console.error('cleanupOldQrFiles error:', e.toString());
   }
 }
 
@@ -776,6 +811,7 @@ function redeemCode(code, userId) {
         const details = JSON.parse(codeData[i][3] || '{}');
 
         codeSheet.getRange(i + 1, 6).setValue(usesCount + 1);
+        cleanupOldQrFiles();
 
         let resultMsg = 'ใช้โค้ดสำเร็จ';
         let extraData = {};
@@ -819,7 +855,7 @@ function redeemCode(code, userId) {
       }
     }
     return { success: false, message: 'ไม่พบโค้ดนี้' };
-  } catch (e) { 
-    return { success: false, message: 'เกิดข้อผิดพลาด: ' + e.toString() }; 
+  } catch (e) {
+    return { success: false, message: 'เกิดข้อผิดพลาด: ' + e.toString() };
   }
 }
