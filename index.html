@@ -328,11 +328,17 @@ margin-right:8px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--bg-secondary);
-  overflow: hidden;
+  overflow: auto;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
-.schedule-grid { display: grid; grid-template-columns: 160px repeat(6, 1fr); }
-@media (max-width: 1041px) { .schedule-grid { grid-template-columns: 120px repeat(6, 1fr); } }
+.schedule-grid {
+  display: grid;
+  grid-template-columns: 120px repeat(12, minmax(160px, 1fr));
+  min-width: 1600px; /* makes it a long strip like 306.pdf */
+}
+@media (max-width: 1041px) {
+  .schedule-grid { grid-template-columns: 90px repeat(12, minmax(150px, 1fr)); min-width: 1500px; }
+}
 .schedule-cell {
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
@@ -1379,22 +1385,14 @@ function scheduleRenderGrid() {
   const gridEl = document.getElementById('scheduleGrid');
   if (!gridEl || !scheduleState) return;
 
-  const headerMorning = `
+  const header = `
     <div class="schedule-cell header">เวลา</div>
-    ${SCHEDULE_SLOTS.slice(0, 6).map(s => `
+    ${SCHEDULE_SLOTS.map(s => `
       <div class="schedule-cell header">
         ${escapeHtml(s.time)}
-        <div style="font-weight:600; color:var(--text-secondary); font-size:0.85rem; margin-top:2px;">${escapeHtml(s.label)}</div>
-      </div>
-    `).join('')}
-  `;
-
-  const headerAfternoon = `
-    <div class="schedule-cell header">เวลา</div>
-    ${SCHEDULE_SLOTS.slice(6).map(s => `
-      <div class="schedule-cell header">
-        ${escapeHtml(s.time)}
-        <div style="font-weight:600; color:var(--text-secondary); font-size:0.85rem; margin-top:2px;">${escapeHtml(s.label)}</div>
+        <div style="font-weight:600; color:var(--text-secondary); font-size:0.85rem; margin-top:2px;">
+          ${escapeHtml(s.label)}
+        </div>
       </div>
     `).join('')}
   `;
@@ -1431,16 +1429,12 @@ function scheduleRenderGrid() {
     `;
   }
 
-  const firstRow = `
-    <div class="schedule-cell time">ช่วงเช้า</div>
-    ${SCHEDULE_SLOTS.slice(0, 6).map(cellHtml).join('')}
-  `;
-  const secondRow = `
-    <div class="schedule-cell time">ช่วงบ่าย</div>
-    ${SCHEDULE_SLOTS.slice(6).map(cellHtml).join('')}
+  const row = `
+    <div class="schedule-cell time">ตาราง</div>
+    ${SCHEDULE_SLOTS.map(cellHtml).join('')}
   `;
 
-  gridEl.innerHTML = headerMorning + headerAfternoon + firstRow + secondRow;
+  gridEl.innerHTML = header + row;
 }
 
 function scheduleSelectSlot(slotKey) {
