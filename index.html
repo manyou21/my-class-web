@@ -659,6 +659,10 @@ margin-right:8px;
           <div class="card-head"><b><i class="fas fa-plus-circle"></i> เพิ่มวิชาเข้าคลัง (Owner)</b></div>
           <div class="card-body">
             <div class="schedule-toolbar">
+              <div class="form-group" style="grid-column: 1 / -1;">
+                <label>พิมพ์ข้อมูลวิชาแบบอิสระ (ไม่ต้องเรียงลำดับ)</label>
+                <input id="schFreeText" placeholder="เช่น ไทย ครูสมชาย 333 ท23102 (จะพยายามแยกให้เอง)">
+              </div>
               <div class="form-group">
                 <label>รหัสวิชา</label>
                 <input id="schCode" placeholder="เช่น ค32101">
@@ -682,7 +686,7 @@ margin-right:8px;
               </div>
             </div>
             <div style="margin-top:12px; color:var(--text-muted); font-size:0.85rem;">
-              ลาก “การ์ดวิชา” จากคลังไปวางในช่องตารางเรียนได้ และลากย้ายตำแหน่งได้ตลอด
+              พิมพ์แบบอิสระได้ (เช่น “ไทย ครูสมชาย 333 ท23102”) หรือกรอกแยกช่องก็ได้ จากนั้นลาก “การ์ดวิชา” ไปวางในตารางและลากย้ายตำแหน่งได้ตลอด
             </div>
           </div>
         </div>
@@ -1444,11 +1448,21 @@ function scheduleSelectSlot(slotKey) {
 
 function scheduleAddToPool() {
   if (!u || u.roleKey !== 'OWNER') { showToast('เฉพาะเจ้าของเว็บเท่านั้นที่เพิ่มวิชาเข้าคลังได้', 'error'); return; }
-  const code = document.getElementById('schCode')?.value?.trim();
-  const name = document.getElementById('schName')?.value?.trim();
-  const teacher = document.getElementById('schTeacher')?.value?.trim();
-  const room = document.getElementById('schRoom')?.value?.trim();
-  if (!code && !name) { showToast('กรุณากรอกรหัสวิชา หรือ ชื่อวิชา', 'error'); return; }
+  const freeText = document.getElementById('schFreeText')?.value?.trim();
+  let code = document.getElementById('schCode')?.value?.trim();
+  let name = document.getElementById('schName')?.value?.trim();
+  let teacher = document.getElementById('schTeacher')?.value?.trim();
+  let room = document.getElementById('schRoom')?.value?.trim();
+
+  if (freeText) {
+    const parsed = scheduleParseFreeText(freeText);
+    code = code || parsed.code;
+    name = name || parsed.name;
+    teacher = teacher || parsed.teacher;
+    room = room || parsed.room;
+  }
+
+  if (!code && !name && !teacher && !room) { showToast('กรุณาพิมพ์ข้อมูลวิชาอย่างน้อย 1 อย่าง', 'error'); return; }
 
   const item = {
     id: 'SUB_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36),
@@ -1461,8 +1475,42 @@ function scheduleAddToPool() {
   scheduleSave();
   scheduleRenderAll();
 
-  ['schCode','schName','schTeacher','schRoom'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['schFreeText','schCode','schName','schTeacher','schRoom'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   showToast('เพิ่มวิชาเข้าคลังแล้ว', 'success', 2000);
+}
+
+function scheduleParseFreeText(text) {
+  const raw = String(text || '').trim();
+  const tokens = raw.split(/\s+/).filter(Boolean);
+
+  let code = '';
+  let teacher = '';
+  let room = '';
+
+  // detect subject code: Thai/Eng letters + 3-6 digits (e.g. ท23102, ค32101, EN101)
+  const codeIdx = tokens.findIndex(t => /^(?:[A-Za-zก-๙]{1,6})\d{3,6}$/.test(t));
+  if (codeIdx >= 0) {
+    code = tokens[codeIdx];
+    tokens.splice(codeIdx, 1);
+  }
+
+  // detect teacher: token starts with "ครู" or "อ." (common)
+  const tIdx = tokens.findIndex(t => /^(ครู|อ\.)/.test(t));
+  if (tIdx >= 0) {
+    teacher = tokens.slice(tIdx).join(' ');
+    tokens.splice(tIdx, tokens.length - tIdx);
+  }
+
+  // detect room/building: standalone 3-4 digits or contains อาคาร/ห้อง
+  const rIdx = tokens.findIndex(t => /^\d{3,4}$/.test(t) || /^(อาคาร|ห้อง)/.test(t));
+  if (rIdx >= 0) {
+    room = tokens.slice(rIdx).join(' ');
+    tokens.splice(rIdx, tokens.length - rIdx);
+  }
+
+  // remaining tokens as subject name
+  const name = tokens.join(' ');
+  return { code, name, teacher, room };
 }
 
 function scheduleEditPoolItem(id) {
