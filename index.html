@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
 :root {
 --bg-primary: #f0f2f5; --bg-secondary: #ffffff; --bg-tertiary: #f8f9fa;
@@ -114,6 +115,30 @@ margin-right:8px;
 .sidebar-item:hover { background: var(--bg-tertiary); color: var(--accent); }
 .sidebar-item.active { background: var(--accent-light); color: var(--accent); }
 .sidebar-item i { width: 20px; text-align: center; }
+
+/* Sidebar collapsed tooltip (Desktop) */
+.sidebar.collapsed .sidebar-item { position: relative; }
+.sidebar.collapsed .sidebar-item::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 72px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(15, 23, 42, 0.92);
+  color: #fff;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+}
+.sidebar.collapsed .sidebar-item:hover::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(2px);
+}
 .sidebar-footer { padding: 20px; border-top: 1px solid var(--border); }
 .sidebar-user {
   display: flex; align-items: center; gap: 10px; padding: 10px;
@@ -264,6 +289,84 @@ margin-right:8px;
 }
 .guest-login-title i { color: #7c3aed; }
 
+/* ============================
+   📅 Timetable (Schedule)
+   ============================ */
+.schedule-toolbar {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 1.2fr 1fr auto;
+  gap: 10px;
+  align-items: end;
+}
+@media (max-width: 1041px) {
+  .schedule-toolbar { grid-template-columns: 1fr 1fr; }
+}
+.schedule-pool { display: flex; flex-wrap: wrap; gap: 10px; }
+.schedule-chip {
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  border-radius: 12px;
+  padding: 10px 12px;
+  min-width: 190px;
+  cursor: grab;
+  user-select: none;
+  transition: var(--transition);
+}
+.schedule-chip:active { cursor: grabbing; transform: scale(0.98); }
+.schedule-chip .chip-top { display:flex; justify-content: space-between; align-items:center; gap: 8px; }
+.schedule-chip .chip-code { font-weight: 700; letter-spacing: 0.5px; }
+.schedule-chip .chip-name { font-weight: 600; margin-top: 2px; }
+.schedule-chip .chip-meta { font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px; line-height: 1.3; }
+.schedule-chip .chip-actions { display:flex; gap: 6px; }
+.schedule-chip .chip-actions button { width: 30px; height: 30px; }
+
+.schedule-wrap {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+.schedule-grid { display: grid; grid-template-columns: 160px repeat(6, 1fr); }
+@media (max-width: 1041px) { .schedule-grid { grid-template-columns: 120px repeat(6, 1fr); } }
+.schedule-cell {
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  min-height: 92px;
+  padding: 10px;
+  position: relative;
+  background: var(--bg-secondary);
+}
+.schedule-cell.header { min-height: auto; background: var(--bg-tertiary); font-weight: 700; color: var(--text-primary); }
+.schedule-cell.time { background: var(--bg-tertiary); font-weight: 600; color: var(--text-secondary); }
+.schedule-cell.drop-hover {
+  outline: 3px solid var(--accent-light);
+  outline-offset: -3px;
+  background: linear-gradient(0deg, var(--accent-light), transparent);
+}
+.schedule-item { border-radius: 12px; padding: 10px 10px 8px; border: 1px solid var(--border); background: var(--bg-tertiary); }
+.schedule-item .si-title { font-weight: 800; font-size: 0.95rem; }
+.schedule-item .si-sub { font-weight: 600; margin-top: 2px; }
+.schedule-item .si-meta { color: var(--text-secondary); font-size: 0.8rem; margin-top: 4px; line-height: 1.25; }
+.schedule-note {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+}
+.schedule-empty-hint { position: absolute; bottom: 8px; right: 10px; font-size: 0.75rem; color: var(--text-muted); }
+.schedule-export-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: end; }
+@media (max-width: 1041px) { .schedule-export-row { grid-template-columns: 1fr 1fr; } }
+.export-preview {
+  background: var(--bg-tertiary);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
 /* Responsive - Mobile (< 1041px) */
 @media (max-width: 1041px) {
   .sidebar { display: none; }
@@ -390,19 +493,22 @@ margin-right:8px;
   <span>ระบบห้องเรียน</span>
 </div>
     <div class="sidebar-menu">
-      <div class="sidebar-item active" onclick="setTab('hw')" data-tab="hw">
+      <div class="sidebar-item active" onclick="setTab('hw')" data-tab="hw" data-tooltip="การบ้าน">
         <i class="fas fa-book"></i><span>การบ้าน</span>
       </div>
-      <div class="sidebar-item" onclick="setTab('money')" data-tab="money">
+      <div class="sidebar-item" onclick="setTab('money')" data-tab="money" data-tooltip="เงินห้อง">
         <i class="fas fa-coins"></i><span>เงินห้อง</span>
       </div>
-      <div class="sidebar-item" onclick="setTab('leave')" data-tab="leave">
+      <div class="sidebar-item" onclick="setTab('leave')" data-tab="leave" data-tooltip="ลา / กิจกรรม">
         <i class="fas fa-calendar-times"></i><span>ลา / กิจกรรม</span>
       </div>
-      <div class="sidebar-item" onclick="setTab('redeem')" data-tab="redeem">
+      <div class="sidebar-item" onclick="setTab('schedule')" data-tab="schedule" data-tooltip="ตารางเรียน">
+        <i class="fas fa-table"></i><span>ตารางเรียน</span>
+      </div>
+      <div class="sidebar-item" onclick="setTab('redeem')" data-tab="redeem" data-tooltip="Redeem Code">
         <i class="fas fa-gift"></i><span>Redeem Code</span>
       </div>
-      <div class="sidebar-item" onclick="setTab('me')" data-tab="me">
+      <div class="sidebar-item" onclick="setTab('me')" data-tab="me" data-tooltip="โปรไฟล์">
         <i class="fas fa-user"></i><span>โปรไฟล์</span>
       </div>
     </div>
@@ -451,6 +557,9 @@ margin-right:8px;
       </div>
       <div class="sidebar-item" onclick="setTab('leave'); toggleSidebar();" data-tab="leave">
         <i class="fas fa-calendar-times"></i><span>ลา / กิจกรรม</span>
+      </div>
+      <div class="sidebar-item" onclick="setTab('schedule'); toggleSidebar();" data-tab="schedule">
+        <i class="fas fa-table"></i><span>ตารางเรียน</span>
       </div>
       <div class="sidebar-item" onclick="setTab('redeem'); toggleSidebar();" data-tab="redeem">
         <i class="fas fa-gift"></i><span>Redeem Code</span>
@@ -519,6 +628,115 @@ margin-right:8px;
           </button>
         </div>
         <div id="listLeave"></div>
+      </div>
+
+      <!-- Schedule -->
+      <div class="tab-panel" id="panelSchedule">
+        <div class="header">
+          <h1 class="title"><i class="fas fa-table"></i> ตารางเรียน</h1>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="scheduleClear()" title="ล้างตาราง (เฉพาะบัญชีนี้)">
+              <i class="fas fa-eraser"></i> ล้างตาราง
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="scheduleSaveNow()" title="บันทึกทันที">
+              <i class="fas fa-save"></i> บันทึก
+            </button>
+          </div>
+        </div>
+
+        <div class="card" id="scheduleOwnerCard" style="display:none;">
+          <div class="card-head"><b><i class="fas fa-plus-circle"></i> เพิ่มวิชาเข้าคลัง (Owner)</b></div>
+          <div class="card-body">
+            <div class="schedule-toolbar">
+              <div class="form-group">
+                <label>รหัสวิชา</label>
+                <input id="schCode" placeholder="เช่น ค32101">
+              </div>
+              <div class="form-group">
+                <label>ชื่อวิชา</label>
+                <input id="schName" placeholder="เช่น คณิตศาสตร์เพิ่มเติม">
+              </div>
+              <div class="form-group">
+                <label>ครูที่สอน</label>
+                <input id="schTeacher" placeholder="เช่น ครูสมชาย">
+              </div>
+              <div class="form-group">
+                <label>อาคาร/ห้อง</label>
+                <input id="schRoom" placeholder="เช่น อาคาร 3 ห้อง 402">
+              </div>
+              <div class="form-group">
+                <button class="btn btn-success" style="width:100%;" onclick="scheduleAddToPool()">
+                  <i class="fas fa-plus"></i> เพิ่ม
+                </button>
+              </div>
+            </div>
+            <div style="margin-top:12px; color:var(--text-muted); font-size:0.85rem;">
+              ลาก “การ์ดวิชา” จากคลังไปวางในช่องตารางเรียนได้ และลากย้ายตำแหน่งได้ตลอด
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><b><i class="fas fa-layer-group"></i> คลังวิชา</b></div>
+          <div class="card-body">
+            <div class="schedule-pool" id="schedulePool"></div>
+            <div id="schedulePoolEmpty" style="display:none; text-align:center; color:var(--text-muted); padding:18px;">
+              ยังไม่มีวิชาในคลัง
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><b><i class="fas fa-calendar-alt"></i> ตารางเรียน</b></div>
+          <div class="card-body">
+            <div class="schedule-wrap" id="scheduleExportRoot">
+              <div class="schedule-grid" id="scheduleGrid"></div>
+            </div>
+            <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+              <button class="btn btn-secondary btn-sm" onclick="scheduleEditNoteForSelected()">
+                <i class="fas fa-sticky-note"></i> เพิ่ม/แก้โน้ตในช่องที่เลือก
+              </button>
+              <button class="btn btn-danger btn-sm" onclick="scheduleClearCellSelected()">
+                <i class="fas fa-trash"></i> ล้างช่องที่เลือก
+              </button>
+            </div>
+            <div class="export-preview" style="margin-top:12px;">
+              เคล็ดลับ: คลิกช่องในตารางเพื่อ “เลือกช่อง” ก่อน แล้วค่อยกดเพิ่มโน้ต/ล้างช่อง
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><b><i class="fas fa-download"></i> ดาวน์โหลดตารางเรียน (ภาพ)</b></div>
+          <div class="card-body">
+            <div class="schedule-export-row">
+              <div class="form-group">
+                <label>ขนาดภาพ</label>
+                <select id="schExportPreset" onchange="scheduleApplyPreset()">
+                  <option value="1849x4096">1849 x 4096</option>
+                  <option value="1920x1080">1920 x 1080</option>
+                  <option value="custom">กำหนดเอง</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>กว้าง (px)</label>
+                <input id="schExportW" type="number" min="300" value="1849">
+              </div>
+              <div class="form-group">
+                <label>สูง (px)</label>
+                <input id="schExportH" type="number" min="300" value="4096">
+              </div>
+              <div class="form-group">
+                <button class="btn btn-primary" style="width:100%;" onclick="scheduleDownloadPng()">
+                  <i class="fas fa-file-image"></i> ดาวน์โหลด PNG
+                </button>
+              </div>
+            </div>
+            <div style="margin-top:8px; color:var(--text-muted); font-size:0.85rem;">
+              ดาวน์โหลดจะทำเฉพาะตารางเรียน (ไม่รวม Sidebar) และจะบันทึกแยกตามผู้ใช้งานแต่ละบัญชี
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Redeem -->
@@ -911,18 +1129,17 @@ function initForms() {
 
 // เพิ่มฟังก์ชันนี้ และเปลี่ยน onclick ใน HTML เป็น toggleSidebar()
 function toggleSidebar() {
-  const sidebar = document.querySelector('.sidebar');
+  const desktopSidebar = document.getElementById('sidebar');
+  const mobileSidebar = document.getElementById('mobileSidebar');
   const wrapper = document.querySelector('.main-wrapper');
   const overlay = document.getElementById('mobileOverlay');
-  
+
   if (window.innerWidth <= 1041) {
-    // โหมดมือถือ: เปิด/ปิดแถบปกติ
-    sidebar.classList.toggle('active'); 
+    if (mobileSidebar) mobileSidebar.classList.toggle('show');
     if (overlay) overlay.classList.toggle('show');
   } else {
-    // โหมดคอม: พับเหลือแต่ไอคอน
-    sidebar.classList.toggle('collapsed');
-    wrapper.classList.toggle('expanded');
+    if (desktopSidebar) desktopSidebar.classList.toggle('collapsed');
+    if (wrapper) wrapper.classList.toggle('expanded');
   }
 }
 
@@ -1036,6 +1253,359 @@ function setTab(id) {
   document.getElementById('panel' + id.charAt(0).toUpperCase() + id.slice(1)).classList.add('active');
   if (id !== 'redeem' && html5QrCode) { 
     try { html5QrCode.stop(); } catch(e) {} 
+  }
+  if (id === 'schedule') scheduleInit();
+}
+
+// ============================================
+// 📅 SCHEDULE / TIMETABLE (Local per user)
+// ============================================
+const SCHEDULE_SLOTS = [
+  { key: 'A', time: '7.30-8.30', label: 'คาบโฮมรูม' },
+  { key: 'B', time: '8.30-9.20', label: 'คาบที่1' },
+  { key: 'C', time: '9.20-10.10', label: 'คาบที่2' },
+  { key: 'D', time: '10.10-10.30', label: 'พัก20นาที' },
+  { key: 'E', time: '10.30-11.20', label: 'คาบที่3' },
+  { key: 'F', time: '11.20-12.10', label: 'พักกลางวัน' },
+  { key: 'G', time: '12.10-13.00', label: 'คาบที่5' },
+  { key: 'H', time: '13.00-13.50', label: 'คาบที่6' },
+  { key: 'I', time: '13.50-14.40', label: 'คาบที่7' },
+  { key: 'J', time: '14.40-15.30', label: 'คาบที่8' },
+  { key: 'K', time: '15.30-16.20', label: 'คาบที่9' },
+  { key: 'L', time: '16.20-17.20', label: 'คาบที่10' },
+];
+
+let scheduleState = null;
+let scheduleSelectedSlot = null;
+let scheduleInitedForUser = null;
+
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function scheduleStorageKey() {
+  const uid = u?.id || 'anon';
+  return `schedule_v1_${uid}`;
+}
+
+function scheduleDefaultState() {
+  return {
+    pool: [],
+    grid: Object.fromEntries(SCHEDULE_SLOTS.map(s => [s.key, { itemId: null, note: '' }])),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function scheduleLoad() {
+  try {
+    const raw = localStorage.getItem(scheduleStorageKey());
+    if (!raw) return scheduleDefaultState();
+    const parsed = JSON.parse(raw);
+    const state = { ...scheduleDefaultState(), ...parsed };
+    for (const s of SCHEDULE_SLOTS) {
+      if (!state.grid[s.key]) state.grid[s.key] = { itemId: null, note: '' };
+      if (typeof state.grid[s.key].note !== 'string') state.grid[s.key].note = '';
+    }
+    if (!Array.isArray(state.pool)) state.pool = [];
+    return state;
+  } catch {
+    return scheduleDefaultState();
+  }
+}
+
+function scheduleSave() {
+  if (!scheduleState) return;
+  scheduleState.updatedAt = new Date().toISOString();
+  localStorage.setItem(scheduleStorageKey(), JSON.stringify(scheduleState));
+}
+
+function scheduleSaveNow() {
+  scheduleSave();
+  showToast('บันทึกตารางเรียนแล้ว (เฉพาะบัญชีนี้)', 'success', 2000);
+}
+
+function scheduleInit() {
+  if (!u?.id) return;
+  if (scheduleInitedForUser === u.id && scheduleState) return;
+  scheduleInitedForUser = u.id;
+  scheduleState = scheduleLoad();
+  scheduleSelectedSlot = null;
+  scheduleRenderAll();
+}
+
+function scheduleRenderAll() {
+  scheduleRenderPool();
+  scheduleRenderGrid();
+}
+
+function scheduleRenderPool() {
+  const poolEl = document.getElementById('schedulePool');
+  const emptyEl = document.getElementById('schedulePoolEmpty');
+  if (!poolEl || !emptyEl || !scheduleState) return;
+
+  const pool = scheduleState.pool || [];
+  emptyEl.style.display = pool.length ? 'none' : 'block';
+
+  poolEl.innerHTML = pool.map(item => `
+    <div class="schedule-chip" draggable="true"
+      ondragstart="scheduleDragStart(event, '${item.id}', 'pool')">
+      <div class="chip-top">
+        <div class="chip-code">${escapeHtml(item.code || '-')}</div>
+        <div class="chip-actions">
+          <button class="btn btn-secondary btn-icon" title="แก้ไข" onclick="scheduleEditPoolItem('${item.id}')"><i class="fas fa-pen"></i></button>
+          <button class="btn btn-danger btn-icon" title="ลบ" onclick="scheduleDeletePoolItem('${item.id}')"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+      <div class="chip-name">${escapeHtml(item.name || '(ไม่มีชื่อวิชา)')}</div>
+      <div class="chip-meta">
+        <div><i class="fas fa-chalkboard-teacher"></i> ${escapeHtml(item.teacher || '-')}</div>
+        <div><i class="fas fa-location-dot"></i> ${escapeHtml(item.room || '-')}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function scheduleRenderGrid() {
+  const gridEl = document.getElementById('scheduleGrid');
+  if (!gridEl || !scheduleState) return;
+
+  const header = `
+    <div class="schedule-cell header">เวลา</div>
+    ${SCHEDULE_SLOTS.slice(0, 6).map(s => `
+      <div class="schedule-cell header">
+        ${escapeHtml(s.time)}
+        <div style="font-weight:600; color:var(--text-secondary); font-size:0.85rem; margin-top:2px;">${escapeHtml(s.label)}</div>
+      </div>
+    `).join('')}
+    <div class="schedule-cell header">เวลา</div>
+    ${SCHEDULE_SLOTS.slice(6).map(s => `
+      <div class="schedule-cell header">
+        ${escapeHtml(s.time)}
+        <div style="font-weight:600; color:var(--text-secondary); font-size:0.85rem; margin-top:2px;">${escapeHtml(s.label)}</div>
+      </div>
+    `).join('')}
+  `;
+
+  function cellHtml(slot) {
+    const cell = scheduleState.grid[slot.key] || { itemId: null, note: '' };
+    const item = scheduleState.pool.find(x => x.id === cell.itemId);
+    const selectedClass = scheduleSelectedSlot === slot.key ? 'drop-hover' : '';
+
+    return `
+      <div class="schedule-cell ${selectedClass}"
+        onclick="scheduleSelectSlot('${slot.key}')"
+        ondragover="scheduleDragOver(event)"
+        ondragleave="scheduleDragLeave(event)"
+        ondrop="scheduleDrop(event, '${slot.key}')">
+        ${item ? `
+          <div class="schedule-item" draggable="true" ondragstart="scheduleDragStart(event, '${item.id}', '${slot.key}')">
+            <div class="si-title">${escapeHtml(item.code || '')}</div>
+            <div class="si-sub">${escapeHtml(item.name || '')}</div>
+            <div class="si-meta">
+              <div><i class="fas fa-chalkboard-teacher"></i> ${escapeHtml(item.teacher || '-')}</div>
+              <div><i class="fas fa-location-dot"></i> ${escapeHtml(item.room || '-')}</div>
+            </div>
+            ${cell.note ? `<div class="schedule-note">${escapeHtml(cell.note)}</div>` : ''}
+          </div>
+        ` : (cell.note ? `
+          <div class="schedule-item">
+            <div class="si-title">โน้ต</div>
+            <div class="schedule-note">${escapeHtml(cell.note)}</div>
+          </div>
+        ` : '')}
+        <div class="schedule-empty-hint">${(!item && !cell.note) ? 'วางวิชาที่นี่' : ''}</div>
+      </div>
+    `;
+  }
+
+  const firstRow = `
+    <div class="schedule-cell time">ช่วงเช้า</div>
+    ${SCHEDULE_SLOTS.slice(0, 6).map(cellHtml).join('')}
+  `;
+  const secondRow = `
+    <div class="schedule-cell time">ช่วงบ่าย</div>
+    ${SCHEDULE_SLOTS.slice(6).map(cellHtml).join('')}
+  `;
+
+  gridEl.innerHTML = header + firstRow + secondRow;
+}
+
+function scheduleSelectSlot(slotKey) {
+  scheduleSelectedSlot = slotKey;
+  scheduleRenderGrid();
+}
+
+function scheduleAddToPool() {
+  if (!u || u.roleKey !== 'OWNER') { showToast('เฉพาะเจ้าของเว็บเท่านั้นที่เพิ่มวิชาเข้าคลังได้', 'error'); return; }
+  const code = document.getElementById('schCode')?.value?.trim();
+  const name = document.getElementById('schName')?.value?.trim();
+  const teacher = document.getElementById('schTeacher')?.value?.trim();
+  const room = document.getElementById('schRoom')?.value?.trim();
+  if (!code && !name) { showToast('กรุณากรอกรหัสวิชา หรือ ชื่อวิชา', 'error'); return; }
+
+  const item = {
+    id: 'SUB_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36),
+    code: code || '',
+    name: name || '',
+    teacher: teacher || '',
+    room: room || '',
+  };
+  scheduleState.pool.unshift(item);
+  scheduleSave();
+  scheduleRenderAll();
+
+  ['schCode','schName','schTeacher','schRoom'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  showToast('เพิ่มวิชาเข้าคลังแล้ว', 'success', 2000);
+}
+
+function scheduleEditPoolItem(id) {
+  if (!scheduleState) return;
+  const item = scheduleState.pool.find(x => x.id === id);
+  if (!item) return;
+  const newCode = prompt('รหัสวิชา', item.code || '');
+  if (newCode === null) return;
+  const newName = prompt('ชื่อวิชา', item.name || '');
+  if (newName === null) return;
+  const newTeacher = prompt('ครูที่สอน', item.teacher || '');
+  if (newTeacher === null) return;
+  const newRoom = prompt('อาคาร/ห้อง', item.room || '');
+  if (newRoom === null) return;
+  item.code = String(newCode).trim();
+  item.name = String(newName).trim();
+  item.teacher = String(newTeacher).trim();
+  item.room = String(newRoom).trim();
+  scheduleSave();
+  scheduleRenderAll();
+}
+
+function scheduleDeletePoolItem(id) {
+  if (!scheduleState) return;
+  if (!confirm('ลบวิชานี้ออกจากคลัง? (ช่องที่ใช้วิชานี้ในตารางจะถูกล้าง)')) return;
+  scheduleState.pool = scheduleState.pool.filter(x => x.id !== id);
+  for (const slot of SCHEDULE_SLOTS) {
+    if (scheduleState.grid[slot.key]?.itemId === id) scheduleState.grid[slot.key].itemId = null;
+  }
+  scheduleSave();
+  scheduleRenderAll();
+}
+
+function scheduleClear() {
+  if (!confirm('ล้างตารางเรียนและคลังวิชาของบัญชีนี้ทั้งหมด?')) return;
+  scheduleState = scheduleDefaultState();
+  scheduleSelectedSlot = null;
+  scheduleSave();
+  scheduleRenderAll();
+  showToast('ล้างตารางเรียนแล้ว', 'success', 2000);
+}
+
+function scheduleClearCellSelected() {
+  if (!scheduleSelectedSlot) { showToast('กรุณาคลิกเลือกช่องในตารางก่อน', 'error'); return; }
+  scheduleState.grid[scheduleSelectedSlot] = { itemId: null, note: '' };
+  scheduleSave();
+  scheduleRenderGrid();
+}
+
+function scheduleEditNoteForSelected() {
+  if (!scheduleSelectedSlot) { showToast('กรุณาคลิกเลือกช่องในตารางก่อน', 'error'); return; }
+  const cell = scheduleState.grid[scheduleSelectedSlot] || { itemId: null, note: '' };
+  const next = prompt('โน้ตในช่องนี้ (เว้นว่าง = ลบโน้ต)', cell.note || '');
+  if (next === null) return;
+  cell.note = String(next).trim();
+  scheduleState.grid[scheduleSelectedSlot] = cell;
+  scheduleSave();
+  scheduleRenderGrid();
+}
+
+function scheduleDragStart(ev, itemId, fromSlot) {
+  ev.dataTransfer.setData('text/plain', JSON.stringify({ itemId, fromSlot }));
+  ev.dataTransfer.effectAllowed = 'move';
+}
+
+function scheduleDragOver(ev) {
+  ev.preventDefault();
+  ev.currentTarget?.classList?.add('drop-hover');
+}
+
+function scheduleDragLeave(ev) {
+  ev.currentTarget?.classList?.remove('drop-hover');
+}
+
+function scheduleDrop(ev, slotKey) {
+  ev.preventDefault();
+  ev.currentTarget?.classList?.remove('drop-hover');
+  let payload;
+  try { payload = JSON.parse(ev.dataTransfer.getData('text/plain')); } catch { return; }
+  const { itemId } = payload || {};
+  if (!itemId || !scheduleState) return;
+
+  // Unique placement: moving item clears other slots using same item
+  for (const s of SCHEDULE_SLOTS) {
+    if (scheduleState.grid[s.key]?.itemId === itemId && s.key !== slotKey) scheduleState.grid[s.key].itemId = null;
+  }
+  scheduleState.grid[slotKey] = scheduleState.grid[slotKey] || { itemId: null, note: '' };
+  scheduleState.grid[slotKey].itemId = itemId;
+  scheduleSave();
+  scheduleRenderGrid();
+}
+
+function scheduleApplyPreset() {
+  const preset = document.getElementById('schExportPreset')?.value;
+  const wEl = document.getElementById('schExportW');
+  const hEl = document.getElementById('schExportH');
+  if (!preset || !wEl || !hEl) return;
+  if (preset === 'custom') return;
+  const [w, h] = preset.split('x').map(n => parseInt(n, 10));
+  if (w && h) { wEl.value = w; hEl.value = h; }
+}
+
+async function scheduleDownloadPng() {
+  const root = document.getElementById('scheduleExportRoot');
+  const w = parseInt(document.getElementById('schExportW')?.value, 10);
+  const h = parseInt(document.getElementById('schExportH')?.value, 10);
+  if (!root || !w || !h) { showToast('กรุณาตั้งค่าขนาดให้ถูกต้อง', 'error'); return; }
+  if (typeof html2canvas !== 'function') { showToast('โหลดโมดูลดาวน์โหลดไม่สำเร็จ', 'error'); return; }
+
+  showToast('กำลังสร้างภาพ... (อาจใช้เวลาสักครู่)', 'info', 0);
+
+  const clone = root.cloneNode(true);
+  clone.style.width = `${w}px`;
+  clone.style.height = `${h}px`;
+  clone.style.padding = '14px';
+  clone.style.boxSizing = 'border-box';
+  clone.style.background = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary') || '#ffffff';
+  clone.style.position = 'fixed';
+  clone.style.left = '-10000px';
+  clone.style.top = '0';
+  clone.style.zIndex = '99999';
+  document.body.appendChild(clone);
+
+  try {
+    const canvas = await html2canvas(clone, {
+      backgroundColor: null,
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      width: w,
+      height: h,
+    });
+    const url = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    const safeName = (u?.displayName || 'schedule').replace(/[^\w\u0E00-\u0E7F-]+/g, '_');
+    a.download = `ตารางเรียน_${safeName}_${w}x${h}.png`;
+    a.href = url;
+    a.click();
+    document.querySelectorAll('.toast').forEach(t => { if (t.querySelector('.toast-message')?.textContent.includes('กำลังสร้างภาพ')) t.remove(); });
+    showToast('ดาวน์โหลดภาพแล้ว', 'success', 2500);
+  } catch (e) {
+    document.querySelectorAll('.toast').forEach(t => { if (t.querySelector('.toast-message')?.textContent.includes('กำลังสร้างภาพ')) t.remove(); });
+    showToast('สร้างภาพไม่สำเร็จ (ลองลดขนาดภาพ)', 'error');
+  } finally {
+    clone.remove();
   }
 }
 
@@ -1160,6 +1730,12 @@ function showApp() {
     updateCodeForm();
   }
 
+  // Schedule: show owner input bar only for OWNER
+  if (u.roleKey === 'OWNER') {
+    const ownerCard = document.getElementById('scheduleOwnerCard');
+    if (ownerCard) ownerCard.style.display = 'block';
+  }
+
   // --- Guest-specific UI ---
   if (u.isGuest) {
     // Show timer cards
@@ -1177,6 +1753,9 @@ function showApp() {
   loadMasters();
   startAutoRefresh();
   resetLoadingOverlay();
+
+  // Schedule: init after session ready (per-user local storage)
+  scheduleInit();
 }
 
 // --- Load Masters ---
@@ -1542,37 +2121,6 @@ function handleCheck(tid, sno, currentPaid, required, element) {
     .withSuccessHandler(r => { if (!r || !r.success) loadMoney(); })
     .withFailureHandler(() => { showToast('บันทึกไม่สำเร็จ', 'error'); loadMoney(); })
     .updatePayment(tid, sno, willPay);
-}
-
-function showToast(m, type = 'info', duration = 4000) {
-
-  if (m === lastToastMessage) return; // กันแจ้งเตือนซ้ำ
-  lastToastMessage = m;
-
-  const c = document.getElementById('toastContainer');
-  const t = document.createElement('div');
-  t.className = `toast ${type}`;
-
-  const icon = type === 'success'
-    ? 'check-circle'
-    : type === 'error'
-    ? 'exclamation-circle'
-    : type === 'broadcast'
-    ? 'bell'
-    : 'info-circle';
-
-  t.innerHTML = `
-    <i class="fas fa-${icon}"></i>
-    <span class="toast-message">${m}</span>
-    <button class="toast-close">&times;</button>
-  `;
-
-  c.appendChild(t);
-
-  setTimeout(() => {
-    lastToastMessage = "";
-    t.remove();
-  }, duration);
 }
 
 function doAddMoney(e) {
