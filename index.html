@@ -66,19 +66,23 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .sidebar.collapsed {
   width: 70px;
 }
-.sidebar.collapsed .nav-item span,
-.sidebar.collapsed .sidebar-header h3,
-.sidebar.collapsed .user-info-text {
+.sidebar.collapsed .sidebar-brand span,
+.sidebar.collapsed .sidebar-item span,
+.sidebar.collapsed .sidebar-user-info,
+.sidebar.collapsed .sidebar-actions {
   display: none;
 }
-.sidebar.collapsed .nav-item {
+.sidebar.collapsed .sidebar-item {
   justify-content: center;
   padding: 12px;
 }
-.sidebar.collapsed .nav-item i {
+.sidebar.collapsed .sidebar-item i {
   margin-right: 0;
   font-size: 1.2rem;
 }
+.sidebar.collapsed .sidebar-brand { justify-content: center; }
+.sidebar.collapsed .sidebar-brand i { display: none; } /* keep only hamburger in brand */
+.sidebar.collapsed .sidebar-brand button { margin-right: 0; }
 .main-wrapper.expanded {
   margin-left: 70px;
 }
@@ -325,6 +329,7 @@ margin-right:8px;
   border-radius: 14px;
   background: var(--bg-secondary);
   overflow: hidden;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
 .schedule-grid { display: grid; grid-template-columns: 160px repeat(6, 1fr); }
 @media (max-width: 1041px) { .schedule-grid { grid-template-columns: 120px repeat(6, 1fr); } }
@@ -1374,7 +1379,7 @@ function scheduleRenderGrid() {
   const gridEl = document.getElementById('scheduleGrid');
   if (!gridEl || !scheduleState) return;
 
-  const header = `
+  const headerMorning = `
     <div class="schedule-cell header">เวลา</div>
     ${SCHEDULE_SLOTS.slice(0, 6).map(s => `
       <div class="schedule-cell header">
@@ -1382,6 +1387,9 @@ function scheduleRenderGrid() {
         <div style="font-weight:600; color:var(--text-secondary); font-size:0.85rem; margin-top:2px;">${escapeHtml(s.label)}</div>
       </div>
     `).join('')}
+  `;
+
+  const headerAfternoon = `
     <div class="schedule-cell header">เวลา</div>
     ${SCHEDULE_SLOTS.slice(6).map(s => `
       <div class="schedule-cell header">
@@ -1432,7 +1440,7 @@ function scheduleRenderGrid() {
     ${SCHEDULE_SLOTS.slice(6).map(cellHtml).join('')}
   `;
 
-  gridEl.innerHTML = header + firstRow + secondRow;
+  gridEl.innerHTML = headerMorning + headerAfternoon + firstRow + secondRow;
 }
 
 function scheduleSelectSlot(slotKey) {
