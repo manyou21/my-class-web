@@ -1,0 +1,28 @@
+# เผยแพร่เฉพาะ index.html ไปยัง GitHub Pages (ไม่รวม code.gs เพื่อไม่เปิดเผย ID ชีต)
+name: Deploy GitHub Pages
+on:
+  push:
+    branches: [main, master]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Prepare site
+        run: mkdir -p _site && cp index.html _site/index.html && touch _site/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - uses: actions/deploy-pages@v4
+        id: deployment
