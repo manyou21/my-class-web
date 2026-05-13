@@ -65,11 +65,27 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .sidebar.collapsed {
   width: 70px;
 }
+.sidebar.collapsed .sidebar-user {
+  display: none;
+}
 .sidebar.collapsed .sidebar-brand span,
 .sidebar.collapsed .sidebar-item span,
-.sidebar.collapsed .sidebar-user-info,
-.sidebar.collapsed .sidebar-actions {
+.sidebar.collapsed .sidebar-user-info {
   display: none;
+}
+.sidebar.collapsed .sidebar-footer {
+  padding: 10px 8px;
+}
+.sidebar.collapsed .sidebar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sidebar.collapsed .sidebar-actions .btn {
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 8px;
 }
 .sidebar.collapsed .sidebar-item {
   justify-content: center;
@@ -79,9 +95,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   margin-right: 0;
   font-size: 1.2rem;
 }
-.sidebar.collapsed .sidebar-brand { justify-content: center; }
-.sidebar.collapsed .sidebar-brand i { display: none; } /* keep only hamburger in brand */
-.sidebar.collapsed .sidebar-brand button { margin-right: 0; }
+.sidebar.collapsed .sidebar-brand { justify-content: center; padding: 10px 0; }
+.sidebar.collapsed .sidebar-brand i { display: none; }
+.sidebar.collapsed .sidebar-brand button { margin-right: 0; width: 46px; height: 46px; }
 .main-wrapper.expanded {
   margin-left: 70px;
 }
@@ -155,7 +171,7 @@ margin-right:8px;
 .sidebar-user-info { flex: 1; }
 .sidebar-user-name { font-weight: 600; font-size: 0.9rem; }
 .sidebar-user-role { font-size: 0.75rem; background: var(--accent); color: white; padding: 2px 8px; border-radius: 10px; display: inline-block; margin-top: 3px; }
-.sidebar-actions { display: flex; gap: 5px; }
+.sidebar-actions { display: flex; gap: 5px; flex-wrap: wrap; }
 
 /* Main Content Area */
 .main-wrapper { margin-left: var(--sidebar-width); min-height: 100vh; transition: var(--transition); }
@@ -174,6 +190,36 @@ margin-right:8px;
 .hamburger-float:active { transform: scale(0.9); }
 .sidebar.mobile { transform: translateX(-100%); display: flex; }
 .sidebar.mobile.show { transform: translateX(0); }
+
+/* Mobile: ปุ่มลัดธีม / รีเฟรช (แสดงเมื่อเมนูหลักปิด) */
+.mobile-quick-actions {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  position: fixed;
+  bottom: 24px;
+  left: 20px;
+  z-index: 998;
+}
+.mobile-quick-actions button {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  box-shadow: var(--shadow);
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+.mobile-quick-actions button:active { transform: scale(0.92); }
+@media (max-width: 1041px) {
+  .mobile-quick-actions { display: flex; }
+}
 
 /* Main Content */
 .main { padding: 20px; max-width: 1200px; margin: 0 auto; }
@@ -231,16 +277,26 @@ margin-right:8px;
 
 /* Checkbox Grid (Money) */
 .check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
-.check-card { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; padding: 10px; cursor: pointer; transition: var(--transition); position: relative; display: flex; flex-direction: column; justify-content: center; min-height: 85px; text-align: center; }
+.check-card { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; padding: 10px; cursor: pointer; transition: var(--transition); position: relative; display: flex; flex-direction: column; justify-content: center; align-items: stretch; min-height: 95px; text-align: center; }
 .check-card:hover { border-color: var(--accent); }
 .check-card.checked { background: var(--success-light); border-color: var(--success); }
 .check-card input { position: absolute; opacity: 0; }
 .check-mark { position: absolute; top: 5px; right: 5px; height: 20px; width: 20px; background-color: var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: transparent; font-size: 10px; transition: var(--transition); }
 .check-card.checked .check-mark { background-color: var(--success); color: white; }
-.check-card-content { pointer-events: none; }
-.check-no { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }
-.check-name { font-weight: 600; font-size: 0.95rem; margin-top: 2px; }
-.check-amt { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
+.check-card-content {
+  pointer-events: none;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 4px;
+  padding: 4px 4px 0;
+}
+.check-no { font-size: 0.7rem; color: var(--text-muted); font-weight: 500; order: 1; }
+.check-name { font-weight: 600; font-size: 0.98rem; order: 2; line-height: 1.25; flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; min-height: 2.2em; width: 100%; }
+.check-amt { font-size: 0.72rem; color: var(--text-secondary); order: 3; }
 
 /* QR Scanner */
 #reader { width: 100%; max-width: 380px; min-height: 250px; margin: 0 auto; border-radius: 12px; overflow: hidden; }
@@ -315,7 +371,21 @@ margin-right:8px;
 
 /* Timetable image */
 .timetable-view { text-align: center; }
-.timetable-view img { max-width: 100%; height: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+.leave-proof-details {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--bg-tertiary);
+}
+.leave-proof-details summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.leave-proof-details[open] summary { margin-bottom: 8px; color: var(--accent); }
+.leave-proof-details img { max-width: 100%; border-radius: 8px; border: 1px solid var(--border); }
 .timetable-owner-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 12px; }
 
 /* Seat map */
@@ -465,6 +535,12 @@ margin-right:8px;
 
 <!-- App -->
 <div class="app-container" id="app">
+  <div class="mobile-quick-actions" aria-label="ปุ่มลัด">
+    <button type="button" onclick="toggleSidebar()" title="เมนู" aria-label="เปิดเมนู"><i class="fas fa-bars" aria-hidden="true"></i></button>
+    <button type="button" onclick="setTheme('light')" title="โหมดสว่าง" aria-label="โหมดสว่าง"><i class="fas fa-sun" aria-hidden="true"></i></button>
+    <button type="button" onclick="setTheme('dark')" title="โหมดมืด" aria-label="โหมดมืด"><i class="fas fa-moon" aria-hidden="true"></i></button>
+    <button type="button" onclick="manualRefresh()" title="รีเฟรช" aria-label="รีเฟรช"><i class="fas fa-sync-alt" aria-hidden="true"></i></button>
+  </div>
   
   <!-- Sidebar (Desktop) -->
   <div class="sidebar" id="sidebar">
@@ -509,8 +585,11 @@ margin-right:8px;
         </div>
       </div>
       <div class="sidebar-actions">
-        <button class="btn btn-secondary btn-sm" onclick="toggleTheme()" style="flex:1;" title="เปลี่ยนธีม">
-          <i class="fas fa-adjust"></i>
+        <button class="btn btn-secondary btn-sm" onclick="setTheme('light')" style="flex:1;" title="โหมดสว่าง" aria-label="โหมดสว่าง">
+          <i class="fas fa-sun"></i>
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="setTheme('dark')" style="flex:1;" title="โหมดมืด" aria-label="โหมดมืด">
+          <i class="fas fa-moon"></i>
         </button>
         <button class="btn btn-secondary btn-sm" onclick="manualRefresh()" style="flex:1;" title="รีเฟรช">
           <i class="fas fa-sync-alt"></i>
@@ -568,10 +647,16 @@ margin-right:8px;
         </div>
       </div>
       <div class="sidebar-actions">
-        <button class="btn btn-secondary btn-sm" onclick="toggleTheme()" style="flex:1;">
-          <i class="fas fa-adjust"></i>
+        <button class="btn btn-secondary btn-sm" onclick="setTheme('light')" style="flex:1;" title="โหมดสว่าง" aria-label="โหมดสว่าง">
+          <i class="fas fa-sun"></i>
         </button>
-        <button class="btn btn-danger btn-sm" onclick="logout()" style="flex:1;">
+        <button class="btn btn-secondary btn-sm" onclick="setTheme('dark')" style="flex:1;" title="โหมดมืด" aria-label="โหมดมืด">
+          <i class="fas fa-moon"></i>
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="manualRefresh()" style="flex:1;" title="รีเฟรช">
+          <i class="fas fa-sync-alt"></i>
+        </button>
+        <button class="btn btn-danger btn-sm" onclick="logout()" style="flex:1;" title="ออกจากระบบ">
           <i class="fas fa-sign-out-alt"></i>
         </button>
       </div>
@@ -607,9 +692,14 @@ margin-right:8px;
       <div class="tab-panel" id="panelLeave">
         <div class="header">
           <h1 class="title"><i class="fas fa-calendar-check"></i> ลา / กิจกรรม</h1>
-          <button class="btn btn-success btn-sm" onclick="openModal('modalLeave')">
-            <i class="fas fa-plus"></i> แจ้งลา
-          </button>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-secondary btn-sm" onclick="toggleAllLeaveEvidence()">
+              <i class="fas fa-eye"></i> เปิด/ปิดหลักฐาน
+            </button>
+            <button class="btn btn-success btn-sm" onclick="openModal('modalLeave')">
+              <i class="fas fa-plus"></i> แจ้งลา
+            </button>
+          </div>
         </div>
         <div id="listLeave"></div>
       </div>
@@ -1119,10 +1209,11 @@ function openModal(id) {
 }
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
-function toggleTheme() { 
-  lastTheme = lastTheme === 'light' ? 'dark' : 'light'; 
-  localStorage.setItem('theme', lastTheme); 
-  applyTheme(); 
+function setTheme(mode) {
+  if (mode !== 'light' && mode !== 'dark') return;
+  lastTheme = mode;
+  localStorage.setItem('theme', lastTheme);
+  applyTheme();
 }
 function applyTheme() { document.documentElement.setAttribute('data-theme', lastTheme); }
 
@@ -1269,13 +1360,13 @@ function timetableRefresh() {
 function timetableRenderPublic(data) {
   const wrap = document.getElementById('timetablePublicWrap');
   if (!wrap) return;
-  const img = data.imageUrl
-    ? `<img src="${escapeHtml(data.imageUrl)}" alt="ตารางเรียน">`
-    : '<p style="color:var(--text-muted);">ยังไม่มีรูปตารางเรียน</p>';
   const link = data.linkUrl
-    ? `<p style="margin-top:12px;"><a href="${escapeHtml(data.linkUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="display:inline-flex;"><i class="fas fa-external-link-alt"></i> เปิดลิงก์เต็มจอ</a></p>`
-    : '';
-  wrap.innerHTML = `<div>${img}${link}</div>`;
+    ? `<p style="margin-top:4px;"><a href="${escapeHtml(data.linkUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="display:inline-flex;"><i class="fas fa-external-link-alt"></i> เปิดลิงก์ตารางเรียน</a></p>`
+    : '<p style="color:var(--text-muted); margin-top:8px;">ยังไม่มีลิงก์ตารางเรียน (เจ้าของเว็บสามารถตั้งลิงก์ได้จากเมนูตั้งค่า)</p>';
+  const img = data.imageUrl
+    ? `<img src="${escapeHtml(data.imageUrl)}" style="max-width:100%; border-radius:10px; box-shadow:var(--shadow); margin-top:15px;" alt="ตารางเรียน">`
+    : '<p style="color:var(--text-muted); margin-top:10px;">ยังไม่ได้อัปโหลดรูปตารางเรียน</p>';
+  wrap.innerHTML = `<div>${link}${img}</div>`;
 }
 
 function timetableUploadImage() {
@@ -1422,7 +1513,7 @@ function seatRenderAll() {
 
   inner.querySelectorAll('.seat-desk').forEach(el => {
     el.addEventListener('click', () => seatOnSelect(el.dataset.seat));
-    if (canEdit) seatBindDrag(el, cell, cols, rows, fb);
+    if (canEdit) seatBindDrag(el, cell, fb);
   });
 }
 
@@ -1431,7 +1522,7 @@ function seatOnSelect(id) {
   seatRenderAll();
 }
 
-function seatBindDrag(el, cell, cols, rows, fb) {
+function seatBindDrag(el, cell, fb) {
   el.addEventListener('pointerdown', ev => {
     const id = el.dataset.seat;
     const st = seatSnap.layout.seats.find(s => s.id === id);
@@ -1445,8 +1536,6 @@ function seatBindDrag(el, cell, cols, rows, fb) {
       ogx: st.gx,
       ogy: st.gy,
       cell,
-      cols,
-      rows,
       gw: st.gw || 3,
       gh: st.gh || 2,
       fb
@@ -1458,16 +1547,25 @@ function seatBindDrag(el, cell, cols, rows, fb) {
     if (!seatDragState || seatDragState.id !== el.dataset.seat) return;
     const dx = ev.clientX - seatDragState.startX;
     const dy = ev.clientY - seatDragState.startY;
-    const ngx = seatDragState.ogx + Math.round(dx / seatDragState.cell);
-    const ngy = seatDragState.ogy + Math.round(dy / seatDragState.cell);
-    const maxX = seatDragState.cols - seatDragState.gw;
-    const maxY = seatDragState.rows - seatDragState.gh;
+    let ngx = seatDragState.ogx + Math.round(dx / seatDragState.cell);
+    let ngy = seatDragState.ogy + Math.round(dy / seatDragState.cell);
     const st = seatSnap.layout.seats.find(s => s.id === seatDragState.id);
     if (!st) return;
-    st.gx = Math.max(0, Math.min(maxX, ngx));
-    st.gy = Math.max(seatDragState.fb, Math.min(maxY, ngy));
+    const gw = seatDragState.gw;
+    const gh = seatDragState.gh;
+    const g = seatSnap.layout.grid;
+    // Removed boundaries for "unlimited area"
+    st.gx = ngx;
+    st.gy = ngy;
+    while (st.gx + gw > g.cols) g.cols++;
+    while (st.gy + gh > g.rows) g.rows++;
     el.style.left = `${st.gx * seatDragState.cell}px`;
     el.style.top = `${st.gy * seatDragState.cell}px`;
+    const inner = document.getElementById('seatMapInner');
+    if (inner) {
+      inner.style.width = `${g.cols * seatDragState.cell}px`;
+      inner.style.height = `${g.rows * seatDragState.cell}px`;
+    }
   });
 
   el.addEventListener('pointerup', ev => {
@@ -1606,10 +1704,16 @@ function seatDoCancel() {
 }
 
 function seatCreateGuestCode() {
-  const plain = document.getElementById('seatGuestPlainCode')?.value?.trim();
+  let plain = document.getElementById('seatGuestPlainCode')?.value?.trim();
   const mins = Number(document.getElementById('seatGuestMins')?.value) || 60;
   const label = document.getElementById('seatGuestLabel')?.value?.trim() || '';
-  if (!plain || plain.length < 4) { showToast('ตั้งโค้ดอย่างน้อย 4 ตัว', 'error'); return; }
+  
+  if (!plain) {
+    plain = Math.random().toString(36).substring(2, 8).toUpperCase();
+    showToast('กำลังสร้างโค้ดอัตโนมัติ...', 'info');
+  }
+  
+  if (plain.length < 4) { showToast('ตั้งโค้ดอย่างน้อย 4 ตัว', 'error'); return; }
   showLoading();
   google.script.run
     .withSuccessHandler(r => {
@@ -1940,18 +2044,20 @@ function checkChanges() {
 // --- Homework ---
 function loadHw() {
   const el = document.getElementById('listHw');
-  // Show skeleton only if list is currently empty
   if (!hwData.length) showSkeleton('listHw', 2);
 
   google.script.run
     .withSuccessHandler(r => {
-      hwData = (r && r.success) ? (r.homework || []) : [];
+      if (r && r.success) hwData = Array.isArray(r.homework) ? r.homework : [];
+      else if (r && Array.isArray(r.data)) hwData = r.data;
+      else if (Array.isArray(hwData)) {} 
+      else hwData = [];
       renderHw();
       currentHwCount = hwData.length;
     })
     .withFailureHandler(err => {
       console.error('loadHw failed', err);
-      if (!hwData.length) el.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:40px;">ไม่มีการบ้าน</p>';
+      if (!hwData.length && el) el.innerHTML = '<p style="text-align:center;color:var(--danger);padding:20px;">เชื่อมต่อไม่ได้</p>';
     })
     .getHomework();
 }
@@ -2134,16 +2240,19 @@ function delHw(id) {
 
 // --- Money ---
 function loadMoney() {
+  const el = document.getElementById('listMoney');
   if (!moneyData.length) showSkeleton('listMoney', 2);
   google.script.run
     .withSuccessHandler(r => {
-      if (!r || !r.success) return;
-      moneyData = r.treasury || [];
+      if (r && r.success) moneyData = Array.isArray(r.treasury) ? r.treasury : [];
+      else if (r && Array.isArray(r.data)) moneyData = r.data;
+      else if (Array.isArray(moneyData)) {}
+      else moneyData = [];
       currentTrCount = moneyData.length;
       renderMoney();
     })
     .withFailureHandler(() => {
-      if (!moneyData.length) document.getElementById('listMoney').innerHTML = '<p style="text-align:center;color:var(--danger);padding:20px;">เชื่อมต่อไม่ได้</p>';
+      if (!moneyData.length && el) el.innerHTML = '<p style="text-align:center;color:var(--danger);padding:20px;">เชื่อมต่อไม่ได้</p>';
     })
     .getTreasuryItems();
 }
@@ -2308,7 +2417,11 @@ function renderLeave() {
       <i class="fas fa-calendar-alt"></i> วันที่: ${formatDate(l.date)}<br>
       <i class="fas fa-comment-dots"></i> เหตุผล: ${l.reason}
     </p>
-    ${l.proofImage ? `<img src="${l.proofImage}" style="max-width:180px; border-radius:8px; margin:10px 0; border:1px solid var(--border);">` : ''}
+    ${l.proofImage ? `
+    <details class="leave-proof-details">
+      <summary><i class="fas fa-image"></i> หลักฐานการลา (แตะเพื่อเปิด/ปิด)</summary>
+      <img src="${l.proofImage}" alt="หลักฐานการลา" loading="lazy">
+    </details>` : ''}
     ${isPending ? `
     <div style="margin-top:12px; padding:10px; background:var(--bg-tertiary); border-radius:8px;">
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -2409,6 +2522,14 @@ function confirmLeave(id) {
     };
   };
   input.click();
+}
+
+function toggleAllLeaveEvidence() {
+  const details = document.querySelectorAll('.leave-proof-details');
+  if (!details.length) return;
+  const anyOpen = Array.from(details).some(d => d.open);
+  details.forEach(d => d.open = !anyOpen);
+  showToast(anyOpen ? 'ปิดหลักฐานทั้งหมดแล้ว' : 'เปิดหลักฐานทั้งหมดแล้ว', 'info', 2000);
 }
 
 function doChangePw(e) { 
