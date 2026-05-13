@@ -96,8 +96,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   font-size: 1.2rem;
 }
 .sidebar.collapsed .sidebar-brand { justify-content: center; padding: 12px 0; }
-.sidebar.collapsed .sidebar-brand i { display: none; }
-.sidebar.collapsed .sidebar-brand button { margin-right: 0; width: 44px; height: 44px; background: var(--bg-secondary); border-radius: 50%; box-shadow: var(--shadow-sm); }
+.sidebar.collapsed .sidebar-brand > i { display: none; }
+.sidebar.collapsed .sidebar-brand button { margin-right: 0; width: 44px; height: 44px; background: var(--bg-secondary); border-radius: 50%; box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: center; }
+.sidebar.collapsed .sidebar-brand button i { display: inline-block; font-size: 1.1rem; color: var(--text-primary) !important; }
 .main-wrapper.expanded {
   margin-left: 70px;
 }
@@ -409,16 +410,23 @@ margin-right:8px;
 .seat-map-scroll {
   overflow: auto;
   max-height: min(72vh, 720px);
+  min-height: 200px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--bg-tertiary);
   touch-action: none;
+  margin: 10px 0;
+  display: flex;
+  justify-content: center;
+}
 }
 .seat-map-inner {
   position: relative;
-  margin: 0 auto;
-  background-image: radial-gradient(var(--border) 1px, transparent 1px);
+  background-image: radial-gradient(var(--text-muted) 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
   box-sizing: content-box;
+  min-height: 250px;
+  min-width: 250px;
 }
 .seat-desk {
   position: absolute;
@@ -1537,17 +1545,20 @@ function seatRenderAll() {
 
   const seats = seatSnap.layout.seats || [];
   const canEdit = seatSnap.canEditLayout;
-
-  seats.forEach(st => {
-    const bk = bookingBySeat(st.id);
-    const bookedClass = bk ? ' booked' : '';
-    const lockedClass = st.lock ? ' locked' : '';
-    const sel = seatSelectedId === st.id ? 'outline:3px solid var(--accent);' : '';
-    const label = bk ? `${bk.studentNo}` : escapeHtml(st.label || 'ที่นั่ง');
-    html += `<div class="seat-desk${bookedClass}${lockedClass}" data-seat="${escapeHtml(st.id)}"
-      style="left:${st.gx * cell}px;top:${st.gy * cell}px;width:${(st.gw || 3) * cell}px;height:${(st.gh || 2) * cell}px;${sel}"
-      title="${bk ? escapeHtml(bk.studentName || '') : ''}">${label}</div>`;
-  });
+  if (seats.length === 0) {
+    html = '<div style="padding:40px; text-align:center; color:var(--text-muted); width:100%;">ไม่มีที่นั่งในแผนผังนี้</div>';
+  } else {
+    seats.forEach(st => {
+      const bk = bookingBySeat(st.id);
+      const bookedClass = bk ? ' booked' : '';
+      const lockedClass = st.lock ? ' locked' : '';
+      const sel = seatSelectedId === st.id ? 'outline:3px solid var(--accent);' : '';
+      const label = bk ? `${bk.studentNo}` : escapeHtml(st.label || 'ที่นั่ง');
+      html += `<div class="seat-desk${bookedClass}${lockedClass}" data-seat="${escapeHtml(st.id)}"
+        style="left:${st.gx * cell}px;top:${st.gy * cell}px;width:${(st.gw || 3) * cell}px;height:${(st.gh || 2) * cell}px;${sel}"
+        title="${bk ? escapeHtml(bk.studentName || '') : ''}">${label}</div>`;
+    });
+  }
 
   inner.innerHTML = html;
 
