@@ -1192,6 +1192,34 @@ function getLuminousColor(hex, percent = 40) {
   return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 
+function getDarkColor(hex, amount) {
+  if (!hex || hex.length < 4) return '#000000';
+  hex = hex.replace(/^#/, '');
+  let r = parseInt(hex.substring(0, 2), 16);
+  let g = parseInt(hex.substring(2, 4), 16);
+  let b = parseInt(hex.substring(4, 6), 16);
+  r = Math.max(0, r + amount);
+  g = Math.max(0, g + amount);
+  b = Math.max(0, b + amount);
+  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+function checkChanges() {
+  google.script.run
+    .withSuccessHandler(r => {
+      if (r && r.success) {
+        if (r.hwCount !== currentHwCount || r.trCount !== currentTrCount || r.lvCount !== currentLvCount || r.trPayCounter !== currentTrPayCounter) {
+          manualRefresh();
+        }
+        if (r.seatVersion !== currentSeatVersion) {
+          currentSeatVersion = r.seatVersion;
+          seatsReloadSilent();
+        }
+      }
+    })
+    .getCounts();
+}
+
 function initForms() {
   safeAddListener('loginForm', 'submit', doLogin);
   safeAddListener('registerForm', 'submit', doRegister);
@@ -2087,6 +2115,10 @@ function loadAll() {
         currentLvCount = leaveData.length;
       }
       timetableRefresh();
+    })
+    .withFailureHandler(err => {
+      console.error('getDashboardData failed:', err);
+      // fallback or retry? for now just log
     })
     .getDashboardData();
 }

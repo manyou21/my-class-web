@@ -1437,3 +1437,5 @@ function seatListActiveSessions(userId) {
   }
 }
 function getDashboardData() { try { ensureSheetsExist(); const ss = SpreadsheetApp.openById(SPREADSHEET_ID); const hw = getHomework(ss); const tr = getTreasuryItems(ss); const lv = getLeaveRequests(ss); return { success: true, homework: hw.homework || [], treasury: tr.treasury || [], leaveRequests: lv || [] }; } catch (e) { return { success: false, message: e.toString() }; } }
+
+function getCounts() { try { ensureSheetsExist(); const ss = SpreadsheetApp.openById(SPREADSHEET_ID); const hwCount = ss.getSheetByName(SHEETS.HOMEWORK).getLastRow() - 1; const trCount = ss.getSheetByName(SHEETS.TREASURY).getLastRow() - 1; const lvCount = ss.getSheetByName(SHEETS.LEAVE_REQUESTS).getLastRow() - 1; const trPayCounter = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS).getLastRow() - 1; const seatMeta = ss.getSheetByName(SHEETS.SEAT_META); let seatVersion = 0; if (seatMeta && seatMeta.getLastRow() >= 2) { seatVersion = Number(seatMeta.getRange(2, 5).getValue()) || 0; } return { success: true, hwCount, trCount, lvCount, trPayCounter, seatVersion }; } catch (e) { return { success: false, message: e.toString() }; } }
