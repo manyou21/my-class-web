@@ -1530,14 +1530,22 @@ function bookingBySeat(seatId) {
 function seatRenderAll() {
   const inner = document.getElementById('seatMapInner');
   if (!inner || !seatSnap || !seatSnap.layout) return;
-  const g = (seatSnap && seatSnap.layout && seatSnap.layout.grid) ? seatSnap.layout.grid : { cols: 22, rows: 16, cell: 24 };
+  const g = seatSnap.layout.grid || { cols: 22, rows: 16, cell: 24 };
   const cell = g.cell || 24;
-  const cols = g.cols || 22;
-  const rows = g.rows || 16;
-  inner.style.width = `${cols * cell}px`;
-  inner.style.height = `${rows * cell}px`;
-  inner.style.minWidth = `${cols * cell}px`;
-  inner.style.minHeight = `${rows * cell}px`;
+  const seats = seatSnap.layout.seats || [];
+  
+  // Calculate dynamic boundaries
+  let maxCols = g.cols || 22;
+  let maxRows = g.rows || 16;
+  seats.forEach(st => {
+    maxCols = Math.max(maxCols, st.gx + (st.gw || 3));
+    maxRows = Math.max(maxRows, st.gy + (st.gh || 2));
+  });
+
+  inner.style.width = `${maxCols * cell}px`;
+  inner.style.height = `${maxRows * cell}px`;
+  inner.style.minWidth = `${maxCols * cell}px`;
+  inner.style.minHeight = `${maxRows * cell}px`;
   inner.style.backgroundSize = `${cell}px ${cell}px`;
 
   const fb = Number(seatSnap.layout.frontBand) || 0;
@@ -1553,7 +1561,14 @@ function seatRenderAll() {
       const bookedClass = bk ? ' booked' : '';
       const lockedClass = st.lock ? ' locked' : '';
       const sel = seatSelectedId === st.id ? 'outline:3px solid var(--accent);' : '';
-      const label = bk ? `${bk.studentNo}` : escapeHtml(st.label || 'ที่นั่ง');
+      
+      let label = escapeHtml(st.label || 'ที่นั่ง');
+      if (bk) {
+        const nick = bk.studentName ? bk.studentName.split(' ')[0] : '-';
+        label = `<div style="font-size:0.85rem; line-height:1.2; font-weight:700;">${escapeHtml(nick)}</div>
+                 <div style="font-size:0.7rem; opacity:0.9; font-weight:normal; margin-top:2px;">เลขที่ ${bk.studentNo}</div>`;
+      }
+
       html += `<div class="seat-desk${bookedClass}${lockedClass}" data-seat="${escapeHtml(st.id)}"
         style="left:${st.gx * cell}px;top:${st.gy * cell}px;width:${(st.gw || 3) * cell}px;height:${(st.gh || 2) * cell}px;${sel}"
         title="${bk ? escapeHtml(bk.studentName || '') : ''}">${label}</div>`;
@@ -1605,11 +1620,14 @@ function seatBindDrag(el, cell, fb) {
     const gw = seatDragState.gw;
     const gh = seatDragState.gh;
     const g = seatSnap.layout.grid;
-    // Removed boundaries for "unlimited area"
-    st.gx = ngx;
-    st.gy = ngy;
-    while (st.gx + gw > g.cols) g.cols++;
-    while (st.gy + gh > g.rows) g.rows++;
+    // Enforce boundaries (min 0)
+    st.gx = Math.max(0, ngx);
+    st.gy = Math.max(0, ngy);
+    
+    // Auto-grow grid if needed
+    if (st.gx + gw > g.cols) g.cols = st.gx + gw;
+    if (st.gy + gh > g.rows) g.rows = st.gy + gh;
+
     el.style.left = `${st.gx * seatDragState.cell}px`;
     el.style.top = `${st.gy * seatDragState.cell}px`;
     const inner = document.getElementById('seatMapInner');
@@ -1707,6 +1725,24 @@ function seatCenterDesks() {
   });
   seatRenderAll();
   showToast('จัดกึ่งกลางแล้ว (ยังไม่บันทึกจนกดบันทึกแผนผัง)', 'info', 3500);
+}
+
+function seatSaveLayoutNow() {
+  if (!seatSnap || !seatSnap.layout) return;
+  const fb = Number(document.getElementById('seatFrontBand')?.value) || seatSnap.layout.frontBand || 2;
+  seatSnap.layout.frontBand = fb;
+  
+  showLoading('กำลังบันทึกแผนผัง...');
+  google.script.run
+    .withSuccessHandler(r => {
+      hideLoading();
+      if (r.success) {
+        showToast('บันทึกแผนผังสำเร็จ!', 'success');
+        seatsLoadSnapshot(false);
+      } else showToast(r.message || 'บันทึกไม่สำเร็จ', 'error');
+    })
+    .withFailureHandler(() => { hideLoading(); showToast('เชื่อมต่อไม่ได้', 'error'); })
+    .seatSaveLayout(u.id, seatSnap.layout, seatGuestToken());
 }
 
 function seatToggleLockFrontRow() {
