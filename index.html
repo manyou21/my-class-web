@@ -221,6 +221,20 @@ margin-right:8px;
   .mobile-quick-actions { display: flex; }
 }
 
+/* Theme Toggle Button Style */
+.theme-toggle-btn {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+.theme-toggle-btn:hover { background: var(--bg-secondary); }
+
 /* Main Content */
 .main { padding: 20px; max-width: 1200px; margin: 0 auto; }
 .tab-panel { display: none; }
@@ -537,8 +551,7 @@ margin-right:8px;
 <div class="app-container" id="app">
   <div class="mobile-quick-actions" aria-label="ปุ่มลัด">
     <button type="button" onclick="toggleSidebar()" title="เมนู" aria-label="เปิดเมนู"><i class="fas fa-bars" aria-hidden="true"></i></button>
-    <button type="button" onclick="setTheme('light')" title="โหมดสว่าง" aria-label="โหมดสว่าง"><i class="fas fa-sun" aria-hidden="true"></i></button>
-    <button type="button" onclick="setTheme('dark')" title="โหมดมืด" aria-label="โหมดมืด"><i class="fas fa-moon" aria-hidden="true"></i></button>
+    <button type="button" onclick="toggleTheme()" id="mobileThemeBtn" title="สลับโหมด" aria-label="สลับโหมด"><i class="fas fa-moon" aria-hidden="true"></i></button>
     <button type="button" onclick="manualRefresh()" title="รีเฟรช" aria-label="รีเฟรช"><i class="fas fa-sync-alt" aria-hidden="true"></i></button>
   </div>
   
@@ -585,10 +598,7 @@ margin-right:8px;
         </div>
       </div>
       <div class="sidebar-actions">
-        <button class="btn btn-secondary btn-sm" onclick="setTheme('light')" style="flex:1;" title="โหมดสว่าง" aria-label="โหมดสว่าง">
-          <i class="fas fa-sun"></i>
-        </button>
-        <button class="btn btn-secondary btn-sm" onclick="setTheme('dark')" style="flex:1;" title="โหมดมืด" aria-label="โหมดมืด">
+        <button class="btn btn-secondary btn-sm" onclick="toggleTheme()" id="sidebarThemeBtn" style="flex:1;" title="สลับโหมด" aria-label="สลับโหมด">
           <i class="fas fa-moon"></i>
         </button>
         <button class="btn btn-secondary btn-sm" onclick="manualRefresh()" style="flex:1;" title="รีเฟรช">
@@ -1003,11 +1013,16 @@ margin-right:8px;
       <div class="modal-body">
         <div class="form-group">
           <label>รายการ</label>
-          <input type="text" id="mTitle" style="width:100%" required>
+          <input type="text" id="mTitle" style="width:100%" required placeholder="เช่น ค่าเสื้อห้อง">
         </div>
         <div class="form-group">
           <label>จำนวน/คน (บาท)</label>
-          <input type="number" id="mAmt" style="width:100%" required min="1">
+          <input type="number" id="mAmt" style="width:100%" required min="1" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>เลขที่นักเรียนที่ต้องการเก็บ (ปล่อยว่างถ้าเก็บทุกคน)</label>
+          <input type="text" id="mTargetList" style="width:100%" placeholder="เช่น 1, 5, 10-15">
+          <small style="color:var(--text-muted)">ใช้เครื่องหมายคอมมา (,) แยกเลขที่ หรือใช้ขีด (-) สำหรับช่วงข้อมูล</small>
         </div>
       </div>
       <div class="modal-foot">
@@ -1209,13 +1224,36 @@ function openModal(id) {
 }
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
+function toggleTheme() {
+  const newTheme = lastTheme === 'light' ? 'dark' : 'light';
+  setTheme(newTheme);
+}
 function setTheme(mode) {
   if (mode !== 'light' && mode !== 'dark') return;
   lastTheme = mode;
   localStorage.setItem('theme', lastTheme);
   applyTheme();
+  updateThemeIcons();
 }
-function applyTheme() { document.documentElement.setAttribute('data-theme', lastTheme); }
+function applyTheme() { 
+  document.documentElement.setAttribute('data-theme', lastTheme);
+}
+function updateThemeIcons() {
+  const isDark = lastTheme === 'dark';
+  const icon = isDark ? 'fa-sun' : 'fa-moon';
+  const label = isDark ? 'โหมดสว่าง' : 'โหมดมืด';
+  
+  const sideBtn = document.getElementById('sidebarThemeBtn');
+  if (sideBtn) {
+    sideBtn.innerHTML = `<i class="fas ${icon}"></i>`;
+    sideBtn.title = label;
+  }
+  const mobBtn = document.getElementById('mobileThemeBtn');
+  if (mobBtn) {
+    mobBtn.innerHTML = `<i class="fas ${icon}"></i>`;
+    mobBtn.title = label;
+  }
+}
 
 let globalLoadingToast = null;
 
@@ -1484,12 +1522,14 @@ function bookingBySeat(seatId) {
 function seatRenderAll() {
   const inner = document.getElementById('seatMapInner');
   if (!inner || !seatSnap || !seatSnap.layout) return;
-  const g = seatSnap.layout.grid || { cols: 22, rows: 16, cell: 24 };
+  const g = (seatSnap && seatSnap.layout && seatSnap.layout.grid) ? seatSnap.layout.grid : { cols: 22, rows: 16, cell: 24 };
   const cell = g.cell || 24;
   const cols = g.cols || 22;
   const rows = g.rows || 16;
   inner.style.width = `${cols * cell}px`;
   inner.style.height = `${rows * cell}px`;
+  inner.style.minWidth = `${cols * cell}px`;
+  inner.style.minHeight = `${rows * cell}px`;
   inner.style.backgroundSize = `${cell}px ${cell}px`;
 
   const fb = Number(seatSnap.layout.frontBand) || 0;
@@ -2326,7 +2366,27 @@ function doAddMoney(e) {
   e.preventDefault(); 
   const t = document.getElementById('mTitle').value.trim(); 
   const a = document.getElementById('mAmt').value;
+  const targetStr = document.getElementById('mTargetList')?.value?.trim() || '';
   if (!t || !a) return;
+
+  let targetList = null;
+  if (targetStr) {
+    targetList = [];
+    targetStr.split(',').forEach(p => {
+      p = p.trim();
+      if (p.includes('-')) {
+        const [start, end] = p.split('-').map(Number);
+        if (!isNaN(start) && !isNaN(end)) {
+          for (let i = Math.min(start, end); i <= Math.max(start, end); i++) targetList.push(i);
+        }
+      } else {
+        const n = Number(p);
+        if (!isNaN(n)) targetList.push(n);
+      }
+    });
+    targetList = [...new Set(targetList)];
+  }
+
   const btn = e.submitter;
   const restore = btnLoading(btn);
   closeModal('modalMoney');
@@ -2344,7 +2404,7 @@ function doAddMoney(e) {
       document.querySelectorAll('.toast').forEach(el => { if (el.querySelector('.toast-message')?.textContent.includes('กำลังบันทึก')) el.remove(); });
       showToast('เกิดข้อผิดพลาด', 'error'); 
     })
-    .addTreasuryItem(t, parseFloat(a), u.displayName);
+    .addTreasuryItem(t, parseFloat(a), u.displayName, targetList);
 }
 
 function delMoney(id) { 

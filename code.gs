@@ -411,10 +411,22 @@ function getHomework() {
     const hwData = hwSheet.getDataRange().getValues(); 
     const stData = stSheet.getDataRange().getValues();
 
+    // Optimize: Create a status map for O(1) lookup
+    const statusMap = {};
+    for (let j = 1; j < stData.length; j++) {
+      const hwId = stData[j][0];
+      if (!hwId) continue;
+      if (!statusMap[hwId]) statusMap[hwId] = {};
+      statusMap[hwId][stData[j][1]] = {
+        status: stData[j][2] || 'pending',
+        imagePath: stData[j][3] || ''
+      };
+    }
+
     const list = [];
-    for (let i = 1; i < hwData.length; i++) {
+    for (let i = 1; i < hwData.length; i++) { 
       const row = hwData[i];
-      if (!row[0]) continue;
+      if (!row || !row[0]) continue;
 
       const item = {
         id: row[0],
@@ -425,17 +437,8 @@ function getHomework() {
         noDueDate: !!row[5],
         createdBy: row[6] || '',
         color: row[8] || getSubjectColor(row[1]),
-        statuses: {}
+        statuses: statusMap[row[0]] || {}
       };
-
-      for (let j = 1; j < stData.length; j++) {
-        if (stData[j][0] === row[0]) {
-          item.statuses[stData[j][1]] = {
-            status: stData[j][2] || 'pending',
-            imagePath: stData[j][3] || ''
-          };
-        }
-      }
       list.push(item);
     }
     return { success: true, homework: list };
@@ -586,21 +589,26 @@ function updateLeaveStatus(id, status) {
 // ============================================
 // 💰 TREASURY
 // ============================================
-function addTreasuryItem(title, amt, by) {
+function addTreasuryItem(title, amt, by, targetStudents = null) {
   try {
     ensureSheetsExist(); 
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const tS = ss.getSheetByName(SHEETS.TREASURY); 
     const pS = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS); 
     const id = Utilities.getUuid(); 
-    
-    // เพิ่มการสร้างสีจากชื่อรายการ
     const color = getSubjectColor(title); 
     
-    // เพิ่ม color เป็นคอลัมน์ที่ 7
     tS.appendRow([id, title, amt, by, new Date(), 'active', color]); 
     
-    const rows = STUDENTS.map(s => [id, s.no, 0, '', '']);
+    let targetNos = [];
+    if (targetStudents) {
+      if (Array.isArray(targetStudents)) targetNos = targetStudents;
+      else targetNos = String(targetStudents).split(',').map(n => n.trim()).filter(n => n);
+    } else {
+      targetNos = STUDENTS.map(s => s.no);
+    }
+
+    const rows = targetNos.map(no => [id, no, 0, '', '']);
     if (rows.length > 0) pS.getRange(pS.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
     return { success: true, treasuryId: id };
   } catch (e) { 
