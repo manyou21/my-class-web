@@ -95,9 +95,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   margin-right: 0;
   font-size: 1.2rem;
 }
-.sidebar.collapsed .sidebar-brand { justify-content: center; padding: 10px 0; }
+.sidebar.collapsed .sidebar-brand { justify-content: center; padding: 12px 0; }
 .sidebar.collapsed .sidebar-brand i { display: none; }
-.sidebar.collapsed .sidebar-brand button { margin-right: 0; width: 46px; height: 46px; }
+.sidebar.collapsed .sidebar-brand button { margin-right: 0; width: 44px; height: 44px; background: var(--bg-secondary); border-radius: 50%; box-shadow: var(--shadow-sm); }
 .main-wrapper.expanded {
   margin-left: 70px;
 }
@@ -2015,7 +2015,34 @@ function populateSubjects() {
 
 // --- Main Loaders ---
 // Silent load — no overlay, just skeleton then render
-function loadAll() { loadHw(); loadMoney(); loadLeave(); }
+function loadAll() {
+  const elHw = document.getElementById('listHw');
+  const elTr = document.getElementById('listMoney');
+  const elLv = document.getElementById('listLeave');
+  
+  if (!hwData.length) showSkeleton('listHw', 2);
+  if (!moneyData.length) showSkeleton('listMoney', 2);
+  if (!leaveData.length) showSkeleton('listLeave', 2);
+
+  google.script.run
+    .withSuccessHandler(r => {
+      if (r && r.success) {
+        hwData = r.homework || [];
+        moneyData = r.treasury || [];
+        leaveData = r.leaveRequests || [];
+        
+        renderHw();
+        renderMoney();
+        renderLeave();
+        
+        currentHwCount = hwData.length;
+        currentTrCount = moneyData.length;
+        currentLvCount = leaveData.length;
+      }
+      timetableRefresh();
+    })
+    .getDashboardData();
+}
 
 function manualRefresh() { loadAll(); showToast('รีเฟรชข้อมูลแล้ว', 'info', 2000); }
 

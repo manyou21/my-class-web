@@ -213,8 +213,7 @@ function ensureSheetsExist() {
 // ============================================
 function registerUser(name, email, pw, cpw, code, hint) {
   try {
-    ensureSheetsExist(); 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
+    if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
     const uSheet = ss.getSheetByName(SHEETS.USERS); 
     const cSheet = ss.getSheetByName(SHEETS.STUDENT_CODES);
 
@@ -258,8 +257,7 @@ function registerUser(name, email, pw, cpw, code, hint) {
 
 function loginUser(id, pw) {
   try {
-    ensureSheetsExist(); 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
+    if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
     const uSheet = ss.getSheetByName(SHEETS.USERS);
     if (!uSheet) return { success: false, message: 'ไม่พบข้อมูลผู้ใช้' }; 
     
@@ -350,8 +348,7 @@ function getSubjects() { return { success: true, subjects: SUBJECTS }; }
 // ============================================
 function addHomework(sub, desc, ad, dd, nd, by) {
   try {
-    ensureSheetsExist(); 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
+    if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
     const uSheet = ss.getSheetByName(SHEETS.USERS); 
     const hwS = ss.getSheetByName(SHEETS.HOMEWORK); 
     const stS = ss.getSheetByName(SHEETS.HOMEWORK_STATUS);
@@ -401,10 +398,9 @@ function addHomework(sub, desc, ad, dd, nd, by) {
   }
 }
 
-function getHomework() {
+function getHomework(ss = null) {
   try {
-    ensureSheetsExist(); 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
+    if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
     const hwSheet = ss.getSheetByName(SHEETS.HOMEWORK); 
     const stSheet = ss.getSheetByName(SHEETS.HOMEWORK_STATUS);
 
@@ -496,8 +492,7 @@ function deleteHomework(id) {
 // ============================================
 function submitLeaveRequest(studentNo, studentName, type, date, reason, base64Image) {
   try {
-    ensureSheetsExist(); 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
+    if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
     const sheet = ss.getSheetByName(SHEETS.LEAVE_REQUESTS); 
     const id = Utilities.getUuid(); 
     let imageUrl = '';
@@ -524,10 +519,9 @@ function submitLeaveRequest(studentNo, studentName, type, date, reason, base64Im
   }
 }
 
-function getLeaveRequests() {
+function getLeaveRequests(ss = null) {
   try {
-    ensureSheetsExist(); 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
+    if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
     const sheet = ss.getSheetByName(SHEETS.LEAVE_REQUESTS); 
     const data = sheet.getDataRange().getValues(); 
     if (data.length <= 1) return [];
@@ -591,8 +585,7 @@ function updateLeaveStatus(id, status) {
 // ============================================
 function addTreasuryItem(title, amt, by, targetStudents = null) {
   try {
-    ensureSheetsExist(); 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); }
     const tS = ss.getSheetByName(SHEETS.TREASURY); 
     const pS = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS); 
     const id = Utilities.getUuid(); 
@@ -616,10 +609,9 @@ function addTreasuryItem(title, amt, by, targetStudents = null) {
   }
 }
 
-function getTreasuryItems() {
+function getTreasuryItems(ss = null) {
   try {
-    ensureSheetsExist(); 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
+    if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
     const tSheet = ss.getSheetByName(SHEETS.TREASURY); 
     const pSheet = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS);
 
@@ -939,8 +931,7 @@ function cleanupExpiredGuestAccounts() {
 // FIX: Returns addedCredits for ADD_HW so client can update local state
 function redeemCode(code, userId) {
   try {
-    ensureSheetsExist(); 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
+    if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
     const codeSheet = ss.getSheetByName(SHEETS.REDEEM_CODES); 
     const userSheet = ss.getSheetByName(SHEETS.USERS);
 
@@ -1445,3 +1436,4 @@ function seatListActiveSessions(userId) {
     return { success: false, message: e.toString() };
   }
 }
+function getDashboardData() { try { ensureSheetsExist(); const ss = SpreadsheetApp.openById(SPREADSHEET_ID); const hw = getHomework(ss); const tr = getTreasuryItems(ss); const lv = getLeaveRequests(ss); return { success: true, homework: hw.homework || [], treasury: tr.treasury || [], leaveRequests: lv || [] }; } catch (e) { return { success: false, message: e.toString() }; } }
