@@ -481,11 +481,11 @@ margin-right:8px;
     <form id="loginForm">
       <div class="form-group">
         <label>ชื่อ / Email</label>
-        <input type="text" id="loginId" required placeholder="กรอกชื่อหรือ Email">
+        <input type="text" id="loginId" required placeholder="กรอกชื่อหรือ Email" maxlength="200" autocomplete="username">
       </div>
       <div class="form-group">
         <label>รหัสผ่าน</label>
-        <input type="password" id="loginPw" required placeholder="กรอกรหัสผ่าน (4 ตัวขึ้นไป)">
+        <input type="password" id="loginPw" required placeholder="กรอกรหัสผ่าน (4 ตัวขึ้นไป)" maxlength="128" autocomplete="current-password">
       </div>
       <button type="submit" class="btn btn-primary">
         <i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ
@@ -497,7 +497,7 @@ margin-right:8px;
         <span>เข้าใช้งานด้วยโค้ดชั่วคราว</span>
       </div>
       <div style="display:flex; gap:10px;">
-        <input type="text" id="loginCode" placeholder="กรอกโค้ดที่นี่" style="flex:1; padding:10px; text-transform:uppercase; letter-spacing:3px; font-weight:600;" oninput="this.value=this.value.toUpperCase()">
+        <input type="text" id="loginCode" placeholder="กรอกโค้ดที่นี่" style="flex:1; padding:10px; text-transform:uppercase; letter-spacing:3px; font-weight:600;" oninput="this.value=this.value.toUpperCase()" maxlength="20">
         <button type="button" class="btn btn-success" onclick="doLoginRedeem()" style="width:auto; background:linear-gradient(135deg,#7c3aed,#4f46e5);" title="เข้าสู่ระบบด้วยโค้ดชั่วคราว">
           <i class="fas fa-bolt"></i>
         </button>
@@ -523,27 +523,27 @@ margin-right:8px;
     <form id="registerForm">
       <div class="form-group">
         <label>ชื่อ-นามสกุล (ตามทะเบียน)</label>
-        <input type="text" id="regName" required>
+        <input type="text" id="regName" required maxlength="100" autocomplete="name">
       </div>
       <div class="form-group">
         <label>Email</label>
-        <input type="email" id="regEmail" placeholder="example@mail.com">
+        <input type="email" id="regEmail" placeholder="example@mail.com" maxlength="200" autocomplete="email">
       </div>
       <div class="form-group">
         <label>รหัสนักเรียน (นักเรียนเท่านั้น)</label>
-        <input type="text" id="regCode" placeholder="เช่น 47535">
+        <input type="text" id="regCode" placeholder="เช่น 47535" maxlength="5" pattern="\d{5}" inputmode="numeric">
       </div>
       <div class="form-group">
         <label>รหัสผ่าน (4 ตัวขึ้นไป)</label>
-        <input type="password" id="regPw" required placeholder="เช่น test1234">
+        <input type="password" id="regPw" required placeholder="เช่น test1234" maxlength="128" autocomplete="new-password">
       </div>
       <div class="form-group">
         <label>ยืนยันรหัสผ่าน</label>
-        <input type="password" id="regCPw" required>
+        <input type="password" id="regCPw" required maxlength="128" autocomplete="new-password">
       </div>
       <div class="form-group">
         <label>คำใบ้รหัสผ่าน (เผื่อลืม)</label>
-        <input type="text" id="regHint" placeholder="เช่น ชื่อแม่+เลขบ้าน">
+        <input type="text" id="regHint" placeholder="เช่น ชื่อแม่+เลขบ้าน" maxlength="200">
       </div>
       <button type="submit" class="btn btn-primary">
         <i class="fas fa-user-plus"></i> สมัคร
@@ -2268,8 +2268,8 @@ function renderHw() {
   <div class="subject-color-bar" style="background-color: ${subjectColor};"></div>
   <div class="card-head">
     <div>
-      <span class="subject-title" style="background-color: ${subjectColor}40; color: ${textColor};">${h.subject}</span><br>
-      <small style="color:var(--text-secondary)">${h.description}</small>
+      <span class="subject-title" style="background-color: ${subjectColor}40; color: ${textColor};">${escapeHtml(h.subject)}</span><br>
+      <small style="color:var(--text-secondary)">${escapeHtml(h.description)}</small>
     </div>
     ${u.canManageHomework ? `<button class="btn btn-danger btn-icon" onclick="delHw('${h.id}')"><i class="fas fa-trash"></i></button>` : ''}
   </div>
@@ -2441,7 +2441,7 @@ function renderMoney() {
   <div class="subject-color-bar" style="background-color: ${itemColor};"></div>
   <div class="card-head">
     <div>
-      <span class="subject-title" style="background-color: ${itemColor}40; color: ${textColor};">${m.title}</span><br>
+      <span class="subject-title" style="background-color: ${itemColor}40; color: ${textColor};">${escapeHtml(m.title)}</span><br>
       <small style="color:var(--text-secondary)">จำนวน ${m.amountPerPerson} บาท/คน</small>
     </div>
     ${u.canManageTreasury ? `<button class="btn btn-danger btn-icon" onclick="delMoney('${m.id}')"><i class="fas fa-trash"></i></button>` : ''}
@@ -2595,15 +2595,15 @@ function renderLeave() {
 <div class="card">
   <div class="card-head">
     <div>
-      <b style="font-size: 1.1rem;">${l.studentName}</b><br>
-      <small style="color:var(--text-secondary)">เลขที่ ${l.studentNo} | ${l.type}</small>
+      <b style="font-size: 1.1rem;">${escapeHtml(l.studentName)}</b><br>
+      <small style="color:var(--text-secondary)">เลขที่ ${escapeHtml(String(l.studentNo))} | ${escapeHtml(l.type)}</small>
     </div>
     <span class="badge ${badgeClass}">${badgeText}</span>
   </div>
   <div class="card-body">
     <p style="margin-bottom:10px;">
       <i class="fas fa-calendar-alt"></i> วันที่: ${formatDate(l.date)}<br>
-      <i class="fas fa-comment-dots"></i> เหตุผล: ${l.reason}
+      <i class="fas fa-comment-dots"></i> เหตุผล: ${escapeHtml(l.reason)}
     </p>
     ${l.proofImage ? `
     <details class="leave-proof-details">

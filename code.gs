@@ -80,24 +80,57 @@ const SUBJECT_COLORS = [
 // ============================================
 // 🔥 API Endpoint for GitHub Pages (CORS)
 // ============================================
+
+// Whitelist: เฉพาะ function เหล่านี้เท่านั้นที่เรียกจาก API ได้
+const ALLOWED_ACTIONS = new Set([
+  'loginUser', 'registerUser', 'changePassword', 'getPasswordHint',
+  'getStudents', 'getSubjects',
+  'addHomework', 'getHomework', 'updateHomeworkStatus', 'deleteHomework',
+  'addTreasuryItem', 'getTreasuryItems', 'updatePayment', 'deleteTreasuryItem',
+  'submitLeaveRequest', 'getLeaveRequests', 'confirmLeaveRequest', 'updateLeaveStatus',
+  'getLastUpdate', 'getDashboardData', 'getCounts',
+  'generateCode', 'redeemCode',
+  'createGuestAccount', 'deleteGuestAccount',
+  'getTimetable', 'setTimetable',
+  'seatGetSnapshot', 'seatSetBookingWindow', 'seatSetFrontBand',
+  'seatSaveLayout', 'seatBook', 'seatCancelBooking',
+  'seatCreateEditCode', 'seatValidateEditCode', 'seatListEditCodes',
+  'seatRevokeEditCode', 'seatRevokeSession', 'seatListActiveSessions'
+]);
+
 function doPost(e) {
   try {
     const output = ContentService.createTextOutput();
     output.setMimeType(ContentService.MimeType.JSON);
 
-    const data = JSON.parse(e.postData.contents);
-    const action = data.action;
-    const args = data.args || [];
-
-    if (typeof this[action] === 'function') {
-      const result = this[action](...args);
-      output.setContent(JSON.stringify({ status: 'success', result: result }));
-    } else {
-      output.setContent(JSON.stringify({ status: 'error', message: 'Function not found: ' + action }));
+    // ป้องกัน payload ใหญ่เกินไป (max 2MB)
+    const raw = e.postData.contents;
+    if (!raw || raw.length > 2 * 1024 * 1024) {
+      output.setContent(JSON.stringify({ status: 'error', message: 'Request too large' }));
+      return output;
     }
+
+    const data = JSON.parse(raw);
+    const action = String(data.action || '');
+    const args = Array.isArray(data.args) ? data.args : [];
+
+    // Whitelist check — ป้องกันการเรียก function ที่ไม่ได้อนุญาต
+    if (!ALLOWED_ACTIONS.has(action)) {
+      output.setContent(JSON.stringify({ status: 'error', message: 'Action not allowed' }));
+      return output;
+    }
+
+    // จำกัดจำนวน args ป้องกัน prototype pollution
+    if (args.length > 10) {
+      output.setContent(JSON.stringify({ status: 'error', message: 'Too many arguments' }));
+      return output;
+    }
+
+    const result = this[action](...args);
+    output.setContent(JSON.stringify({ status: 'success', result: result }));
     return output;
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: err.toString() }))
+    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Server error' }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
@@ -109,9 +142,69 @@ function doGet(e) {
 // ============================================
 // 🔧 HELPER FUNCTIONS
 // ============================================
+
+// Hash password พร้อม salt ป้องกัน rainbow table attack
+// salt คงที่ต่อระบบ (เพิ่มความปลอดภัยกว่า plain SHA-256)
+const PW_SALT = 'CLS_SALT_2025_xK9#mP';
+
 function hashPassword(p) {
-  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, p)
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, PW_SALT + p + PW_SALT)
     .map(b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('');
+}
+
+// Sanitize string input — ตัด whitespace และจำกัดความยาว
+function sanitizeStr(val, maxLen) {
+  if (val === null || val === undefined) return '';
+  const s = String(val).trim();
+  return maxLen ? s.slice(0, maxLen) : s;
+}
+
+// ตรวจสอบว่า userId มีรูปแบบถูกต้อง (UUID หรือ GUEST_XXXX)
+function isValidUserId(id) {
+  if (!id) return false;
+  const s = String(id);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
+      || /^GUEST_[A-Z0-9]{8}$/i.test(s);
+}
+
+// Rate limiting สำหรับ login — ป้องกัน brute force
+// เก็บจำนวนครั้งที่ login ผิดใน ScriptProperties
+const RATE_LIMIT_MAX = 10;       // ผิดได้สูงสุด 10 ครั้ง
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // ใน 15 นาที
+
+function checkLoginRateLimit(identifier) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const key = 'rl_' + Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(identifier))
+      .map(b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('').slice(0, 16);
+    const raw = props.getProperty(key);
+    const now = Date.now();
+    let record = raw ? JSON.parse(raw) : { count: 0, windowStart: now };
+    if (now - record.windowStart > RATE_LIMIT_WINDOW_MS) {
+      record = { count: 0, windowStart: now };
+    }
+    if (record.count >= RATE_LIMIT_MAX) {
+      const waitMin = Math.ceil((RATE_LIMIT_WINDOW_MS - (now - record.windowStart)) / 60000);
+      return { blocked: true, message: `พยายามเข้าสู่ระบบผิดพลาดบ่อยเกินไป กรุณารอ ${waitMin} นาที` };
+    }
+    return { blocked: false, record: record, key: key };
+  } catch (e) {
+    return { blocked: false }; // ถ้า rate limit พัง ให้ผ่านไปก่อน
+  }
+}
+
+function recordLoginFailure(key, record) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    record.count = (record.count || 0) + 1;
+    props.setProperty(key, JSON.stringify(record));
+  } catch (e) {}
+}
+
+function clearLoginRateLimit(key) {
+  try {
+    PropertiesService.getScriptProperties().deleteProperty(key);
+  } catch (e) {}
 }
 
 function validatePassword(p) {
@@ -217,41 +310,55 @@ function registerUser(name, email, pw, cpw, code, hint) {
     const uSheet = ss.getSheetByName(SHEETS.USERS); 
     const cSheet = ss.getSheetByName(SHEETS.STUDENT_CODES);
 
-    if (!name || !pw) return { success: false, message: 'กรอกข้อมูลไม่ครบ' }; 
+    // Sanitize inputs
+    const cleanName  = sanitizeStr(name, 100);
+    const cleanEmail = sanitizeStr(email, 200);
+    const cleanCode  = sanitizeStr(code, 20);
+    const cleanHint  = sanitizeStr(hint, 200);
+
+    if (!cleanName || !pw) return { success: false, message: 'กรอกข้อมูลไม่ครบ' }; 
     if (pw !== cpw) return { success: false, message: 'รหัสผ่านไม่ตรงกัน' }; 
     const vP = validatePassword(pw); 
     if (!vP.valid) return { success: false, message: vP.m };
 
+    // ตรวจ email format ถ้ากรอกมา
+    if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      return { success: false, message: 'รูปแบบ Email ไม่ถูกต้อง' };
+    }
+
     const uData = uSheet.getDataRange().getValues(); 
     for (let i = 1; i < uData.length; i++) {
-      if (uData[i][1] === name) return { success: false, message: 'มีผู้ใช้ชื่อนี้แล้ว' }; 
+      if (uData[i][1] === cleanName) return { success: false, message: 'มีผู้ใช้ชื่อนี้แล้ว' }; 
     }
     
     let role = 'STUDENT', studentNo = null;
-    if (!code) { 
-      if (ROLE_MAPPING[name]) role = ROLE_MAPPING[name]; 
+    if (!cleanCode) { 
+      if (ROLE_MAPPING[cleanName]) role = ROLE_MAPPING[cleanName]; 
       else return { success: false, message: 'ชื่อนี้ไม่อยู่ในทะเบียน กรุณากรอกรหัสนักเรียน' }; 
     } else {
+      // ตรวจ format รหัสนักเรียน (5 หลักตัวเลข)
+      if (!/^\d{5}$/.test(cleanCode)) return { success: false, message: 'รหัสนักเรียนต้องเป็นตัวเลข 5 หลัก' };
+
       const cData = cSheet.getDataRange().getValues(); 
       let found = false;
       for (let i = 1; i < cData.length; i++) { 
-        if (String(cData[i][1]).trim() === String(code).trim()) { 
+        if (String(cData[i][1]).trim() === cleanCode) { 
           if (cData[i][3] === true) return { success: false, message: 'รหัสนักเรียนนี้ถูกใช้งานแล้ว' }; 
-          if (String(cData[i][2]).trim() !== name.trim()) return { success: false, message: 'ชื่อไม่ตรงกับรหัสนักเรียน' }; 
+          if (String(cData[i][2]).trim() !== cleanName.trim()) return { success: false, message: 'ชื่อไม่ตรงกับรหัสนักเรียน' }; 
           studentNo = cData[i][0]; 
           cSheet.getRange(i + 1, 4).setValue(true); 
           found = true; 
-          if (ROLE_MAPPING[name]) role = ROLE_MAPPING[name]; 
+          if (ROLE_MAPPING[cleanName]) role = ROLE_MAPPING[cleanName]; 
           break; 
         } 
       }
       if (!found) return { success: false, message: 'ไม่พบรหัสนักเรียนนี้' }; 
     }
     
-    uSheet.appendRow([Utilities.getUuid(), name, email || '', hashPassword(pw), hint || '', studentNo, role, new Date(), new Date(), '', 0]);
+    uSheet.appendRow([Utilities.getUuid(), cleanName, cleanEmail, hashPassword(pw), cleanHint, studentNo, role, new Date(), new Date(), '', 0]);
     return { success: true, message: 'สมัครสมาชิกสำเร็จ! กรุณา Login' };
   } catch (e) { 
-    return { success: false, message: 'เกิดข้อผิดพลาด: ' + e.toString() }; 
+    return { success: false, message: 'เกิดข้อผิดพลาด' }; 
   }
 }
 
@@ -259,18 +366,29 @@ function loginUser(id, pw) {
   try {
     if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
     const uSheet = ss.getSheetByName(SHEETS.USERS);
-    if (!uSheet) return { success: false, message: 'ไม่พบข้อมูลผู้ใช้' }; 
+    if (!uSheet) return { success: false, message: 'ไม่พบข้อมูลผู้ใช้' };
+
+    // Sanitize inputs
+    const cleanId = sanitizeStr(id, 200);
+    if (!cleanId || !pw) return { success: false, message: 'กรุณากรอกข้อมูลให้ครบ' };
+
+    // Rate limit check
+    const rl = checkLoginRateLimit(cleanId);
+    if (rl.blocked) return { success: false, message: rl.message };
     
     const uData = uSheet.getDataRange().getValues(); 
     const pHash = hashPassword(pw);
     
     for (let i = 1; i < uData.length; i++) {
       const row = uData[i];
-      const nameMatch = row[1] === id;
-      const emailMatch = row[2] === id && row[2] !== '';
+      const nameMatch = row[1] === cleanId;
+      const emailMatch = row[2] === cleanId && row[2] !== '';
       const pwMatch = row[3] === pHash;
 
       if ((nameMatch || emailMatch) && pwMatch) {
+        // Login สำเร็จ — ล้าง rate limit
+        if (rl.key) clearLoginRateLimit(rl.key);
+
         let rK = row[6];
         // Check temporary role expiry
         if (row.length > 9 && row[9]) {
@@ -299,9 +417,12 @@ function loginUser(id, pw) {
         };
       } 
     }
+
+    // Login ล้มเหลว — บันทึก rate limit
+    if (rl.record && rl.key) recordLoginFailure(rl.key, rl.record);
     return { success: false, message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' };
   } catch (e) { 
-    return { success: false, message: 'Server Error: ' + e.toString() }; 
+    return { success: false, message: 'Server Error' }; 
   }
 }
 
@@ -311,8 +432,12 @@ function changePassword(uid, curr, newP, conf) {
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
     const uSheet = ss.getSheetByName(SHEETS.USERS); 
     const uData = uSheet.getDataRange().getValues();
+
+    const cleanUid = sanitizeStr(uid, 100);
+    if (!isValidUserId(cleanUid)) return { success: false, message: 'ข้อมูลผู้ใช้ไม่ถูกต้อง' };
+
     for (let i = 1; i < uData.length; i++) {
-      if (uData[i][0] === uid) {
+      if (uData[i][0] === cleanUid) {
         if (uData[i][3] !== hashPassword(curr)) return { success: false, message: 'รหัสผ่านเดิมไม่ถูกต้อง' };
         if (newP !== conf) return { success: false, message: 'รหัสผ่านใหม่ไม่ตรงกัน' };
         const v = validatePassword(newP); 
@@ -323,7 +448,7 @@ function changePassword(uid, curr, newP, conf) {
     }
     return { success: false, message: 'ไม่พบผู้ใช้' };
   } catch (e) { 
-    return { success: false, message: e.toString() }; 
+    return { success: false, message: 'เกิดข้อผิดพลาด' }; 
   }
 }
 
@@ -353,11 +478,24 @@ function addHomework(sub, desc, ad, dd, nd, by) {
     const hwS = ss.getSheetByName(SHEETS.HOMEWORK); 
     const stS = ss.getSheetByName(SHEETS.HOMEWORK_STATUS);
 
+    // Sanitize inputs
+    const cleanSub  = sanitizeStr(sub, 100);
+    const cleanDesc = sanitizeStr(desc, 1000);
+    const cleanBy   = sanitizeStr(by, 200);
+
+    if (!cleanSub) return { success: false, message: 'กรุณาระบุวิชา' };
+    if (!cleanBy)  return { success: false, message: 'ไม่พบข้อมูลผู้ใช้' };
+
+    // ตรวจสอบ subject อยู่ใน whitelist
+    if (!SUBJECTS.includes(cleanSub)) return { success: false, message: 'วิชาไม่ถูกต้อง' };
+
     const uData = uSheet.getDataRange().getValues(); 
     let hasPerm = false;
+    let creatorName = '';
 
     for (let i = 1; i < uData.length; i++) {
-      if (uData[i][1] === by) {
+      if (uData[i][1] === cleanBy) {
+        creatorName = uData[i][1];
         const rK = uData[i][6];
         if (ROLES[rK] && ROLES[rK].canManageHomework) {
           hasPerm = true;
@@ -380,9 +518,9 @@ function addHomework(sub, desc, ad, dd, nd, by) {
     if (!hasPerm) return { success: false, message: 'คุณไม่มีสิทธิ์เพิ่มการบ้าน หรือ Credit หมดแล้ว' };
 
     const id = Utilities.getUuid();
-    const color = getSubjectColor(sub);
+    const color = getSubjectColor(cleanSub);
 
-    hwS.appendRow([id, sub, desc, ad, dd, nd, by, new Date(), color]);
+    hwS.appendRow([id, cleanSub, cleanDesc, ad, dd, nd, creatorName, new Date(), color]);
     hwS.getRange(hwS.getLastRow(), 1, 1, 9).setBackground(color);
 
     const rows = STUDENTS.map(s => [id, s.no, 'pending', '', '', '', color]);
@@ -394,7 +532,7 @@ function addHomework(sub, desc, ad, dd, nd, by) {
 
     return { success: true };
   } catch (e) { 
-    return { success: false, message: e.toString() }; 
+    return { success: false, message: 'เกิดข้อผิดพลาด' }; 
   }
 }
 
@@ -446,44 +584,55 @@ function getHomework(ss = null) {
 
 function updateHomeworkStatus(hid, sno, stat, imgBase64) {
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
-    const stS = ss.getSheetByName(SHEETS.HOMEWORK_STATUS); 
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const stS = ss.getSheetByName(SHEETS.HOMEWORK_STATUS);
     const d = stS.getDataRange().getValues();
 
+    // Validate inputs
+    const cleanHid  = sanitizeStr(hid, 100);
+    const cleanSno  = parseInt(sno);
+    const cleanStat = sanitizeStr(stat, 20);
+    const VALID_STATUSES = ['pending', 'completed'];
+    if (cleanStat && !VALID_STATUSES.includes(cleanStat)) return { success: false, message: 'สถานะไม่ถูกต้อง' };
+    if (!cleanHid || isNaN(cleanSno) || cleanSno < 1) return { success: false, message: 'ข้อมูลไม่ถูกต้อง' };
+
     for (let i = 1; i < d.length; i++) {
-      if (d[i][0] === hid && String(d[i][1]) === String(sno)) {
-        if (stat) stS.getRange(i + 1, 3).setValue(stat);
+      if (d[i][0] === cleanHid && Number(d[i][1]) === cleanSno) {
+        if (cleanStat) stS.getRange(i + 1, 3).setValue(cleanStat);
         if (imgBase64) {
-          const url = uploadImageToDrive(imgBase64, 'HW_' + sno + '_' + hid);
+          const url = uploadImageToDrive(imgBase64, 'HW_' + cleanSno + '_' + cleanHid);
           if (url) stS.getRange(i + 1, 4).setValue(url);
         }
-        if (stat === 'completed') stS.getRange(i + 1, 5).setValue(new Date());
+        if (cleanStat === 'completed') stS.getRange(i + 1, 5).setValue(new Date());
         return { success: true };
       }
     }
     return { success: false, message: 'ไม่พบรายการที่จะอัปเดต' };
-  } catch (e) { 
-    return { success: false, message: e.toString() }; 
+  } catch (e) {
+    return { success: false, message: 'เกิดข้อผิดพลาด' };
   }
 }
 
 function deleteHomework(id) {
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
-    const hS = ss.getSheetByName(SHEETS.HOMEWORK); 
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const hS = ss.getSheetByName(SHEETS.HOMEWORK);
     const sS = ss.getSheetByName(SHEETS.HOMEWORK_STATUS);
+
+    const cleanId = sanitizeStr(id, 100);
+    if (!cleanId) return { success: false, message: 'ข้อมูลไม่ถูกต้อง' };
 
     const hd = hS.getDataRange().getValues();
     for (let i = hd.length - 1; i >= 1; i--) {
-      if (hd[i][0] === id) hS.deleteRow(i + 1);
+      if (hd[i][0] === cleanId) hS.deleteRow(i + 1);
     }
     const sd = sS.getDataRange().getValues();
     for (let i = sd.length - 1; i >= 1; i--) {
-      if (sd[i][0] === id) sS.deleteRow(i + 1);
+      if (sd[i][0] === cleanId) sS.deleteRow(i + 1);
     }
     return { success: true };
-  } catch (e) { 
-    return { success: false, message: e.toString() }; 
+  } catch (e) {
+    return { success: false, message: 'เกิดข้อผิดพลาด' };
   }
 }
 
@@ -494,6 +643,19 @@ function submitLeaveRequest(studentNo, studentName, type, date, reason, base64Im
   try {
     if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
     const sheet = ss.getSheetByName(SHEETS.LEAVE_REQUESTS); 
+
+    // Sanitize inputs
+    const cleanName   = sanitizeStr(studentName, 100);
+    const cleanType   = sanitizeStr(type, 50);
+    const cleanDate   = sanitizeStr(date, 20);
+    const cleanReason = sanitizeStr(reason, 500);
+    const cleanNo     = parseInt(studentNo) || 0;
+
+    if (!cleanNo || cleanNo < 1 || cleanNo > 100) return { success: false, message: 'เลขที่นักเรียนไม่ถูกต้อง' };
+    if (!cleanName) return { success: false, message: 'กรุณาระบุชื่อ' };
+    if (!cleanType) return { success: false, message: 'กรุณาระบุประเภทการลา' };
+    if (!cleanDate || !/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) return { success: false, message: 'รูปแบบวันที่ไม่ถูกต้อง' };
+
     const id = Utilities.getUuid(); 
     let imageUrl = '';
 
@@ -501,8 +663,12 @@ function submitLeaveRequest(studentNo, studentName, type, date, reason, base64Im
       try { 
         const split = base64Image.split(','); 
         const mimeMatch = split[0].match(/:(.*?);/); 
-        const contentType = mimeMatch ? mimeMatch[1] : 'image/jpeg'; 
-        const blob = Utilities.newBlob(Utilities.base64Decode(split[1]), contentType, 'leave_' + studentNo + '_' + id); 
+        const contentType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+        // ตรวจ MIME type ว่าเป็นรูปภาพเท่านั้น
+        if (!['image/jpeg','image/png','image/gif','image/webp'].includes(contentType)) {
+          return { success: false, message: 'ไฟล์ต้องเป็นรูปภาพเท่านั้น' };
+        }
+        const blob = Utilities.newBlob(Utilities.base64Decode(split[1]), contentType, 'leave_' + cleanNo + '_' + id); 
         const folder = DriveApp.getFolderById(DRIVE_FOLDER_ID); 
         const file = folder.createFile(blob); 
         file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); 
@@ -512,10 +678,10 @@ function submitLeaveRequest(studentNo, studentName, type, date, reason, base64Im
       }
     }
 
-    sheet.appendRow([id, studentNo, studentName, type, date, reason, 'PENDING', imageUrl, false, new Date()]); 
+    sheet.appendRow([id, cleanNo, cleanName, cleanType, cleanDate, cleanReason, 'PENDING', imageUrl, false, new Date()]); 
     return { success: true };
   } catch (e) { 
-    return { success: false, message: e.toString() }; 
+    return { success: false, message: 'เกิดข้อผิดพลาด' }; 
   }
 }
 
@@ -545,38 +711,56 @@ function getLeaveRequests(ss = null) {
 
 function confirmLeaveRequest(id, imgBase64) {
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
-    const sheet = ss.getSheetByName(SHEETS.LEAVE_REQUESTS); 
-    const data = sheet.getDataRange().getValues(); 
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(SHEETS.LEAVE_REQUESTS);
+    const data = sheet.getDataRange().getValues();
+
+    const cleanId = sanitizeStr(id, 100);
+    if (!cleanId) return { success: false, message: 'ข้อมูลไม่ถูกต้อง' };
+
     for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === id) {
-        const url = uploadImageToDrive(imgBase64, 'LeaveConfirm_' + id);
-        if (url) sheet.getRange(i + 1, 8).setValue(url);
+      if (data[i][0] === cleanId) {
+        if (imgBase64) {
+          // ตรวจ MIME type ว่าเป็นรูปภาพเท่านั้น
+          const mimeMatch = imgBase64.match(/^data:(image\/[a-z]+);base64,/);
+          if (!mimeMatch || !['image/jpeg','image/png','image/gif','image/webp'].includes(mimeMatch[1])) {
+            return { success: false, message: 'ไฟล์ต้องเป็นรูปภาพเท่านั้น' };
+          }
+          const url = uploadImageToDrive(imgBase64, 'LeaveConfirm_' + cleanId);
+          if (url) sheet.getRange(i + 1, 8).setValue(url);
+        }
         sheet.getRange(i + 1, 9).setValue(true);
         return { success: true };
       }
     }
     return { success: false, message: 'ไม่พบคำขอนี้' };
-  } catch (e) { 
-    return { success: false, message: e.toString() }; 
+  } catch (e) {
+    return { success: false, message: 'เกิดข้อผิดพลาด' };
   }
 }
 
 function updateLeaveStatus(id, status) {
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
-    const sheet = ss.getSheetByName(SHEETS.LEAVE_REQUESTS); 
-    const data = sheet.getDataRange().getValues(); 
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(SHEETS.LEAVE_REQUESTS);
+    const data = sheet.getDataRange().getValues();
+
+    const cleanId = sanitizeStr(id, 100);
+    const VALID_STATUSES = ['APPROVED', 'REJECTED', 'PENDING'];
+    const cleanStatus = sanitizeStr(status, 20).toUpperCase();
+    if (!cleanId) return { success: false, message: 'ข้อมูลไม่ถูกต้อง' };
+    if (!VALID_STATUSES.includes(cleanStatus)) return { success: false, message: 'สถานะไม่ถูกต้อง' };
+
     for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === id) {
-        sheet.getRange(i + 1, 7).setValue(status);
-        sheet.getRange(i + 1, 9).setValue(status === 'APPROVED');
+      if (data[i][0] === cleanId) {
+        sheet.getRange(i + 1, 7).setValue(cleanStatus);
+        sheet.getRange(i + 1, 9).setValue(cleanStatus === 'APPROVED');
         return { success: true };
       }
     }
     return { success: false, message: 'ไม่พบคำขอนี้' };
-  } catch (e) { 
-    return { success: false, message: e.toString() }; 
+  } catch (e) {
+    return { success: false, message: 'เกิดข้อผิดพลาด' };
   }
 }
 
@@ -586,17 +770,44 @@ function updateLeaveStatus(id, status) {
 function addTreasuryItem(title, amt, by, targetStudents = null) {
   try {
     if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); }
+
+    // Sanitize inputs
+    const cleanTitle = sanitizeStr(title, 200);
+    const cleanBy    = sanitizeStr(by, 200);
+    const cleanAmt   = parseFloat(amt);
+
+    if (!cleanTitle) return { success: false, message: 'กรุณาระบุชื่อรายการ' };
+    if (!cleanBy)    return { success: false, message: 'ไม่พบข้อมูลผู้ใช้' };
+    if (isNaN(cleanAmt) || cleanAmt < 0 || cleanAmt > 100000) return { success: false, message: 'จำนวนเงินไม่ถูกต้อง' };
+
+    // ตรวจสิทธิ์จาก server
+    const uSheet = ss.getSheetByName(SHEETS.USERS);
+    const uData = uSheet.getDataRange().getValues();
+    let hasPerm = false;
+    for (let i = 1; i < uData.length; i++) {
+      if (uData[i][1] === cleanBy) {
+        const rK = uData[i][6];
+        if (ROLES[rK] && ROLES[rK].canManageTreasury) hasPerm = true;
+        break;
+      }
+    }
+    if (!hasPerm) return { success: false, message: 'คุณไม่มีสิทธิ์จัดการเงินห้อง' };
+
     const tS = ss.getSheetByName(SHEETS.TREASURY); 
     const pS = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS); 
     const id = Utilities.getUuid(); 
-    const color = getSubjectColor(title); 
+    const color = getSubjectColor(cleanTitle); 
     
-    tS.appendRow([id, title, amt, by, new Date(), 'active', color]); 
+    tS.appendRow([id, cleanTitle, cleanAmt, cleanBy, new Date(), 'active', color]); 
     
     let targetNos = [];
     if (targetStudents) {
-      if (Array.isArray(targetStudents)) targetNos = targetStudents;
-      else targetNos = String(targetStudents).split(',').map(n => n.trim()).filter(n => n);
+      if (Array.isArray(targetStudents)) {
+        // ตรวจว่า student numbers ถูกต้อง
+        targetNos = targetStudents.map(n => parseInt(n)).filter(n => n > 0 && n <= 100);
+      } else {
+        targetNos = String(targetStudents).split(',').map(n => parseInt(n.trim())).filter(n => n > 0 && n <= 100);
+      }
     } else {
       targetNos = STUDENTS.map(s => s.no);
     }
@@ -605,7 +816,7 @@ function addTreasuryItem(title, amt, by, targetStudents = null) {
     if (rows.length > 0) pS.getRange(pS.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
     return { success: true, treasuryId: id };
   } catch (e) { 
-    return { success: false, message: e.toString() };
+    return { success: false, message: 'เกิดข้อผิดพลาด' };
   }
 }
 
@@ -660,14 +871,20 @@ function getTreasuryItems(ss = null) {
 
 function updatePayment(tid, sno, paid) {
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
-    const pS = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS); 
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const pS = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS);
     const d = pS.getDataRange().getValues();
 
+    const cleanTid  = sanitizeStr(tid, 100);
+    const cleanSno  = parseInt(sno);
+    const cleanPaid = parseFloat(paid);
+    if (!cleanTid || isNaN(cleanSno) || cleanSno < 1) return { success: false, message: 'ข้อมูลไม่ถูกต้อง' };
+    if (isNaN(cleanPaid) || cleanPaid < 0 || cleanPaid > 100000) return { success: false, message: 'จำนวนเงินไม่ถูกต้อง' };
+
     for (let i = 1; i < d.length; i++) {
-      if (d[i][0] === tid && String(d[i][1]) === String(sno)) {
-        pS.getRange(i + 1, 3).setValue(paid);
-        pS.getRange(i + 1, 4).setValue(paid > 0 ? new Date() : '');
+      if (d[i][0] === cleanTid && Number(d[i][1]) === cleanSno) {
+        pS.getRange(i + 1, 3).setValue(cleanPaid);
+        pS.getRange(i + 1, 4).setValue(cleanPaid > 0 ? new Date() : '');
         const props = PropertiesService.getScriptProperties();
         const count = parseInt(props.getProperty('tr_pay_counter') || '0');
         props.setProperty('tr_pay_counter', (count + 1).toString());
@@ -675,28 +892,31 @@ function updatePayment(tid, sno, paid) {
       }
     }
     return { success: false, message: 'ไม่พบรายการ' };
-  } catch (e) { 
-    return { success: false, message: e.toString() }; 
+  } catch (e) {
+    return { success: false, message: 'เกิดข้อผิดพลาด' };
   }
 }
 
 function deleteTreasuryItem(id) {
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
-    const tS = ss.getSheetByName(SHEETS.TREASURY); 
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const tS = ss.getSheetByName(SHEETS.TREASURY);
     const pS = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS);
+
+    const cleanId = sanitizeStr(id, 100);
+    if (!cleanId) return { success: false, message: 'ข้อมูลไม่ถูกต้อง' };
 
     const td = tS.getDataRange().getValues();
     for (let i = td.length - 1; i >= 1; i--) {
-      if (td[i][0] === id) tS.deleteRow(i + 1);
+      if (td[i][0] === cleanId) tS.deleteRow(i + 1);
     }
     const pd = pS.getDataRange().getValues();
     for (let i = pd.length - 1; i >= 1; i--) {
-      if (pd[i][0] === id) pS.deleteRow(i + 1);
+      if (pd[i][0] === cleanId) pS.deleteRow(i + 1);
     }
     return { success: true };
-  } catch (e) { 
-    return { success: false, message: e.toString() }; 
+  } catch (e) {
+    return { success: false, message: 'เกิดข้อผิดพลาด' };
   }
 }
 
