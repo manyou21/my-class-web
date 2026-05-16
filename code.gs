@@ -1678,3 +1678,128 @@ function seatListActiveSessions(userId) {
 function getDashboardData() { try { ensureSheetsExist(); const ss = SpreadsheetApp.openById(SPREADSHEET_ID); const hw = getHomework(ss); const tr = getTreasuryItems(ss); const lv = getLeaveRequests(ss); return { success: true, homework: hw.homework || [], treasury: tr.treasury || [], leaveRequests: lv || [] }; } catch (e) { return { success: false, message: e.toString() }; } }
 
 function getCounts() { try { ensureSheetsExist(); const ss = SpreadsheetApp.openById(SPREADSHEET_ID); const hwCount = ss.getSheetByName(SHEETS.HOMEWORK).getLastRow() - 1; const trCount = ss.getSheetByName(SHEETS.TREASURY).getLastRow() - 1; const lvCount = ss.getSheetByName(SHEETS.LEAVE_REQUESTS).getLastRow() - 1; const trPayCounter = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS).getLastRow() - 1; const seatMeta = ss.getSheetByName(SHEETS.SEAT_META); let seatVersion = 0; if (seatMeta && seatMeta.getLastRow() >= 2) { seatVersion = Number(seatMeta.getRange(2, 5).getValue()) || 0; } return { success: true, hwCount, trCount, lvCount, trPayCounter, seatVersion }; } catch (e) { return { success: false, message: e.toString() }; } }
+
+// ============================================
+// 🎨 FORMAT ALL SHEETS — รันครั้งเดียวใน GAS Editor
+// ============================================
+function formatAllSheets() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+
+  // ── config สีหัวตาราง แต่ละ sheet ──────────────────────────────
+  const SHEET_STYLES = {
+    [SHEETS.USERS]:             { bg: '#1e40af', fg: '#ffffff', emoji: '👤' },
+    [SHEETS.HOMEWORK]:          { bg: '#15803d', fg: '#ffffff', emoji: '📝' },
+    [SHEETS.HOMEWORK_STATUS]:   { bg: '#166534', fg: '#ffffff', emoji: '✅' },
+    [SHEETS.TREASURY]:          { bg: '#b45309', fg: '#ffffff', emoji: '💰' },
+    [SHEETS.TREASURY_PAYMENTS]: { bg: '#92400e', fg: '#ffffff', emoji: '💳' },
+    [SHEETS.LEAVE_REQUESTS]:    { bg: '#7c3aed', fg: '#ffffff', emoji: '🚪' },
+    [SHEETS.STUDENT_CODES]:     { bg: '#0e7490', fg: '#ffffff', emoji: '🎓' },
+    [SHEETS.REDEEM_CODES]:      { bg: '#be185d', fg: '#ffffff', emoji: '🎟️' },
+    [SHEETS.TIMETABLE]:         { bg: '#0f766e', fg: '#ffffff', emoji: '📅' },
+    [SHEETS.SEAT_META]:         { bg: '#4338ca', fg: '#ffffff', emoji: '🪑' },
+    [SHEETS.SEAT_BOOKINGS]:     { bg: '#3730a3', fg: '#ffffff', emoji: '📌' },
+    [SHEETS.SEAT_EDIT_CODES]:   { bg: '#6d28d9', fg: '#ffffff', emoji: '🔑' },
+    [SHEETS.SEAT_EDIT_SESSIONS]:{ bg: '#5b21b6', fg: '#ffffff', emoji: '🔐' },
+  };
+
+  // ── column widths แต่ละ sheet ───────────────────────────────────
+  const COL_WIDTHS = {
+    [SHEETS.USERS]: [220, 160, 200, 280, 160, 80, 120, 160, 160, 160, 80],
+    [SHEETS.HOMEWORK]: [220, 120, 300, 120, 120, 80, 160, 160, 100],
+    [SHEETS.HOMEWORK_STATUS]: [220, 80, 100, 300, 160, 200, 100],
+    [SHEETS.TREASURY]: [220, 200, 100, 160, 160, 100, 100],
+    [SHEETS.TREASURY_PAYMENTS]: [220, 80, 100, 160, 200],
+    [SHEETS.LEAVE_REQUESTS]: [220, 80, 160, 120, 120, 300, 100, 300, 80, 160],
+    [SHEETS.STUDENT_CODES]: [80, 100, 200, 100],
+    [SHEETS.REDEEM_CODES]: [160, 120, 100, 300, 80, 80, 120, 160, 200, 300, 200],
+    [SHEETS.TIMETABLE]: [300, 300, 160, 160],
+    [SHEETS.SEAT_META]: [400, 160, 160, 80, 80, 160],
+    [SHEETS.SEAT_BOOKINGS]: [160, 80, 200, 220, 160],
+    [SHEETS.SEAT_EDIT_CODES]: [220, 280, 160, 220, 160, 80],
+    [SHEETS.SEAT_EDIT_SESSIONS]: [280, 220, 160],
+  };
+
+  const sheetNames = Object.values(SHEETS);
+
+  sheetNames.forEach(name => {
+    const sh = ss.getSheetByName(name);
+    if (!sh || sh.getLastRow() < 1) return;
+
+    const style  = SHEET_STYLES[name] || { bg: '#374151', fg: '#ffffff', emoji: '📋' };
+    const widths = COL_WIDTHS[name] || [];
+    const lastCol = sh.getLastColumn();
+    const lastRow = sh.getLastRow();
+
+    // 1. ตั้งค่า row height
+    sh.setRowHeight(1, 36); // header สูงขึ้น
+    if (lastRow > 1) sh.setRowHeightsForced(2, lastRow - 1, 28);
+
+    // 2. จัดรูปแบบ header row
+    const headerRange = sh.getRange(1, 1, 1, lastCol);
+    headerRange
+      .setBackground(style.bg)
+      .setFontColor(style.fg)
+      .setFontWeight('bold')
+      .setFontSize(11)
+      .setVerticalAlignment('middle')
+      .setHorizontalAlignment('center')
+      .setWrap(false);
+
+    // เพิ่ม emoji หน้าชื่อ sheet ใน header แรก
+    const firstCell = sh.getRange(1, 1);
+    const firstVal  = String(firstCell.getValue());
+    if (!firstVal.startsWith(style.emoji)) {
+      firstCell.setValue(style.emoji + ' ' + firstVal);
+    }
+
+    // 3. จัดรูปแบบ data rows
+    if (lastRow > 1) {
+      const dataRange = sh.getRange(2, 1, lastRow - 1, lastCol);
+      dataRange
+        .setFontSize(10)
+        .setVerticalAlignment('middle')
+        .setFontColor('#1e293b')
+        .setWrap(false);
+
+      // สลับสีแถว (zebra striping)
+      for (let r = 2; r <= lastRow; r++) {
+        const rowRange = sh.getRange(r, 1, 1, lastCol);
+        rowRange.setBackground(r % 2 === 0 ? '#f8fafc' : '#ffffff');
+      }
+    }
+
+    // 4. ตั้งความกว้าง column
+    widths.forEach((w, idx) => {
+      if (idx < lastCol) sh.setColumnWidth(idx + 1, w);
+    });
+    // column ที่เกินจาก widths ให้ auto-resize
+    for (let c = widths.length + 1; c <= lastCol; c++) {
+      sh.autoResizeColumn(c);
+    }
+
+    // 5. Freeze header row
+    sh.setFrozenRows(1);
+
+    // 6. ขีดเส้นกรอบ
+    if (lastRow > 0) {
+      sh.getRange(1, 1, lastRow, lastCol)
+        .setBorder(true, true, true, true, true, true,
+          '#cbd5e1', SpreadsheetApp.BorderStyle.SOLID);
+    }
+
+    // 7. ซ่อน gridlines ด้วยการตั้งสีพื้นหลัง sheet (ทำได้ผ่าน tab color)
+    sh.setTabColor(style.bg);
+  });
+
+  // ── จัด column พิเศษ: PasswordHash ใน Users ให้แคบและซ่อนบางส่วน ──
+  const userSheet = ss.getSheetByName(SHEETS.USERS);
+  if (userSheet && userSheet.getLastRow() > 1) {
+    // column D = PasswordHash → ทำตัวอักษรสีเทาอ่านยาก
+    userSheet.getRange(2, 4, userSheet.getLastRow() - 1, 1)
+      .setFontColor('#94a3b8')
+      .setFontSize(8);
+  }
+
+  SpreadsheetApp.flush();
+  return '✅ จัดรูปแบบ Sheets เสร็จแล้ว!';
+}
