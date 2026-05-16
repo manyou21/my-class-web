@@ -1602,7 +1602,6 @@ function seatRenderAll() {
   const fb = Number(seatSnap.layout.frontBand) || 0;
   let html = `<div class="seat-front-band" style="height:${fb * cell}px;"></div>`;
 
-  const seats = seatSnap.layout.seats || [];
   const canEdit = seatSnap.canEditLayout;
   if (seats.length === 0) {
     html = '<div style="padding:40px; text-align:center; color:var(--text-muted); width:100%;">ไม่มีที่นั่งในแผนผังนี้</div>';
