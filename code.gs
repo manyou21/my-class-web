@@ -362,6 +362,12 @@ function registerUser(name, email, pw, cpw, code, hint) {
   }
 }
 
+// hash แบบเก่า (ไม่มี salt) — ใช้สำหรับ migration เท่านั้น
+function hashPasswordLegacy_(p) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, p)
+    .map(b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('');
+}
+
 function loginUser(id, pw) {
   try {
     if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
@@ -377,20 +383,29 @@ function loginUser(id, pw) {
     if (rl.blocked) return { success: false, message: rl.message };
     
     const uData = uSheet.getDataRange().getValues(); 
-    const pHash = hashPassword(pw);
+    const pHashNew    = hashPassword(pw);          // hash ใหม่ (มี salt)
+    const pHashLegacy = hashPasswordLegacy_(pw);   // hash เก่า (ไม่มี salt)
     
     for (let i = 1; i < uData.length; i++) {
       const row = uData[i];
-      const nameMatch = row[1] === cleanId;
+      const nameMatch  = row[1] === cleanId;
       const emailMatch = row[2] === cleanId && row[2] !== '';
-      const pwMatch = row[3] === pHash;
+      if (!nameMatch && !emailMatch) continue;
 
-      if ((nameMatch || emailMatch) && pwMatch) {
+      const storedHash = row[3];
+      const matchNew    = storedHash === pHashNew;
+      const matchLegacy = storedHash === pHashLegacy;
+
+      if (matchNew || matchLegacy) {
         // Login สำเร็จ — ล้าง rate limit
         if (rl.key) clearLoginRateLimit(rl.key);
 
+        // Auto-migrate: ถ้ายังเป็น hash เก่า → อัปเดตเป็น hash ใหม่ทันที
+        if (matchLegacy && !matchNew) {
+          uSheet.getRange(i + 1, 4).setValue(pHashNew);
+        }
+
         let rK = row[6];
-        // Check temporary role expiry
         if (row.length > 9 && row[9]) {
           const expiry = new Date(row[9]);
           if (expiry > new Date()) rK = 'TEACHER';
@@ -438,11 +453,15 @@ function changePassword(uid, curr, newP, conf) {
 
     for (let i = 1; i < uData.length; i++) {
       if (uData[i][0] === cleanUid) {
-        if (uData[i][3] !== hashPassword(curr)) return { success: false, message: 'รหัสผ่านเดิมไม่ถูกต้อง' };
+        const storedHash = uData[i][3];
+        // รองรับทั้ง hash เก่าและใหม่
+        const currMatchNew    = storedHash === hashPassword(curr);
+        const currMatchLegacy = storedHash === hashPasswordLegacy_(curr);
+        if (!currMatchNew && !currMatchLegacy) return { success: false, message: 'รหัสผ่านเดิมไม่ถูกต้อง' };
         if (newP !== conf) return { success: false, message: 'รหัสผ่านใหม่ไม่ตรงกัน' };
         const v = validatePassword(newP); 
         if (!v.valid) return { success: false, message: v.m };
-        uSheet.getRange(i + 1, 4).setValue(hashPassword(newP));
+        uSheet.getRange(i + 1, 4).setValue(hashPassword(newP)); // บันทึกเป็น hash ใหม่เสมอ
         return { success: true, message: 'เปลี่ยนรหัสผ่านสำเร็จ' };
       }
     }
