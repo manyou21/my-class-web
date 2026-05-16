@@ -1136,12 +1136,35 @@ const APP_CONFIG = {
     }
   }
 
-  window.google.script.run = new Proxy(new ExternalRunner(), {
-    get: function(target, prop) {
-      if (prop in target) return target[prop];
+  const runnerProxy = {
+    get: function(runner, prop) {
+      if (prop === 'withSuccessHandler' || prop === 'withFailureHandler') {
+        return function(cb) {
+          runner[prop](cb);
+          return new Proxy(runner, runnerProxy);
+        };
+      }
+      if (prop in runner) return runner[prop].bind(runner);
       return function(...args) {
-        target.callServer(prop, args);
-        return target;
+        runner.callServer(prop, args);
+        return runner;
+      };
+    }
+  };
+
+  window.google.script.run = new Proxy({}, {
+    get: function(_, prop) {
+      // Each top-level property access creates a fresh ExternalRunner
+      const runner = new ExternalRunner();
+      if (prop === 'withSuccessHandler' || prop === 'withFailureHandler') {
+        return function(cb) {
+          runner[prop](cb);
+          return new Proxy(runner, runnerProxy);
+        };
+      }
+      return function(...args) {
+        runner.callServer(prop, args);
+        return runner;
       };
     }
   });
