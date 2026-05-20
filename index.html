@@ -186,11 +186,18 @@ margin-right:8px;
   display: none; position: fixed; top: 20px; left: 20px; z-index: 1001;
   background: var(--accent); color: white; border: none; border-radius: 50%;
   width: 50px; height: 50px; font-size: 1.5rem; box-shadow: var(--shadow);
-  cursor: pointer; transition: transform 0.2s;
+  cursor: pointer; transition: transform 0.2s, background 0.2s, box-shadow 0.2s, color 0.2s;
 }
 .hamburger-float:active { transform: scale(0.9); }
+.hamburger-float.is-open {
+  background: var(--bg-secondary);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-light), var(--shadow);
+}
 .sidebar.mobile { transform: translateX(-100%); display: flex; }
 .sidebar.mobile.show { transform: translateX(0); }
+.sidebar.mobile .sidebar-brand .btn-icon { display: none; }
 
 /* Mobile: ปุ่มลัดธีม / รีเฟรช (แสดงเมื่อเมนูหลักปิด) */
 .mobile-quick-actions {
@@ -221,6 +228,7 @@ margin-right:8px;
 @media (max-width: 1041px) {
   .mobile-quick-actions { display: flex; }
 }
+.mobile-sidebar-toggle { display: none; }
 
 /* Theme Toggle Button Style */
 .theme-toggle-btn {
@@ -376,6 +384,7 @@ margin-right:8px;
   .hamburger-float { display: block; }
   .title { font-size: 1.2rem; }
   .main { padding: 15px; padding-top: 80px; }
+  .seat-map-scroll { padding: 10px; justify-content: flex-start; }
 }
 /* Responsive - Tablet/Desktop (>= 1042px) */
 @media (min-width: 1042px) {
@@ -407,44 +416,176 @@ margin-right:8px;
 .seat-app { display: flex; flex-direction: column; gap: 12px; }
 .seat-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .seat-admin-card .form-group { margin-bottom: 10px; }
+.seat-layout-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 18px;
+  align-items: start;
+}
+.seat-map-column { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.seat-legend-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  background: linear-gradient(180deg, rgba(28, 25, 23, 0.96), rgba(15, 23, 42, 0.96));
+  color: #f8fafc;
+}
+.seat-legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  font-size: 0.88rem;
+}
+.seat-legend-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  flex: 0 0 16px;
+}
+.seat-legend-dot.available { background: #60a5fa; border: 2px solid #bfdbfe; }
+.seat-legend-dot.selected { background: #22c55e; border: 2px solid #bbf7d0; }
+.seat-legend-dot.booked { background: #ef4444; border: 2px solid #fecaca; }
+.seat-concert-shell {
+  padding: 18px;
+  border-radius: 18px;
+  background: radial-gradient(circle at top, rgba(239,68,68,0.14), transparent 40%), linear-gradient(180deg, #0f172a, #020617);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.seat-stage-banner {
+  position: relative;
+  text-align: center;
+  color: #f8fafc;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  font-size: 0.78rem;
+  padding-top: 10px;
+  text-transform: uppercase;
+}
+.seat-stage-banner::before {
+  content: '';
+  display: block;
+  width: min(520px, 88%);
+  height: 26px;
+  margin: 0 auto 10px;
+  border-top: 3px solid #ef4444;
+  border-radius: 999px 999px 0 0;
+  box-shadow: 0 0 16px rgba(239,68,68,0.45);
+}
 .seat-map-scroll {
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%;
   max-height: min(72vh, 720px);
   min-height: 200px;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: var(--bg-tertiary);
-  touch-action: none;
+  background: linear-gradient(180deg, rgba(37,99,235,0.06), rgba(37,99,235,0.01)), var(--bg-tertiary);
+  touch-action: pan-y;
   margin: 10px 0;
   display: flex;
   justify-content: center;
+  align-items: flex-start;
+  padding: 16px;
+  cursor: grab;
+  overscroll-behavior: contain;
 }
-}
+.seat-map-scroll.drag-scroll { cursor: grabbing; }
 .seat-map-inner {
+  --seat-cell: 24;
   position: relative;
   background-image: radial-gradient(var(--text-muted) 1.5px, transparent 1.5px);
   background-size: 24px 24px;
   box-sizing: content-box;
   min-height: 250px;
   min-width: 250px;
+  border-radius: 10px;
+  overflow: hidden;
 }
 .seat-desk {
   position: absolute;
   border-radius: 8px;
   border: 2px solid var(--accent);
   background: var(--bg-secondary);
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; justify-content: center; flex-direction: column;
+  gap: clamp(1px, calc(var(--seat-cell) * 0.06px), 3px);
+  padding: clamp(2px, calc(var(--seat-cell) * 0.16px), 6px) clamp(2px, calc(var(--seat-cell) * 0.12px), 4px);
   font-weight: 700;
-  font-size: 0.82rem;
+  font-size: clamp(0.58rem, calc(var(--seat-cell) * 0.034px), 0.82rem);
   cursor: pointer;
   user-select: none;
   box-shadow: var(--shadow);
   transition: transform 0.08s ease, box-shadow 0.15s ease;
+  text-align: center;
+  overflow: hidden;
 }
 .seat-desk:hover { box-shadow: 0 8px 20px rgba(37,99,235,0.2); }
 .seat-desk.locked { border-color: var(--danger); opacity: 0.85; cursor: not-allowed; }
 .seat-desk.dragging { z-index: 50; opacity: 0.92; transform: scale(1.02); }
 .seat-desk.booked { background: var(--success-light); border-color: var(--success); }
+.seat-desk.selected { box-shadow: 0 0 0 4px var(--accent-light), var(--shadow); }
+.seat-desk-name,
+.seat-desk-no,
+.seat-desk-label {
+  width: 100%;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.seat-desk-name {
+  font-size: clamp(0.56rem, calc(var(--seat-cell) * 0.034px), 0.83rem);
+  line-height: 1.15;
+  font-weight: 700;
+}
+.seat-desk-no {
+  font-size: clamp(0.5rem, calc(var(--seat-cell) * 0.029px), 0.7rem);
+  line-height: 1.1;
+  opacity: 0.9;
+  font-weight: 600;
+}
+.seat-desk-label {
+  font-size: clamp(0.56rem, calc(var(--seat-cell) * 0.033px), 0.82rem);
+  line-height: 1.1;
+}
+.seat-stage-arc {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(82%, 520px);
+  pointer-events: none;
+  text-align: center;
+  z-index: 1;
+}
+.seat-stage-arc::before {
+  content: '';
+  display: block;
+  height: 22px;
+  border-top: 3px solid #ef4444;
+  border-radius: 999px 999px 0 0;
+  box-shadow: 0 0 14px rgba(239,68,68,0.35);
+}
+.seat-stage-arc span {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
 .seat-front-band {
   position: absolute; left: 0; right: 0; top: 0;
   background: linear-gradient(180deg, rgba(37,99,235,0.12), transparent);
@@ -453,11 +594,85 @@ margin-right:8px;
 }
 .seat-booking-panel {
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 18px;
+  padding: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.98));
+  overflow: hidden;
+  box-shadow: 0 20px 45px rgba(15,23,42,0.16);
+}
+.seat-booking-head {
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #ef4444, #dc2626);
+  color: #fff;
+}
+.seat-booking-head-title {
+  font-size: 1rem;
+  font-weight: 700;
+}
+.seat-booking-head-sub {
+  margin-top: 4px;
+  font-size: 0.82rem;
+  opacity: 0.9;
+}
+.seat-booking-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.seat-selected-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
   padding: 14px;
-  background: var(--bg-secondary);
+  background: #fff;
+}
+.seat-selected-seat {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.seat-selected-meta {
+  margin-top: 6px;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+.seat-booking-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
 }
 .seat-code-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+@media (max-width: 1041px) {
+  .seat-layout-shell { grid-template-columns: 1fr; }
+  .seat-concert-shell { padding: 12px; }
+  .seat-map-scroll { margin: 0; }
+}
+@media (max-width: 640px) {
+  .seat-legend-bar {
+    gap: 8px;
+    padding: 10px;
+  }
+  .seat-legend-chip {
+    min-height: 34px;
+    padding: 7px 10px;
+    font-size: 0.8rem;
+  }
+  .seat-concert-shell {
+    padding: 10px;
+  }
+  .seat-stage-banner {
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+  }
+  .seat-map-scroll {
+    min-height: 58vh;
+    max-height: 68vh;
+    padding: 8px;
+  }
+  .seat-booking-body {
+    padding: 14px;
+  }
+}
 </style>
 </head>
 <body>
@@ -558,7 +773,6 @@ margin-right:8px;
 <!-- App -->
 <div class="app-container" id="app">
   <div class="mobile-quick-actions" aria-label="ปุ่มลัด">
-    <button type="button" onclick="toggleSidebar()" title="เมนู" aria-label="เปิดเมนู"><i class="fas fa-bars" aria-hidden="true"></i></button>
     <button type="button" onclick="toggleTheme()" id="mobileThemeBtn" title="สลับโหมด" aria-label="สลับโหมด"><i class="fas fa-moon" aria-hidden="true"></i></button>
     <button type="button" onclick="manualRefresh()" title="รีเฟรช" aria-label="รีเฟรช"><i class="fas fa-sync-alt" aria-hidden="true"></i></button>
   </div>
@@ -627,25 +841,25 @@ margin-right:8px;
   </button>
 </div>
     <div class="sidebar-menu">
-      <div class="sidebar-item active" onclick="setTab('hw'); toggleSidebar();" data-tab="hw">
+      <div class="sidebar-item active" onclick="setTab('hw');" data-tab="hw">
         <i class="fas fa-book"></i><span>การบ้าน</span>
       </div>
-      <div class="sidebar-item" onclick="setTab('money'); toggleSidebar();" data-tab="money">
+      <div class="sidebar-item" onclick="setTab('money');" data-tab="money">
         <i class="fas fa-coins"></i><span>เงินห้อง</span>
       </div>
-      <div class="sidebar-item" onclick="setTab('leave'); toggleSidebar();" data-tab="leave">
+      <div class="sidebar-item" onclick="setTab('leave');" data-tab="leave">
         <i class="fas fa-calendar-times"></i><span>ลา / กิจกรรม</span>
       </div>
-      <div class="sidebar-item" onclick="setTab('schedule'); toggleSidebar();" data-tab="schedule">
+      <div class="sidebar-item" onclick="setTab('schedule');" data-tab="schedule">
         <i class="fas fa-table"></i><span>ตารางเรียน</span>
       </div>
-      <div class="sidebar-item" onclick="setTab('seats'); toggleSidebar();" data-tab="seats">
+      <div class="sidebar-item" onclick="setTab('seats');" data-tab="seats">
         <i class="fas fa-chair"></i><span>จองที่นั่ง</span>
       </div>
-      <div class="sidebar-item" onclick="setTab('redeem'); toggleSidebar();" data-tab="redeem">
+      <div class="sidebar-item" onclick="setTab('redeem');" data-tab="redeem">
         <i class="fas fa-gift"></i><span>Redeem Code</span>
       </div>
-      <div class="sidebar-item" onclick="setTab('me'); toggleSidebar();" data-tab="me">
+      <div class="sidebar-item" onclick="setTab('me');" data-tab="me">
         <i class="fas fa-user"></i><span>โปรไฟล์</span>
       </div>
     </div>
@@ -825,21 +1039,43 @@ margin-right:8px;
         <div class="card">
           <div class="card-body seat-app">
             <div id="seatStatusLine" style="font-size:0.9rem; color:var(--text-secondary);"></div>
-            <div class="seat-map-scroll" id="seatMapScroll">
-              <div class="seat-map-inner" id="seatMapInner"></div>
-            </div>
-            <div class="seat-booking-panel" id="seatBookingPanel">
-              <div class="form-group">
-                <label>รหัสนักเรียน 5 หลัก (ผู้ครองที่นั่ง)</label>
-                <input type="text" inputmode="numeric" pattern="\\d{5}" maxlength="5" id="seatBookStudentCode" placeholder="47535">
+            <div class="seat-layout-shell">
+              <div class="seat-map-column">
+                <div class="seat-legend-bar">
+                  <span class="seat-legend-chip"><span class="seat-legend-dot available"></span>Available desk</span>
+                  <span class="seat-legend-chip"><span class="seat-legend-dot selected"></span>Selected desk</span>
+                  <span class="seat-legend-chip"><span class="seat-legend-dot booked"></span>Reserved desk</span>
+                </div>
+                <div class="seat-concert-shell">
+                  <div class="seat-stage-banner">Front Of Classroom</div>
+                  <div class="seat-map-scroll" id="seatMapScroll">
+                    <div class="seat-map-inner" id="seatMapInner"></div>
+                  </div>
+                </div>
               </div>
-              <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                <button type="button" class="btn btn-primary btn-sm" id="seatBtnBook" onclick="seatDoBook()"><i class="fas fa-check"></i> จองที่เลือก</button>
-                <button type="button" class="btn btn-danger btn-sm" id="seatBtnCancel" onclick="seatDoCancel()"><i class="fas fa-times"></i> ยกเลิกที่เลือก</button>
+              <div class="seat-booking-panel" id="seatBookingPanel">
+                <div class="seat-booking-head">
+                  <div class="seat-booking-head-title">Desk booking details</div>
+                  <div class="seat-booking-head-sub">Concert-style booking flow tuned for a classroom layout</div>
+                </div>
+                <div class="seat-booking-body">
+                  <div class="seat-selected-card" id="seatSelectedSummary">
+                    <div class="seat-selected-seat">Choose a desk from the map</div>
+                    <div class="seat-selected-meta">Tap once to select. Drag up or down to browse the classroom map.</div>
+                  </div>
+                  <div class="form-group">
+                    <label>Student code (5 digits)</label>
+                    <input type="text" inputmode="numeric" pattern="\d{5}" maxlength="5" id="seatBookStudentCode" placeholder="47535">
+                  </div>
+                  <div class="seat-booking-actions">
+                    <button type="button" class="btn btn-primary" id="seatBtnBook" onclick="seatDoBook()"><i class="fas fa-check"></i> Confirm booking</button>
+                    <button type="button" class="btn btn-danger" id="seatBtnCancel" onclick="seatDoCancel()"><i class="fas fa-times"></i> Cancel current booking</button>
+                  </div>
+                  <p style="margin:0; font-size:0.82rem; color:var(--text-muted);">
+                    The desk map still supports moving desks in edit mode, while regular users get a clearer booking flow.
+                  </p>
+                </div>
               </div>
-              <p style="margin-top:10px; font-size:0.82rem; color:var(--text-muted);">
-                การจองทำงานผ่านเซิร์ฟเวอร์ ตรวจสอบรหัสนักเรียนในทะเบียน จอง/ยกเลิกได้ตามช่วงเวลาที่เปิดรับ
-              </p>
             </div>
           </div>
         </div>
@@ -1192,6 +1428,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initForms(); 
   checkSession(); 
   applyTheme(); 
+  window.addEventListener('resize', () => {
+    if (seatSnap?.layout && document.getElementById('panelSeats')?.classList.contains('active')) {
+      seatRenderAll();
+    }
+  });
 });
 
 function safeAddListener(id, event, handler) {
@@ -1266,14 +1507,26 @@ function toggleSidebar() {
   const mobileSidebar = document.getElementById('mobileSidebar');
   const wrapper = document.querySelector('.main-wrapper');
   const overlay = document.getElementById('mobileOverlay');
+  const btn = document.getElementById('hamburgerBtn');
 
   if (window.innerWidth <= 1041) {
-    if (mobileSidebar) mobileSidebar.classList.toggle('show');
-    if (overlay) overlay.classList.toggle('show');
+    const willOpen = !mobileSidebar?.classList.contains('show');
+    if (mobileSidebar) mobileSidebar.classList.toggle('show', willOpen);
+    if (overlay) overlay.classList.toggle('show', willOpen);
+    if (btn) btn.classList.toggle('is-open', willOpen);
   } else {
     if (desktopSidebar) desktopSidebar.classList.toggle('collapsed');
     if (wrapper) wrapper.classList.toggle('expanded');
   }
+}
+
+function closeMobileSidebar() {
+  const mobileSidebar = document.getElementById('mobileSidebar');
+  const overlay = document.getElementById('mobileOverlay');
+  const btn = document.getElementById('hamburgerBtn');
+  if (mobileSidebar) mobileSidebar.classList.remove('show');
+  if (overlay) overlay.classList.remove('show');
+  if (btn) btn.classList.remove('is-open');
 }
 
 // --- UI Helpers ---
@@ -1408,6 +1661,7 @@ function setTab(id) {
   });
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel' + id.charAt(0).toUpperCase() + id.slice(1)).classList.add('active');
+  if (window.innerWidth <= 1041) closeMobileSidebar();
   if (id !== 'redeem' && html5QrCode) { 
     try { html5QrCode.stop(); } catch(e) {} 
   }
@@ -1510,6 +1764,8 @@ const SEAT_GUEST_TOKEN_KEY = 'seat_guest_edit_token';
 let seatSnap = null;
 let seatSelectedId = null;
 let seatDragState = null;
+let seatScrollState = null;
+let seatSuppressClickUntil = 0;
 
 function seatGuestToken() {
   try { return sessionStorage.getItem(SEAT_GUEST_TOKEN_KEY) || ''; } catch { return ''; }
@@ -1578,29 +1834,122 @@ function bookingBySeat(seatId) {
   return (seatSnap.bookings || []).find(b => String(b.seatId) === String(seatId));
 }
 
+function seatGetRenderCell() {
+  const g = seatSnap?.layout?.grid || { cols: 22, cell: 24 };
+  const baseCell = Number(g.cell) || 24;
+  const cols = Math.max(1, Number(g.cols) || 22);
+  const scroll = document.getElementById('seatMapScroll');
+  if (!scroll || window.innerWidth > 1041) return baseCell;
+
+  const style = getComputedStyle(scroll);
+  const padX = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+  const fitWidth = Math.max(220, scroll.clientWidth - padX - 4);
+  const fittedCell = Math.floor(fitWidth / cols);
+  return Math.max(14, Math.min(baseCell, fittedCell));
+}
+
+function seatUpdateSelectedSummary() {
+  const box = document.getElementById('seatSelectedSummary');
+  if (!box) return;
+
+  const bookBtn = document.getElementById('seatBtnBook');
+  const cancelBtn = document.getElementById('seatBtnCancel');
+  const codeInput = document.getElementById('seatBookStudentCode');
+  const booking = seatSelectedId ? bookingBySeat(seatSelectedId) : null;
+  const seat = seatSelectedId ? (seatSnap?.layout?.seats || []).find(s => s.id === seatSelectedId) : null;
+  const canBook = !!seat && !booking && !!seatSnap?.bookingOpen;
+  const canCancel = !!booking;
+
+  if (!seat) {
+    box.innerHTML = `
+      <div class="seat-selected-seat">Choose a desk from the map</div>
+      <div class="seat-selected-meta">Tap once to select. Drag up or down to browse the classroom map.</div>
+    `;
+  } else if (booking) {
+    const name = booking.studentName || 'Reserved';
+    const number = booking.studentNo || '-';
+    box.innerHTML = `
+      <div class="seat-selected-seat">Desk ${escapeHtml(seat.label || seat.id)}</div>
+      <div class="seat-selected-meta">Reserved by ${escapeHtml(name)} | No. ${escapeHtml(String(number))}</div>
+    `;
+  } else {
+    box.innerHTML = `
+      <div class="seat-selected-seat">Desk ${escapeHtml(seat.label || seat.id)}</div>
+      <div class="seat-selected-meta">Available for booking. Enter a 5-digit student code below to confirm.</div>
+    `;
+  }
+
+  if (bookBtn) bookBtn.disabled = !canBook;
+  if (cancelBtn) cancelBtn.disabled = !canCancel;
+  if (codeInput) codeInput.disabled = !!booking;
+}
+
+function seatSetupGrabScroll() {
+  const scroll = document.getElementById('seatMapScroll');
+  if (!scroll || scroll.dataset.grabReady === '1') return;
+  scroll.dataset.grabReady = '1';
+
+  const finish = ev => {
+    if (!seatScrollState || seatScrollState.pointerId !== ev.pointerId) return;
+    if (seatScrollState.moved) seatSuppressClickUntil = Date.now() + 180;
+    scroll.classList.remove('drag-scroll');
+    try { scroll.releasePointerCapture(ev.pointerId); } catch (_) {}
+    seatScrollState = null;
+  };
+
+  scroll.addEventListener('pointerdown', ev => {
+    if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+    if (seatSnap?.canEditLayout && ev.target.closest('.seat-desk')) return;
+
+    seatScrollState = {
+      pointerId: ev.pointerId,
+      startY: ev.clientY,
+      startTop: scroll.scrollTop,
+      moved: false
+    };
+    scroll.classList.add('drag-scroll');
+    try { scroll.setPointerCapture(ev.pointerId); } catch (_) {}
+  });
+
+  scroll.addEventListener('pointermove', ev => {
+    if (!seatScrollState || seatScrollState.pointerId !== ev.pointerId) return;
+    const deltaY = ev.clientY - seatScrollState.startY;
+    if (Math.abs(deltaY) > 4) seatScrollState.moved = true;
+    scroll.scrollTop = seatScrollState.startTop - deltaY;
+    if (seatScrollState.moved) ev.preventDefault();
+  });
+
+  scroll.addEventListener('pointerup', finish);
+  scroll.addEventListener('pointercancel', finish);
+  scroll.addEventListener('pointerleave', ev => {
+    if (seatScrollState && seatScrollState.pointerId === ev.pointerId && ev.pointerType === 'mouse') finish(ev);
+  });
+  scroll.addEventListener('click', ev => {
+    if (Date.now() < seatSuppressClickUntil) {
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+  }, true);
+}
+
 function seatRenderAll() {
   const inner = document.getElementById('seatMapInner');
   if (!inner || !seatSnap || !seatSnap.layout) return;
   const g = seatSnap.layout.grid || { cols: 22, rows: 16, cell: 24 };
-  const cell = g.cell || 24;
+  const cell = seatGetRenderCell();
   const seats = seatSnap.layout.seats || [];
-  
-  // Calculate dynamic boundaries
-  let maxCols = g.cols || 22;
-  let maxRows = g.rows || 16;
-  seats.forEach(st => {
-    maxCols = Math.max(maxCols, st.gx + (st.gw || 3));
-    maxRows = Math.max(maxRows, st.gy + (st.gh || 2));
-  });
-
-  inner.style.width = `${maxCols * cell}px`;
-  inner.style.height = `${maxRows * cell}px`;
-  inner.style.minWidth = `${maxCols * cell}px`;
-  inner.style.minHeight = `${maxRows * cell}px`;
+  inner.style.setProperty('--seat-cell', String(cell));
+  inner.style.width = `${g.cols * cell}px`;
+  inner.style.height = `${g.rows * cell}px`;
+  inner.style.minWidth = '0';
+  inner.style.minHeight = `${Math.max(g.rows * cell, 250)}px`;
   inner.style.backgroundSize = `${cell}px ${cell}px`;
 
   const fb = Number(seatSnap.layout.frontBand) || 0;
-  let html = `<div class="seat-front-band" style="height:${fb * cell}px;"></div>`;
+  let html = `
+    <div class="seat-stage-arc"><span>Teacher Zone</span></div>
+    <div class="seat-front-band" style="height:${fb * cell}px;"></div>
+  `;
 
   const canEdit = seatSnap.canEditLayout;
   if (seats.length === 0) {
@@ -1610,22 +1959,24 @@ function seatRenderAll() {
       const bk = bookingBySeat(st.id);
       const bookedClass = bk ? ' booked' : '';
       const lockedClass = st.lock ? ' locked' : '';
-      const sel = seatSelectedId === st.id ? 'outline:3px solid var(--accent);' : '';
+      const selectedClass = seatSelectedId === st.id ? ' selected' : '';
       
-      let label = escapeHtml(st.label || 'ที่นั่ง');
+      let label = `<div class="seat-desk-label">${escapeHtml(st.label || 'Seat')}</div>`;
       if (bk) {
         const nick = bk.studentName ? bk.studentName.split(' ')[0] : '-';
-        label = `<div style="font-size:0.85rem; line-height:1.2; font-weight:700;">${escapeHtml(nick)}</div>
-                 <div style="font-size:0.7rem; opacity:0.9; font-weight:normal; margin-top:2px;">เลขที่ ${bk.studentNo}</div>`;
+        label = `<div class="seat-desk-name">${escapeHtml(nick)}</div>
+                 <div class="seat-desk-no">No. ${escapeHtml(String(bk.studentNo || '-'))}</div>`;
       }
 
-      html += `<div class="seat-desk${bookedClass}${lockedClass}" data-seat="${escapeHtml(st.id)}"
-        style="left:${st.gx * cell}px;top:${st.gy * cell}px;width:${(st.gw || 3) * cell}px;height:${(st.gh || 2) * cell}px;${sel}"
+      html += `<div class="seat-desk${bookedClass}${lockedClass}${selectedClass}" data-seat="${escapeHtml(st.id)}"
+        style="left:${st.gx * cell}px;top:${st.gy * cell}px;width:${(st.gw || 3) * cell}px;height:${(st.gh || 2) * cell}px;"
         title="${bk ? escapeHtml(bk.studentName || '') : ''}">${label}</div>`;
     });
   }
 
   inner.innerHTML = html;
+  seatSetupGrabScroll();
+  seatUpdateSelectedSummary();
 
   inner.querySelectorAll('.seat-desk').forEach(el => {
     el.addEventListener('click', () => seatOnSelect(el.dataset.seat));
@@ -1634,6 +1985,7 @@ function seatRenderAll() {
 }
 
 function seatOnSelect(id) {
+  if (Date.now() < seatSuppressClickUntil) return;
   seatSelectedId = id;
   seatRenderAll();
 }
@@ -1670,21 +2022,11 @@ function seatBindDrag(el, cell, fb) {
     const gw = seatDragState.gw;
     const gh = seatDragState.gh;
     const g = seatSnap.layout.grid;
-    // Enforce boundaries (min 0)
-    st.gx = Math.max(0, ngx);
-    st.gy = Math.max(0, ngy);
-    
-    // Auto-grow grid if needed
-    if (st.gx + gw > g.cols) g.cols = st.gx + gw;
-    if (st.gy + gh > g.rows) g.rows = st.gy + gh;
+    st.gx = Math.max(0, Math.min((g.cols || 22) - gw, ngx));
+    st.gy = Math.max(seatDragState.fb, Math.min((g.rows || 16) - gh, ngy));
 
     el.style.left = `${st.gx * seatDragState.cell}px`;
     el.style.top = `${st.gy * seatDragState.cell}px`;
-    const inner = document.getElementById('seatMapInner');
-    if (inner) {
-      inner.style.width = `${g.cols * seatDragState.cell}px`;
-      inner.style.height = `${g.rows * seatDragState.cell}px`;
-    }
   });
 
   el.addEventListener('pointerup', ev => {

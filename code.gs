@@ -1,9 +1,11 @@
-// ============================================
+﻿// ============================================
 // 📘 ระบบเว็บการบ้าน & เก็บเงินห้อง + Redeem Code
 // ============================================
 const SPREADSHEET_ID = '1cT-N8AHw613xstQ7FUNdOk-QnavT9TRsZh1SiJJfYWA';
 const DRIVE_FOLDER_ID = '1bv_ZpRpY5diAW9Sd_7Hkl8UCTeHU8YCn';
 const QR_FOLDER_ID = '190MePEweP8hVXejCx5yCU2B2KUbB_Xey';
+
+var ss; // Global spreadsheet instance
 
 const SHEETS = {
   USERS: 'Users',
@@ -126,11 +128,11 @@ function doPost(e) {
       return output;
     }
 
-    const result = this[action](...args);
+    const result = eval(action).apply(null, args);
     output.setContent(JSON.stringify({ status: 'success', result: result }));
     return output;
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Server error' }))
+    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Server error: ' + err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
@@ -437,7 +439,7 @@ function loginUser(id, pw) {
     if (rl.record && rl.key) recordLoginFailure(rl.key, rl.record);
     return { success: false, message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' };
   } catch (e) { 
-    return { success: false, message: 'Server Error' }; 
+    return { success: false, message: 'Server Error: ' + e.toString() }; 
   }
 }
 
@@ -1331,6 +1333,64 @@ function parseLayout_(raw) {
   }
 }
 
+function normalizeSeatId_(id) {
+  const seat = String(id || '').trim();
+  return /^[A-Za-z0-9_-]{1,40}$/.test(seat) ? seat : '';
+}
+
+function normalizeLayout_(layout) {
+  const raw = layout || {};
+  const grid = raw.grid || {};
+  const cols = Math.max(6, Math.min(60, Number(grid.cols) || 22));
+  const rows = Math.max(6, Math.min(60, Number(grid.rows) || 16));
+  const cell = Math.max(20, Math.min(48, Number(grid.cell) || 24));
+  const frontBand = Math.max(0, Math.min(rows, Number(raw.frontBand) || 0));
+  const seen = {};
+  const seats = [];
+
+  (Array.isArray(raw.seats) ? raw.seats : []).slice(0, 200).forEach(function(seat, index) {
+    const id = normalizeSeatId_(seat && seat.id) || ('S_' + Utilities.getUuid().replace(/-/g, '').slice(0, 8));
+    if (seen[id]) return;
+    seen[id] = true;
+    const gw = Math.max(1, Math.min(10, Number(seat && seat.gw) || 3));
+    const gh = Math.max(1, Math.min(10, Number(seat && seat.gh) || 2));
+    const gx = Math.max(0, Math.min(cols - gw, Number(seat && seat.gx) || 0));
+    const gy = Math.max(0, Math.min(rows - gh, Number(seat && seat.gy) || 0));
+    seats.push({ id, gx, gy, gw, gh, label: sanitizeStr(seat && seat.label, 40) || String(index + 1), lock: !!(seat && seat.lock) });
+  });
+
+  return { grid: { cols, rows, cell }, seats, frontBand };
+}
+
+function withSeatLock_(fn) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    return fn();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function checkRateLimit_(scope, identifier, maxAttempts, windowMs) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const keySeed = scope + '|' + String(identifier || '');
+    const key = 'rlx_' + Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, keySeed)
+      .map(function(b) { return ('0' + (b & 0xFF).toString(16)).slice(-2); }).join('').slice(0, 24);
+    const now = Date.now();
+    const raw = props.getProperty(key);
+    let record = raw ? JSON.parse(raw) : { count: 0, windowStart: now };
+    if (now - record.windowStart > windowMs) record = { count: 0, windowStart: now };
+    if (record.count >= maxAttempts) return { blocked: true };
+    record.count += 1;
+    props.setProperty(key, JSON.stringify(record));
+    return { blocked: false };
+  } catch (e) {
+    return { blocked: false };
+  }
+}
+
 function bumpSeatVersion_(sh) {
   const v = Number(sh.getRange(2, 5).getValue()) || 0;
   sh.getRange(2, 5).setValue(v + 1);
@@ -1371,7 +1431,7 @@ function seatGetSnapshot(userId, guestEditToken) {
     const book = ss.getSheetByName(SHEETS.SEAT_BOOKINGS);
     const row = userId ? getUserRow_(userId) : null;
     const roleKey = row ? row.data[6] : '';
-    const layout = parseLayout_(meta.getRange(2, 1).getValue());
+    const layout = normalizeLayout_(parseLayout_(meta.getRange(2, 1).getValue()));
     const bs = meta.getRange(2, 2).getValue();
     const be = meta.getRange(2, 3).getValue();
     const bookingStart = bs ? new Date(bs).toISOString() : '';
@@ -1435,17 +1495,19 @@ function seatSetBookingWindow(userId, startISO, endISO) {
 
 function seatSetFrontBand(userId, frontBandRows, guestEditToken) {
   try {
-    ensureSheetsExist();
-    const snap = seatGetSnapshot(userId, guestEditToken);
-    if (!snap.success || !snap.canEditLayout) return { success: false, message: 'ไม่มีสิทธิ์แก้ไขแผนผัง' };
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const meta = ss.getSheetByName(SHEETS.SEAT_META);
-    const layout = parseLayout_(meta.getRange(2, 1).getValue());
-    layout.frontBand = Math.max(0, Math.min(Number(frontBandRows) || 0, layout.grid.rows));
-    meta.getRange(2, 4).setValue(layout.frontBand);
-    meta.getRange(2, 1).setValue(JSON.stringify(layout));
-    const v = bumpSeatVersion_(meta);
-    return { success: true, layout: layout, version: v };
+    return withSeatLock_(function() {
+      ensureSheetsExist();
+      const snap = seatGetSnapshot(userId, guestEditToken);
+      if (!snap.success || !snap.canEditLayout) return { success: false, message: 'Permission denied' };
+      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+      const meta = ss.getSheetByName(SHEETS.SEAT_META);
+      const layout = normalizeLayout_(parseLayout_(meta.getRange(2, 1).getValue()));
+      layout.frontBand = Math.max(0, Math.min(Number(frontBandRows) || 0, layout.grid.rows));
+      meta.getRange(2, 4).setValue(layout.frontBand);
+      meta.getRange(2, 1).setValue(JSON.stringify(layout));
+      const v = bumpSeatVersion_(meta);
+      return { success: true, layout: layout, version: v };
+    });
   } catch (e) {
     return { success: false, message: e.toString() };
   }
@@ -1453,17 +1515,19 @@ function seatSetFrontBand(userId, frontBandRows, guestEditToken) {
 
 function seatSaveLayout(userId, layoutJson, guestEditToken) {
   try {
-    ensureSheetsExist();
-    const snap = seatGetSnapshot(userId, guestEditToken);
-    if (!snap.success || !snap.canEditLayout) return { success: false, message: 'ไม่มีสิทธิ์แก้ไขแผนผัง' };
-    const layout = typeof layoutJson === 'string' ? parseLayout_(layoutJson) : parseLayout_(JSON.stringify(layoutJson));
-    if (!layout.seats || layout.seats.length > 200) return { success: false, message: 'ข้อมูลแผนผังไม่ถูกต้อง' };
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const meta = ss.getSheetByName(SHEETS.SEAT_META);
-    meta.getRange(2, 1).setValue(JSON.stringify(layout));
-    meta.getRange(2, 4).setValue(layout.frontBand);
-    const v = bumpSeatVersion_(meta);
-    return { success: true, version: v };
+    return withSeatLock_(function() {
+      ensureSheetsExist();
+      const snap = seatGetSnapshot(userId, guestEditToken);
+      if (!snap.success || !snap.canEditLayout) return { success: false, message: 'Permission denied' };
+      const layout = typeof layoutJson === 'string' ? parseLayout_(layoutJson) : parseLayout_(JSON.stringify(layoutJson));
+      const normalized = normalizeLayout_(layout);
+      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+      const meta = ss.getSheetByName(SHEETS.SEAT_META);
+      meta.getRange(2, 1).setValue(JSON.stringify(normalized));
+      meta.getRange(2, 4).setValue(normalized.frontBand);
+      const v = bumpSeatVersion_(meta);
+      return { success: true, version: v };
+    });
   } catch (e) {
     return { success: false, message: e.toString() };
   }
@@ -1471,36 +1535,35 @@ function seatSaveLayout(userId, layoutJson, guestEditToken) {
 
 function seatBook(userId, seatId, studentCode5) {
   try {
-    ensureSheetsExist();
-    const row = getUserRow_(userId);
-    if (!row) return { success: false, message: 'ต้องเข้าสู่ระบบ' };
-    const st = findStudentByCode_(studentCode5);
-    if (!st) return { success: false, message: 'รหัสนักเรียน 5 หลักไม่ถูกต้อง' };
+    return withSeatLock_(function() {
+      ensureSheetsExist();
+      const row = getUserRow_(userId);
+      if (!row) return { success: false, message: 'Login required' };
+      const normalizedSeatId = normalizeSeatId_(seatId);
+      if (!normalizedSeatId) return { success: false, message: 'Invalid seat id' };
+      const st = findStudentByCode_(studentCode5);
+      if (!st) return { success: false, message: 'Invalid 5-digit student code' };
 
-    const snap = seatGetSnapshot(userId, null);
-    if (!snap.bookingOpen) return { success: false, message: 'ยังไม่อยู่ในช่วงเปิดจอง หรือปิดรับแล้ว' };
-    const seat = (snap.layout.seats || []).find(s => String(s.id) === String(seatId));
-    if (!seat) return { success: false, message: 'ไม่พบที่นั่ง' };
-    if (seat.lock) return { success: false, message: 'ที่นั่งนี้ถูกล็อก (โซนหน้าห้อง/ครู)' };
+      const snap = seatGetSnapshot(userId, null);
+      if (!snap.bookingOpen) return { success: false, message: 'Booking is not open right now' };
+      const seat = (snap.layout.seats || []).find(function(s) { return String(s.id) === String(normalizedSeatId); });
+      if (!seat) return { success: false, message: 'Seat not found' };
+      if (seat.lock) return { success: false, message: 'Seat is locked for teachers/front row' };
 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const book = ss.getSheetByName(SHEETS.SEAT_BOOKINGS);
-    const d = book.getDataRange().getValues();
-
-    for (let i = 1; i < d.length; i++) {
-      if (String(d[i][1]) === String(st.no)) {
-        return { success: false, message: 'เลขที่นี้จองที่นั่งอื่นแล้ว (ยกเลิกก่อน)' };
+      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+      const book = ss.getSheetByName(SHEETS.SEAT_BOOKINGS);
+      const d = book.getDataRange().getValues();
+      for (let i = 1; i < d.length; i++) {
+        if (String(d[i][1]) === String(st.no)) return { success: false, message: 'This student number already booked another seat' };
       }
-    }
-    for (let i = 1; i < d.length; i++) {
-      if (String(d[i][0]) === String(seatId)) {
-        return { success: false, message: 'ที่นั่งนี้มีคนจองแล้ว' };
+      for (let i = 1; i < d.length; i++) {
+        if (String(d[i][0]) === String(normalizedSeatId)) return { success: false, message: 'Seat already booked' };
       }
-    }
 
-    book.appendRow([seatId, st.no, st.name, userId, new Date()]);
-    bumpSeatVersion_(ss.getSheetByName(SHEETS.SEAT_META));
-    return { success: true, message: 'จองสำเร็จ' };
+      book.appendRow([normalizedSeatId, st.no, st.name, userId, new Date()]);
+      bumpSeatVersion_(ss.getSheetByName(SHEETS.SEAT_META));
+      return { success: true, message: 'Booked successfully' };
+    });
   } catch (e) {
     return { success: false, message: e.toString() };
   }
@@ -1508,29 +1571,32 @@ function seatBook(userId, seatId, studentCode5) {
 
 function seatCancelBooking(userId, seatId) {
   try {
-    ensureSheetsExist();
-    const row = getUserRow_(userId);
-    if (!row) return { success: false, message: 'ต้องเข้าสู่ระบบ' };
-    const rk = row.data[6];
-    const admin = roleIsSeatAdmin_(rk);
+    return withSeatLock_(function() {
+      ensureSheetsExist();
+      const row = getUserRow_(userId);
+      if (!row) return { success: false, message: 'Login required' };
+      const normalizedSeatId = normalizeSeatId_(seatId);
+      if (!normalizedSeatId) return { success: false, message: 'Invalid seat id' };
+      const rk = row.data[6];
+      const admin = roleIsSeatAdmin_(rk);
 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const book = ss.getSheetByName(SHEETS.SEAT_BOOKINGS);
-    const d = book.getDataRange().getValues();
-    const myNo = row.data[5];
-
-    for (let i = d.length - 1; i >= 1; i--) {
-      if (String(d[i][0]) !== String(seatId)) continue;
-      const bookedBy = String(d[i][3]);
-      const targetNo = d[i][1];
-      if (admin || bookedBy === String(userId) || String(myNo) === String(targetNo)) {
-        book.deleteRow(i + 1);
-        bumpSeatVersion_(ss.getSheetByName(SHEETS.SEAT_META));
-        return { success: true, message: 'ยกเลิกการจองแล้ว' };
+      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+      const book = ss.getSheetByName(SHEETS.SEAT_BOOKINGS);
+      const d = book.getDataRange().getValues();
+      const myNo = row.data[5];
+      for (let i = d.length - 1; i >= 1; i--) {
+        if (String(d[i][0]) !== String(normalizedSeatId)) continue;
+        const bookedBy = String(d[i][3]);
+        const targetNo = d[i][1];
+        if (admin || bookedBy === String(userId) || String(myNo) === String(targetNo)) {
+          book.deleteRow(i + 1);
+          bumpSeatVersion_(ss.getSheetByName(SHEETS.SEAT_META));
+          return { success: true, message: 'Booking canceled' };
+        }
+        return { success: false, message: 'You cannot cancel this booking' };
       }
-      return { success: false, message: 'ไม่มีสิทธิ์ยกเลิกการจองนี้' };
-    }
-    return { success: false, message: 'ไม่พบการจอง' };
+      return { success: false, message: 'Booking not found' };
+    });
   } catch (e) {
     return { success: false, message: e.toString() };
   }
@@ -1563,7 +1629,9 @@ function seatValidateEditCode(plainCode) {
   try {
     ensureSheetsExist();
     const pc = String(plainCode || '').trim();
-    if (!pc) return { success: false, message: 'กรุณากรอกโค้ด' };
+    if (!pc) return { success: false, message: 'Code is required' };
+    const rl = checkRateLimit_('seatEditCode', pc.toUpperCase(), 12, 15 * 60 * 1000);
+    if (rl.blocked) return { success: false, message: 'Too many attempts. Please wait and try again later' };
     const hash = hashPassword(pc + '_SEAT_EDIT_SALT');
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const sh = ss.getSheetByName(SHEETS.SEAT_EDIT_CODES);
@@ -1803,3 +1871,5 @@ function formatAllSheets() {
   SpreadsheetApp.flush();
   return '✅ จัดรูปแบบ Sheets เสร็จแล้ว!';
 }
+
+
