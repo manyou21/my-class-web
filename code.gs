@@ -381,9 +381,6 @@ function formatSheets(specificSheetName = null) {
         const contentRange = sheet.getRange(2, 1, lastRow - 1, lastCol);
         contentRange.setFontFamily('Prompt').setFontSize(9).setVerticalAlignment('middle');
         
-        // ล้างรูปแบบสี/สลับบรรทัดเดิมอย่างปลอดภัย
-        try { contentRange.getBandings().forEach(b => b.remove()); } catch(e) {}
-
         const colorSheets = [SHEETS.HOMEWORK, SHEETS.HOMEWORK_STATUS, SHEETS.TREASURY, SHEETS.TREASURY_PAYMENTS];
         if (colorSheets.includes(name)) {
           const data = contentRange.getValues();
@@ -405,7 +402,12 @@ function formatSheets(specificSheetName = null) {
             try { contentRange.setBackgrounds(bgColors); } catch(e) { contentRange.setBackground('#ffffff'); }
           }
         } else {
-          try { contentRange.applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY, false, false); } catch(e) {}
+          // ใช้การใส่สีสลับแถวแบบ Manual แทน applyRowBanding เพื่อป้องกัน Error "Banding already exists"
+          const rowColors = [];
+          for (let r = 2; r <= lastRow; r++) {
+            rowColors.push(Array(lastCol).fill(r % 2 === 0 ? '#f8fafc' : '#ffffff'));
+          }
+          if (rowColors.length > 0) contentRange.setBackgrounds(rowColors);
         }
       }
     });
