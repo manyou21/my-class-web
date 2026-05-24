@@ -128,7 +128,27 @@ function doPost(e) {
       return output;
     }
 
-    const result = eval(action).apply(null, args);
+    // Dispatch table — ปลอดภัยกว่า eval
+    const DISPATCH = {
+      loginUser, registerUser, changePassword, getPasswordHint,
+      getStudents, getSubjects,
+      addHomework, getHomework, updateHomeworkStatus, deleteHomework,
+      addTreasuryItem, getTreasuryItems, updatePayment, deleteTreasuryItem,
+      submitLeaveRequest, getLeaveRequests, confirmLeaveRequest, updateLeaveStatus,
+      getLastUpdate, getDashboardData, getCounts,
+      generateCode, redeemCode,
+      createGuestAccount, deleteGuestAccount,
+      getTimetable, setTimetable,
+      seatGetSnapshot, seatSetBookingWindow, seatSetFrontBand,
+      seatSaveLayout, seatBook, seatCancelBooking,
+      seatCreateEditCode, seatValidateEditCode, seatListEditCodes,
+      seatRevokeEditCode, seatRevokeSession, seatListActiveSessions
+    };
+    if (!DISPATCH[action]) {
+      output.setContent(JSON.stringify({ status: 'error', message: 'Action not found' }));
+      return output;
+    }
+    const result = DISPATCH[action].apply(null, args);
     output.setContent(JSON.stringify({ status: 'success', result: result }));
     return output;
   } catch (err) {
