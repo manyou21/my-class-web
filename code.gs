@@ -1,4 +1,4 @@
-﻿// ============================================
+// ============================================
 // 📘 ระบบเว็บการบ้าน & เก็บเงินห้อง + Redeem Code
 // ============================================
 const SPREADSHEET_ID = '1cT-N8AHw613xstQ7FUNdOk-QnavT9TRsZh1SiJJfYWA';
@@ -149,9 +149,17 @@ function doGet(e) {
 // salt คงที่ต่อระบบ (เพิ่มความปลอดภัยกว่า plain SHA-256)
 const PW_SALT = 'CLS_SALT_2025_xK9#mP';
 
+function byteDigestToHex_(digest) {
+  var hexString = '';
+  for (var i = 0; i < digest.length; i++) {
+    hexString += ('0' + (digest[i] & 0xFF).toString(16)).slice(-2);
+  }
+  return hexString;
+}
+
 function hashPassword(p) {
-  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, PW_SALT + p + PW_SALT)
-    .map(b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('');
+  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, PW_SALT + p + PW_SALT);
+  return byteDigestToHex_(digest);
 }
 
 // Sanitize string input — ตัด whitespace และจำกัดความยาว
@@ -177,8 +185,8 @@ const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // ใน 15 นาที
 function checkLoginRateLimit(identifier) {
   try {
     const props = PropertiesService.getScriptProperties();
-    const key = 'rl_' + Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(identifier))
-      .map(b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('').slice(0, 16);
+    const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(identifier));
+    const key = 'rl_' + byteDigestToHex_(digest).slice(0, 16);
     const raw = props.getProperty(key);
     const now = Date.now();
     let record = raw ? JSON.parse(raw) : { count: 0, windowStart: now };
@@ -265,15 +273,15 @@ function convertDriveToDirect(url) {
 function ensureSheetsExist() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   if (!ss.getSheetByName(SHEETS.USERS)) ss.insertSheet(SHEETS.USERS).appendRow(['ID','DisplayName','Email','PasswordHash','Hint','StudentNo','Role','CreatedAt','LastLogin','TempRoleExpiry','HwCredits']);
-  if (!ss.getSheetByName(SHEETS.STUDENT_CODES)) { 
-    const sc = ss.insertSheet(SHEETS.STUDENT_CODES); 
-    sc.appendRow(['StudentNo','StudentCode','StudentName','IsRegistered']); 
-    STUDENTS.forEach(s => sc.appendRow([s.no, s.code, s.name, false])); 
+  if (!ss.getSheetByName(SHEETS.STUDENT_CODES)) {
+    const sc = ss.insertSheet(SHEETS.STUDENT_CODES);
+    sc.appendRow(['StudentNo','StudentCode','StudentName','IsRegistered']);
+    STUDENTS.forEach(s => sc.appendRow([s.no, s.code, s.name, false]));
   }
   if (!ss.getSheetByName(SHEETS.HOMEWORK)) ss.insertSheet(SHEETS.HOMEWORK).appendRow(['ID','Subject','Description','AssignedDate','DueDate','NoDueDate','CreatedBy','CreatedAt','SubjectColor']);
   if (!ss.getSheetByName(SHEETS.HOMEWORK_STATUS)) ss.insertSheet(SHEETS.HOMEWORK_STATUS).appendRow(['HomeworkID','StudentNo','Status','ImagePath','CompletedAt','Notes','SubjectColor']);
-  if (!ss.getSheetByName(SHEETS.TREASURY)) ss.insertSheet(SHEETS.TREASURY).appendRow(['ID','Title','AmountPerPerson','CreatedBy','CreatedAt','Status']);
-  if (!ss.getSheetByName(SHEETS.TREASURY_PAYMENTS)) ss.insertSheet(SHEETS.TREASURY_PAYMENTS).appendRow(['TreasuryID','StudentNo','AmountPaid','PaidAt','Notes']);
+  if (!ss.getSheetByName(SHEETS.TREASURY)) ss.insertSheet(SHEETS.TREASURY).appendRow(['ID','Title','AmountPerPerson','CreatedBy','CreatedAt','Status','Color']);
+  if (!ss.getSheetByName(SHEETS.TREASURY_PAYMENTS)) ss.insertSheet(SHEETS.TREASURY_PAYMENTS).appendRow(['TreasuryID','StudentNo','AmountPaid','PaidAt','Notes','Color']);
   if (!ss.getSheetByName(SHEETS.LEAVE_REQUESTS)) ss.insertSheet(SHEETS.LEAVE_REQUESTS).appendRow(['ID','StudentNo','StudentName','Type','Date','Reason','Status','ProofImage','Confirmed','Timestamp']);
   if (!ss.getSheetByName(SHEETS.REDEEM_CODES)) ss.insertSheet(SHEETS.REDEEM_CODES).appendRow(['Code','ActionType','Value','Details','MaxUses','UsesCount','CreatedBy','CreatedAt','QrFileId','QrUrl','CreatedAtUTC']);
   if (!ss.getSheetByName(SHEETS.TIMETABLE)) {
@@ -300,9 +308,120 @@ function ensureSheetsExist() {
   if (!ss.getSheetByName(SHEETS.SEAT_EDIT_SESSIONS)) {
     ss.insertSheet(SHEETS.SEAT_EDIT_SESSIONS).appendRow(['Token', 'CodeId', 'ExpiresAt']);
   }
+
+  formatSheets();
   return 'OK';
 }
 
+function formatSheets(specificSheetName = null) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheets = specificSheetName ? [ss.getSheetByName(specificSheetName)] : ss.getSheets();
+  
+  // สร้าง Color Map สำหรับเติมข้อมูลย้อนหลัง
+  const colorMap = {};
+  try {
+    const hwData = ss.getSheetByName(SHEETS.HOMEWORK).getDataRange().getValues();
+    hwData.slice(1).forEach(r => colorMap[r[0]] = r[8]);
+    const trData = ss.getSheetByName(SHEETS.TREASURY).getDataRange().getValues();
+    trData.slice(1).forEach(r => colorMap[r[0]] = r[6]);
+  } catch(e) {}
+
+  sheets.forEach(sheet => {
+    if (!sheet) return;
+    const name = sheet.getName();
+    const lastCol = sheet.getLastColumn();
+    const lastRow = sheet.getLastRow();
+    if (lastCol === 0) return;
+    
+    // 1. จัดรูปแบบหัวข้อ (Header)
+    const headerRange = sheet.getRange(1, 1, 1, lastCol);
+    headerRange.setBackground('#1e293b') // Slate 800
+               .setFontColor('#ffffff')
+               .setFontWeight('bold')
+               .setHorizontalAlignment('center')
+               .setVerticalAlignment('middle')
+               .setFontSize(10)
+               .setFontFamily('Prompt');
+    
+    sheet.setFrozenRows(1);
+    
+    // 2. ซ่อนคอลัมน์ที่เป็นข้อมูลทางเทคนิค (ID, JSON, Hash, Token, UUID)
+    const headers = headerRange.getValues()[0];
+    const techKeywords = ['ID', 'JSON', 'HASH', 'TOKEN', 'UUID'];
+    
+    headers.forEach((header, index) => {
+      const hStr = String(header).toUpperCase();
+      if (techKeywords.some(key => hStr.includes(techKeywords.includes(hStr) ? key : key))) {
+         // ตรวจสอบ keyword ในหัวข้อ
+         if (techKeywords.some(key => hStr.includes(key))) {
+           sheet.hideColumns(index + 1);
+         }
+      }
+      // พิเศษสำหรับคอลัมน์แรกที่เป็น ID ยาวๆ
+      if (index === 0 && (hStr.includes('ID') || hStr.includes('CODE') || hStr.length < 4)) {
+        // ซ่อนคอลัมน์แรกถ้าเข้าข่าย (ยกเว้นบางกรณี)
+        if (name !== SHEETS.STUDENT_CODES) sheet.hideColumns(1);
+      }
+    });
+
+    // 3. ปรับความกว้างคอลัมน์อัตโนมัติ (เฉพาะตัวที่ยังแสดงอยู่)
+    for (let i = 1; i <= lastCol; i++) {
+      if (sheet.isColumnHiddenByUser(i)) continue;
+      sheet.autoResizeColumn(i);
+      let width = sheet.getColumnWidth(i);
+      if (width > 300) sheet.setColumnWidth(i, 300);
+      if (width < 80) sheet.setColumnWidth(i, 80);
+    }
+
+    // 4. จัดกลุ่มข้อมูล (Sorting) สำหรับชีตสถานะ/การจ่ายเงิน
+    if (lastRow > 1) {
+      if (name === SHEETS.HOMEWORK_STATUS || name === SHEETS.TREASURY_PAYMENTS) {
+        sheet.getRange(2, 1, lastRow - 1, lastCol).sort([{column: 1, ascending: true}, {column: 2, ascending: true}]);
+      }
+
+      const contentRange = sheet.getRange(2, 1, lastRow - 1, lastCol);
+      contentRange.setFontFamily('Prompt').setFontSize(9).setVerticalAlignment('middle');
+      
+      contentRange.getBandings().forEach(b => b.remove());
+
+      const colorSheets = [SHEETS.HOMEWORK, SHEETS.HOMEWORK_STATUS, SHEETS.TREASURY, SHEETS.TREASURY_PAYMENTS];
+      if (colorSheets.includes(name)) {
+        const data = contentRange.getValues();
+        let colorColIdx = -1;
+        if (name === SHEETS.HOMEWORK) colorColIdx = 8;
+        if (name === SHEETS.HOMEWORK_STATUS) colorColIdx = 6;
+        if (name === SHEETS.TREASURY) colorColIdx = 6;
+        if (name === SHEETS.TREASURY_PAYMENTS) colorColIdx = 5;
+
+        if (colorColIdx !== -1) {
+          const bgColors = data.map((row, i) => {
+            let rowColor = row[colorColIdx];
+            
+            // เติมสีที่หายไปจาก Color Map (ข้อมูลเก่า)
+            if (!rowColor || !/^#[0-9A-F]{6}$/i.test(rowColor)) {
+              rowColor = colorMap[row[0]] || '#ffffff';
+              if (rowColor !== '#ffffff') sheet.getRange(i + 2, colorColIdx + 1).setValue(rowColor);
+            }
+            
+            return Array(lastCol).fill(rowColor);
+          });
+          contentRange.setBackgrounds(bgColors);
+        }
+      } else {
+        contentRange.applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY, false, false);
+      }
+    }
+  });
+
+  // จัดรูปแบบพิเศษสำหรับชีต Users
+  if (!specificSheetName || specificSheetName === SHEETS.USERS) {
+    const userSheet = ss.getSheetByName(SHEETS.USERS);
+    if (userSheet && userSheet.getLastRow() > 1) {
+      userSheet.getRange(2, 4, userSheet.getLastRow() - 1, 1).setFontColor('#94a3b8').setFontSize(8);
+    }
+  }
+  SpreadsheetApp.flush();
+}
 // ============================================
 // 🔐 AUTHENTICATION
 // ============================================
@@ -366,8 +485,8 @@ function registerUser(name, email, pw, cpw, code, hint) {
 
 // hash แบบเก่า (ไม่มี salt) — ใช้สำหรับ migration เท่านั้น
 function hashPasswordLegacy_(p) {
-  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, p)
-    .map(b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('');
+  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, p);
+  return byteDigestToHex_(digest);
 }
 
 function loginUser(id, pw) {
@@ -551,9 +670,11 @@ function addHomework(sub, desc, ad, dd, nd, by) {
       stS.getRange(startRow, 1, rows.length, 7).setBackground(color);
     }
 
-    return { success: true };
+    formatSheets(SHEETS.HOMEWORK);
+    formatSheets(SHEETS.HOMEWORK_STATUS);
+    return { success: true, message: 'เพิ่มการบ้านเรียบร้อยแล้ว' };
   } catch (e) { 
-    return { success: false, message: 'เกิดข้อผิดพลาด' }; 
+    return { success: false, message: 'เกิดข้อผิดพลาด: ' + e.toString() }; 
   }
 }
 
@@ -651,6 +772,8 @@ function deleteHomework(id) {
     for (let i = sd.length - 1; i >= 1; i--) {
       if (sd[i][0] === cleanId) sS.deleteRow(i + 1);
     }
+    formatSheets(SHEETS.HOMEWORK);
+    formatSheets(SHEETS.HOMEWORK_STATUS);
     return { success: true };
   } catch (e) {
     return { success: false, message: 'เกิดข้อผิดพลาด' };
@@ -700,6 +823,7 @@ function submitLeaveRequest(studentNo, studentName, type, date, reason, base64Im
     }
 
     sheet.appendRow([id, cleanNo, cleanName, cleanType, cleanDate, cleanReason, 'PENDING', imageUrl, false, new Date()]); 
+    formatSheets(SHEETS.LEAVE_REQUESTS);
     return { success: true };
   } catch (e) { 
     return { success: false, message: 'เกิดข้อผิดพลาด' }; 
@@ -833,11 +957,14 @@ function addTreasuryItem(title, amt, by, targetStudents = null) {
       targetNos = STUDENTS.map(s => s.no);
     }
 
-    const rows = targetNos.map(no => [id, no, 0, '', '']);
-    if (rows.length > 0) pS.getRange(pS.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
+    const rows = targetNos.map(no => [id, no, 0, '', '', color]);
+    if (rows.length > 0) pS.getRange(pS.getLastRow() + 1, 1, rows.length, 6).setValues(rows);
+    
+    formatSheets(SHEETS.TREASURY);
+    formatSheets(SHEETS.TREASURY_PAYMENTS);
     return { success: true, treasuryId: id };
   } catch (e) { 
-    return { success: false, message: 'เกิดข้อผิดพลาด' };
+    return { success: false, message: 'เกิดข้อผิดพลาด: ' + e.toString() };
   }
 }
 
@@ -935,6 +1062,8 @@ function deleteTreasuryItem(id) {
     for (let i = pd.length - 1; i >= 1; i--) {
       if (pd[i][0] === cleanId) pS.deleteRow(i + 1);
     }
+    formatSheets(SHEETS.TREASURY);
+    formatSheets(SHEETS.TREASURY_PAYMENTS);
     return { success: true };
   } catch (e) {
     return { success: false, message: 'เกิดข้อผิดพลาด' };
@@ -1376,8 +1505,8 @@ function checkRateLimit_(scope, identifier, maxAttempts, windowMs) {
   try {
     const props = PropertiesService.getScriptProperties();
     const keySeed = scope + '|' + String(identifier || '');
-    const key = 'rlx_' + Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, keySeed)
-      .map(function(b) { return ('0' + (b & 0xFF).toString(16)).slice(-2); }).join('').slice(0, 24);
+    const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, keySeed);
+    const key = 'rlx_' + byteDigestToHex_(digest).slice(0, 24);
     const now = Date.now();
     const raw = props.getProperty(key);
     let record = raw ? JSON.parse(raw) : { count: 0, windowStart: now };
@@ -1871,5 +2000,4 @@ function formatAllSheets() {
   SpreadsheetApp.flush();
   return '✅ จัดรูปแบบ Sheets เสร็จแล้ว!';
 }
-
 

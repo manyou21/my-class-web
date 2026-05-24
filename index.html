@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ระบบจัดการห้องเรียน</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>MyClass Web - ระบบจัดการห้องเรียน</title>
+  <link rel="icon" type="image/png" href="https://img.icons8.com/fluency/48/classroom.png">
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://unpkg.com/html5-qrcode"></script>
@@ -523,7 +524,7 @@ margin-right:8px;
   cursor: pointer;
   user-select: none;
   box-shadow: var(--shadow);
-  transition: transform 0.08s ease, box-shadow 0.15s ease;
+  transition: transform 0.08s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   text-align: center;
   overflow: hidden;
 }
@@ -531,7 +532,14 @@ margin-right:8px;
 .seat-desk.locked { border-color: var(--danger); opacity: 0.85; cursor: not-allowed; }
 .seat-desk.dragging { z-index: 50; opacity: 0.92; transform: scale(1.02); }
 .seat-desk.booked { background: var(--success-light); border-color: var(--success); }
-.seat-desk.selected { box-shadow: 0 0 0 4px var(--accent-light), var(--shadow); }
+.seat-desk.selected {
+  box-shadow: 0 0 0 6px var(--accent-light), 0 0 15px var(--accent), var(--shadow) !important;
+  border-color: #ffde00 !important; /* สีทอง/เหลืองให้เห็นชัด */
+  border-width: 4px !important;
+  transform: scale(1.05);
+  z-index: 10;
+}
+.btn-xs { padding: 4px 8px; font-size: 0.75rem; border-radius: 6px; }
 .seat-desk-name,
 .seat-desk-no,
 .seat-desk-label {
@@ -642,6 +650,90 @@ margin-right:8px;
   gap: 8px;
 }
 .seat-code-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+
+/* Visual Templates */
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+.template-item {
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  cursor: pointer;
+  transition: var(--transition);
+  background: var(--bg-secondary);
+  text-align: center;
+}
+.template-item:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+.template-item.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+.template-preview {
+  height: 80px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+.template-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 2px;
+  position: absolute;
+}
+.template-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Notifications */
+.notif-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: var(--danger);
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--bg-secondary);
+}
+.btn-notif {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.btn-notif:hover {
+  background: var(--bg-tertiary);
+  color: var(--accent);
+}
+
 @media (max-width: 1041px) {
   .seat-layout-shell { grid-template-columns: 1fr; }
   .seat-concert-shell { padding: 12px; }
@@ -673,6 +765,7 @@ margin-right:8px;
     padding: 14px;
   }
 }
+</style>
 </style>
 </head>
 <body>
@@ -902,9 +995,15 @@ margin-right:8px;
       <div class="tab-panel active" id="panelHw">
         <div class="header">
           <h1 class="title"><i class="fas fa-book-open"></i> การบ้าน</h1>
-          <button class="btn btn-primary btn-sm" id="btnAddHw" style="display:none;" onclick="openModal('modalHw')">
-            <i class="fas fa-plus"></i> เพิ่มการบ้าน
-          </button>
+          <div style="display:flex; gap:8px;">
+            <button class="btn-notif" onclick="setTab('hw')" title="การบ้านใหม่">
+              <i class="fas fa-book"></i>
+              <span class="notif-badge" id="notifHw">0</span>
+            </button>
+            <button class="btn btn-primary btn-sm" id="btnAddHw" style="display:none;" onclick="openModal('modalHw')">
+              <i class="fas fa-plus"></i> เพิ่มการบ้าน
+            </button>
+          </div>
         </div>
         <div id="listHw"></div>
       </div>
@@ -913,9 +1012,15 @@ margin-right:8px;
       <div class="tab-panel" id="panelMoney">
         <div class="header">
           <h1 class="title"><i class="fas fa-wallet"></i> เงินห้อง</h1>
-          <button class="btn btn-primary btn-sm" id="btnAddMoney" style="display:none;" onclick="openModal('modalMoney')">
-            <i class="fas fa-plus"></i> ตั้งเก็บเงิน
-          </button>
+          <div style="display:flex; gap:8px;">
+            <button class="btn-notif" onclick="setTab('money')" title="ยอดค้างชำระ">
+              <i class="fas fa-coins"></i>
+              <span class="notif-badge" id="notifMoney">0</span>
+            </button>
+            <button class="btn btn-primary btn-sm" id="btnAddMoney" style="display:none;" onclick="openModal('modalMoney')">
+              <i class="fas fa-plus"></i> ตั้งเก็บเงิน
+            </button>
+          </div>
         </div>
         <div id="listMoney"></div>
       </div>
@@ -925,6 +1030,10 @@ margin-right:8px;
         <div class="header">
           <h1 class="title"><i class="fas fa-calendar-check"></i> ลา / กิจกรรม</h1>
           <div style="display:flex; gap:8px;">
+            <button class="btn-notif" onclick="setTab('leave')" title="คำขอลาใหม่">
+              <i class="fas fa-user-clock"></i>
+              <span class="notif-badge" id="notifLeave">0</span>
+            </button>
             <button class="btn btn-secondary btn-sm" onclick="toggleAllLeaveEvidence()">
               <i class="fas fa-eye"></i> เปิด/ปิดหลักฐาน
             </button>
@@ -999,6 +1108,93 @@ margin-right:8px;
               <button type="button" class="btn btn-success btn-sm" onclick="seatSaveLayoutNow()"><i class="fas fa-save"></i> บันทึกแผนผัง</button>
             </div>
 
+            <div id="seatBulkToolSection" style="margin-top:16px; border-top:1px dashed var(--border); padding-top:16px;">
+              <p style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:8px;">
+                <b><i class="fas fa-object-group"></i> เครื่องมือจัดการโต๊ะกลุ่ม (<span id="seatSelCountText">เลือกแล้ว 0 โต๊ะ</span>)</b>
+              </p>
+              <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="seatSelectAll()"><i class="fas fa-check-double"></i> เลือกทั้งหมด</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="seatClearSelection()"><i class="fas fa-times-circle"></i> ล้างการเลือก</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btnAlignTop" onclick="seatAlignSelected('top')" disabled><i class="fas fa-align-justify" style="transform: rotate(90deg);"></i> จัดระดับแนวตั้ง (จัดบนตรงกัน)</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btnAlignLeft" onclick="seatAlignSelected('left')" disabled><i class="fas fa-align-left"></i> จัดระดับแนวนอน (จัดซ้ายตรงกัน)</button>
+                <button type="button" class="btn btn-danger btn-sm" id="btnDeleteSelected" onclick="seatDeleteSelected()" disabled><i class="fas fa-trash-alt"></i> ลบโต๊ะที่เลือก</button>
+              </div>
+            </div>
+
+            <div id="seatTemplatesSection" style="margin-top:16px; border-top:1px dashed var(--border); padding-top:16px;">
+              <p style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:8px;">
+                <b><i class="fas fa-th-large"></i> แม่แบบจัดที่นั่งในห้อง (Templates)</b>
+              </p>
+              <div class="template-grid">
+                <div class="template-item" onclick="seatApplyTemplate('temp1')">
+                  <div class="template-preview">
+                    <!-- Preview for 5 double blocks -->
+                    <div style="display:flex; flex-direction:column; gap:4px; width:100%; height:100%; justify-content:center; align-items:center; padding:5px;">
+                      <div style="display:flex; gap:10px;">
+                        <div style="width:12px; height:8px; background:var(--accent); border-radius:2px;"></div>
+                        <div style="width:12px; height:8px; background:var(--accent); border-radius:2px;"></div>
+                        <div style="width:12px; height:8px; background:var(--accent); border-radius:2px;"></div>
+                      </div>
+                      <div style="display:flex; gap:10px;">
+                        <div style="width:12px; height:8px; background:var(--accent); border-radius:2px;"></div>
+                        <div style="width:12px; height:8px; background:var(--accent); border-radius:2px;"></div>
+                        <div style="width:12px; height:8px; background:var(--accent); border-radius:2px;"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="template-name">แบบที่ 1 (5 บล็อกคู่)</div>
+                </div>
+                <div class="template-item" onclick="seatApplyTemplate('temp2')">
+                  <div class="template-preview">
+                    <!-- Preview for 4 double blocks -->
+                    <div style="display:flex; flex-direction:column; gap:4px; width:100%; height:100%; justify-content:center; align-items:center; padding:5px;">
+                      <div style="display:flex; gap:6px;">
+                        <div style="width:10px; height:7px; background:var(--accent); border-radius:2px;"></div>
+                        <div style="width:10px; height:7px; background:var(--accent); border-radius:2px;"></div>
+                        <div style="width:10px; height:7px; background:var(--accent); border-radius:2px;"></div>
+                        <div style="width:10px; height:7px; background:var(--accent); border-radius:2px;"></div>
+                      </div>
+                      <div style="display:flex; gap:6px;">
+                        <div style="width:100px; height:7px; width:10px; background:var(--accent); border-radius:2px;"></div>
+                        <div style="width:100px; height:7px; width:10px; background:var(--accent); border-radius:2px;"></div>
+                        <div style="width:100px; height:7px; width:10px; background:var(--accent); border-radius:2px;"></div>
+                        <div style="width:100px; height:7px; width:10px; background:var(--accent); border-radius:2px;"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="template-name">แบบที่ 2 (4 บล็อกคู่)</div>
+                </div>
+                <div class="template-item" onclick="seatApplyTemplate('temp3')">
+                  <div class="template-preview">
+                    <!-- Preview for 2-3-3-2 -->
+                    <div style="display:flex; flex-direction:column; gap:3px; width:100%; height:100%; justify-content:center; align-items:center; padding:5px;">
+                      <div style="display:flex; gap:3px;">
+                        <div style="width:7px; height:5px; background:var(--accent); border-radius:1px;"></div>
+                        <div style="width:7px; height:5px; background:var(--accent); border-radius:1px;"></div>
+                        <div style="width:7px; height:5px; background:var(--accent); border-radius:1px; margin-left:3px;"></div>
+                        <div style="width:7px; height:5px; background:var(--accent); border-radius:1px;"></div>
+                        <div style="width:7px; height:5px; background:var(--accent); border-radius:1px;"></div>
+                        <div style="width:7px; height:5px; background:var(--accent); border-radius:1px; margin-left:3px;"></div>
+                        <div style="width:7px; height:5px; background:var(--accent); border-radius:1px;"></div>
+                        <div style="width:7px; height:5px; background:var(--accent); border-radius:1px;"></div>
+                      </div>
+                      <div style="display:flex; gap:3px;">
+                        <div style="width:7px; height:5px; background:var(--accent); border-radius:1px;"></div>
+                        <div style="width:7px; height:5px; background:var(--accent); border-radius:1px;"></div>
+                        <div style="width:7px; height:5px; background:var(--accent); border-radius:1px; margin-left:3px;"></div>
+                        <div style="width:7px; height:5px; background:var(--accent); border-radius:1px;"></div>
+                        <div style="width:7px; height:5px; background:var(--accent); border-radius:1px;"></div>
+                        <div style="width:7px; height:5px; background:var(--accent); border-radius:1px; margin-left:3px;"></div>
+                        <div style="width:7px; height:5px; background:var(--accent); border-radius:1px;"></div>
+                        <div style="width:7px; height:5px; background:var(--accent); border-radius:1px;"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="template-name">แบบที่ 3 (2-3-3-2)</div>
+                </div>
+              </div>
+            </div>
+
             <hr style="border:0;border-top:1px solid var(--border); margin:16px 0;">
 
             <p style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:8px;"><b>โค้ดให้ผู้อื่นแก้แผนผังชั่วคราว</b></p>
@@ -1042,37 +1238,55 @@ margin-right:8px;
             <div class="seat-layout-shell">
               <div class="seat-map-column">
                 <div class="seat-legend-bar">
-                  <span class="seat-legend-chip"><span class="seat-legend-dot available"></span>Available desk</span>
-                  <span class="seat-legend-chip"><span class="seat-legend-dot selected"></span>Selected desk</span>
-                  <span class="seat-legend-chip"><span class="seat-legend-dot booked"></span>Reserved desk</span>
+                  <span class="seat-legend-chip"><span class="seat-legend-dot available"></span>ที่นั่งว่าง</span>
+                  <span class="seat-legend-chip"><span class="seat-legend-dot selected"></span>ที่นั่งที่คุณเลือก</span>
+                  <span class="seat-legend-chip"><span class="seat-legend-dot booked"></span>ที่นั่งที่มีคนจองแล้ว</span>
                 </div>
                 <div class="seat-concert-shell">
-                  <div class="seat-stage-banner">Front Of Classroom</div>
-                  <div class="seat-map-scroll" id="seatMapScroll">
-                    <div class="seat-map-inner" id="seatMapInner"></div>
+                  <div class="seat-stage-banner">หน้าห้องเรียน</div>
+                  <div class="seat-zoom-bar" style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.04); padding:8px 16px; border-radius:12px; margin:12px 0; border:1px solid rgba(255,255,255,0.08); flex-wrap:wrap; gap:10px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <button type="button" class="btn btn-secondary btn-xs" onclick="seatAdjustZoom(-0.1)" title="Zoom Out" style="padding: 4px 8px; font-size: 0.75rem; border-radius: 6px; background:rgba(255,255,255,0.1); border:none; color:white; cursor:pointer;"><i class="fas fa-search-minus"></i></button>
+                      <input type="range" id="seatZoomSlider" min="0.4" max="1.5" step="0.05" value="1" oninput="seatSetZoomFromSlider(this.value)" style="width:100px; cursor:pointer;">
+                      <button type="button" class="btn btn-secondary btn-xs" onclick="seatAdjustZoom(0.1)" title="Zoom In" style="padding: 4px 8px; font-size: 0.75rem; border-radius: 6px; background:rgba(255,255,255,0.1); border:none; color:white; cursor:pointer;"><i class="fas fa-search-plus"></i></button>
+                      <span id="seatZoomPercent" style="font-size:0.85rem; font-weight:600; min-width:40px; text-align:right; color:#cbd5e1;">100%</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.82rem; margin:0; user-select:none; color:#cbd5e1;">
+                        <input type="checkbox" id="seatAutoFitCheck" onchange="seatToggleAutoFit(this.checked)" checked style="cursor:pointer;">
+                        <span>จัดให้พอดีหน้าจอ (Auto-Fit)</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div class="seat-map-scroll" id="seatMapScroll" style="display: flex; justify-content: center; align-items: flex-start; padding: 16px; overflow: auto; min-height: 250px;">
+                    <div class="seat-scale-outer" id="seatScaleOuter" style="overflow: hidden; display: flex; justify-content: center; align-items: flex-start; transition: width 0.15s ease, height 0.15s ease;">
+                      <div class="seat-map-scale-wrapper" id="seatMapScaleWrapper" style="transform-origin: top center; transition: transform 0.15s ease-out; display: flex; justify-content: center; align-items: flex-start;">
+                        <div class="seat-map-inner" id="seatMapInner"></div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
               <div class="seat-booking-panel" id="seatBookingPanel">
                 <div class="seat-booking-head">
-                  <div class="seat-booking-head-title">Desk booking details</div>
-                  <div class="seat-booking-head-sub">Concert-style booking flow tuned for a classroom layout</div>
+                  <div class="seat-booking-head-title">รายละเอียดการจองที่นั่ง</div>
+                  <div class="seat-booking-head-sub">คลิกเลือกโต๊ะที่ต้องการจากแผนผังเพื่อทำการจอง</div>
                 </div>
                 <div class="seat-booking-body">
                   <div class="seat-selected-card" id="seatSelectedSummary">
-                    <div class="seat-selected-seat">Choose a desk from the map</div>
-                    <div class="seat-selected-meta">Tap once to select. Drag up or down to browse the classroom map.</div>
+                    <div class="seat-selected-seat">กรุณาเลือกโต๊ะจากแผนผัง</div>
+                    <div class="seat-selected-meta">แตะหนึ่งครั้งเพื่อเลือก หรือลากเพื่อเลื่อนดูแผนผังห้องเรียน</div>
                   </div>
                   <div class="form-group">
-                    <label>Student code (5 digits)</label>
-                    <input type="text" inputmode="numeric" pattern="\d{5}" maxlength="5" id="seatBookStudentCode" placeholder="47535">
+                    <label>รหัสนักเรียน (5 หลัก)</label>
+                    <input type="text" inputmode="numeric" pattern="\d{5}" maxlength="5" id="seatBookStudentCode" placeholder="เช่น 47535">
                   </div>
                   <div class="seat-booking-actions">
-                    <button type="button" class="btn btn-primary" id="seatBtnBook" onclick="seatDoBook()"><i class="fas fa-check"></i> Confirm booking</button>
-                    <button type="button" class="btn btn-danger" id="seatBtnCancel" onclick="seatDoCancel()"><i class="fas fa-times"></i> Cancel current booking</button>
+                    <button type="button" class="btn btn-primary" id="seatBtnBook" onclick="seatDoBook()"><i class="fas fa-check"></i> ยืนยันการจอง</button>
+                    <button type="button" class="btn btn-danger" id="seatBtnCancel" onclick="seatDoCancel()"><i class="fas fa-times"></i> ยกเลิกการจองนี้</button>
                   </div>
                   <p style="margin:0; font-size:0.82rem; color:var(--text-muted);">
-                    The desk map still supports moving desks in edit mode, while regular users get a clearer booking flow.
+                    แผนผังที่นั่งสามารถปรับเปลี่ยนได้โดยผู้ดูแลระบบ ในขณะที่นักเรียนสามารถจองได้อย่างสะดวก
                   </p>
                 </div>
               </div>
@@ -1161,6 +1375,13 @@ margin-right:8px;
               <div><strong>บทบาท:</strong> <span id="meRole"></span></div>
               <div><strong>เลขที่:</strong> <span id="meNo"></span></div>
               <div id="hwCreditsRow"><strong>Credit ตั้งการบ้าน:</strong> <span id="meHwCredits" style="color:var(--accent); font-weight:bold;"></span></div>
+            </div>
+            <hr style="border:0; border-top:1px solid var(--border); margin:15px 0;">
+            <div class="form-group">
+              <label><i class="fas fa-bell"></i> การแจ้งเตือน</label>
+              <button class="btn btn-secondary btn-sm" id="btnPushNotif" onclick="togglePushNotifications()" style="width:100%; margin-top:5px; justify-content:center; display:flex; align-items:center; gap:8px;">
+                <i class="fas fa-bell-slash"></i> เปิดการแจ้งเตือนบนเบราว์เซอร์
+              </button>
             </div>
           </div>
         </div>
@@ -1264,9 +1485,15 @@ margin-right:8px;
           <input type="number" id="mAmt" style="width:100%" required min="1" placeholder="0">
         </div>
         <div class="form-group">
-          <label>เลขที่นักเรียนที่ต้องการเก็บ (ปล่อยว่างถ้าเก็บทุกคน)</label>
-          <input type="text" id="mTargetList" style="width:100%" placeholder="เช่น 1, 5, 10-15">
-          <small style="color:var(--text-muted)">ใช้เครื่องหมายคอมมา (,) แยกเลขที่ หรือใช้ขีด (-) สำหรับช่วงข้อมูล</small>
+          <label>นักเรียนที่ต้องการเก็บเงิน (เลือกเพื่อเอาออกได้)</label>
+          <div id="mStudentSelection" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; margin-bottom: 10px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; max-height: 250px; overflow-y: auto; background: var(--bg-tertiary);">
+            <!-- Students will be populated here -->
+          </div>
+          <input type="hidden" id="mTargetList">
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="mSelectAll()">เลือกทั้งหมด</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="mClearAll()">เอาออกทั้งหมด</button>
+          </div>
         </div>
       </div>
       <div class="modal-foot">
@@ -1413,6 +1640,9 @@ let lastTheme = localStorage.getItem('theme') || 'light';
 let currentHwCount = 0, currentTrCount = 0, currentLvCount = 0;
 let currentTrPayCounter = -1;
 let currentSeatVersion = -1;
+let seatSelectedIds = [];
+let currentZoomLevel = 1.0;
+let isAutoFitEnabled = true;
 let autoRefreshTimer = null;
 let loadingCount = 0;
 let loadingTimeout = null;
@@ -1532,6 +1762,7 @@ function closeMobileSidebar() {
 // --- UI Helpers ---
 function openModal(id) { 
   if (id === 'modalHw') populateSubjects(); 
+  if (id === 'modalMoney') populateMoneyStudents();
   document.getElementById(id).classList.add('show'); 
 }
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
@@ -1789,6 +2020,11 @@ function seatsLoadSnapshot(showToastErr) {
       }
       seatSnap = r;
       currentSeatVersion = r.version;
+      
+      // Clear selection states
+      seatSelectedIds = [];
+      seatSelectedId = null;
+      
       const fb = document.getElementById('seatFrontBand');
       if (fb && r.layout) fb.value = r.layout.frontBand ?? 2;
       const ws = document.getElementById('seatWinStart');
@@ -1808,6 +2044,8 @@ function seatsReloadSilent() {
       if (r && r.success) {
         seatSnap = r;
         currentSeatVersion = r.version;
+        seatSelectedIds = [];
+        seatSelectedId = null;
         seatRenderAll();
         seatUpdateStatusLine();
       }
@@ -1836,16 +2074,7 @@ function bookingBySeat(seatId) {
 
 function seatGetRenderCell() {
   const g = seatSnap?.layout?.grid || { cols: 22, cell: 24 };
-  const baseCell = Number(g.cell) || 24;
-  const cols = Math.max(1, Number(g.cols) || 22);
-  const scroll = document.getElementById('seatMapScroll');
-  if (!scroll || window.innerWidth > 1041) return baseCell;
-
-  const style = getComputedStyle(scroll);
-  const padX = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
-  const fitWidth = Math.max(220, scroll.clientWidth - padX - 4);
-  const fittedCell = Math.floor(fitWidth / cols);
-  return Math.max(14, Math.min(baseCell, fittedCell));
+  return Number(g.cell) || 24;
 }
 
 function seatUpdateSelectedSummary() {
@@ -1862,20 +2091,20 @@ function seatUpdateSelectedSummary() {
 
   if (!seat) {
     box.innerHTML = `
-      <div class="seat-selected-seat">Choose a desk from the map</div>
-      <div class="seat-selected-meta">Tap once to select. Drag up or down to browse the classroom map.</div>
+      <div class="seat-selected-seat">กรุณาเลือกโต๊ะจากแผนผัง</div>
+      <div class="seat-selected-meta">แตะหนึ่งครั้งเพื่อเลือก หรือลากเพื่อเลื่อนดูแผนผังห้องเรียน</div>
     `;
   } else if (booking) {
-    const name = booking.studentName || 'Reserved';
+    const name = booking.studentName || 'จองแล้ว';
     const number = booking.studentNo || '-';
     box.innerHTML = `
-      <div class="seat-selected-seat">Desk ${escapeHtml(seat.label || seat.id)}</div>
-      <div class="seat-selected-meta">Reserved by ${escapeHtml(name)} | No. ${escapeHtml(String(number))}</div>
+      <div class="seat-selected-seat">โต๊ะ ${escapeHtml(seat.label || seat.id)}</div>
+      <div class="seat-selected-meta">จองโดย ${escapeHtml(name)} | เลขที่ ${escapeHtml(String(number))}</div>
     `;
   } else {
     box.innerHTML = `
-      <div class="seat-selected-seat">Desk ${escapeHtml(seat.label || seat.id)}</div>
-      <div class="seat-selected-meta">Available for booking. Enter a 5-digit student code below to confirm.</div>
+      <div class="seat-selected-seat">โต๊ะ ${escapeHtml(seat.label || seat.id)}</div>
+      <div class="seat-selected-meta">ว่างสำหรับการจอง กรุณากรอกรหัสนักเรียน 5 หลักเพื่อยืนยัน</div>
     `;
   }
 
@@ -1938,6 +2167,7 @@ function seatRenderAll() {
   const g = seatSnap.layout.grid || { cols: 22, rows: 16, cell: 24 };
   const cell = seatGetRenderCell();
   const seats = seatSnap.layout.seats || [];
+  
   inner.style.setProperty('--seat-cell', String(cell));
   inner.style.width = `${g.cols * cell}px`;
   inner.style.height = `${g.rows * cell}px`;
@@ -1947,7 +2177,7 @@ function seatRenderAll() {
 
   const fb = Number(seatSnap.layout.frontBand) || 0;
   let html = `
-    <div class="seat-stage-arc"><span>Teacher Zone</span></div>
+    <div class="seat-stage-arc"></div>
     <div class="seat-front-band" style="height:${fb * cell}px;"></div>
   `;
 
@@ -1959,7 +2189,10 @@ function seatRenderAll() {
       const bk = bookingBySeat(st.id);
       const bookedClass = bk ? ' booked' : '';
       const lockedClass = st.lock ? ' locked' : '';
-      const selectedClass = seatSelectedId === st.id ? ' selected' : '';
+      
+      const isSelectedForEdit = canEdit && seatSelectedIds.includes(st.id);
+      const isSelectedForBook = !canEdit && seatSelectedId === st.id;
+      const selectedClass = (isSelectedForEdit || isSelectedForBook) ? ' selected' : '';
       
       let label = `<div class="seat-desk-label">${escapeHtml(st.label || 'Seat')}</div>`;
       if (bk) {
@@ -1982,11 +2215,39 @@ function seatRenderAll() {
     el.addEventListener('click', () => seatOnSelect(el.dataset.seat));
     if (canEdit) seatBindDrag(el, cell, fb);
   });
+  
+  // Apply zoom/fit scaling
+  seatApplyZoomAndFit();
+  
+  // Update bulk selection toolbar details
+  if (canEdit) {
+    const selCount = seatSelectedIds.length;
+    const countText = document.getElementById('seatSelCountText');
+    if (countText) countText.textContent = `เลือกแล้ว ${selCount} โต๊ะ`;
+    
+    const btnAlignTop = document.getElementById('btnAlignTop');
+    const btnAlignLeft = document.getElementById('btnAlignLeft');
+    const btnDeleteSelected = document.getElementById('btnDeleteSelected');
+    
+    if (btnAlignTop) btnAlignTop.disabled = selCount < 2;
+    if (btnAlignLeft) btnAlignLeft.disabled = selCount < 2;
+    if (btnDeleteSelected) btnDeleteSelected.disabled = selCount === 0;
+  }
 }
 
 function seatOnSelect(id) {
   if (Date.now() < seatSuppressClickUntil) return;
-  seatSelectedId = id;
+  
+  if (seatSnap?.canEditLayout) {
+    const idx = seatSelectedIds.indexOf(id);
+    if (idx > -1) {
+      seatSelectedIds.splice(idx, 1);
+    } else {
+      seatSelectedIds.push(id);
+    }
+  } else {
+    seatSelectedId = id;
+  }
   seatRenderAll();
 }
 
@@ -1997,45 +2258,281 @@ function seatBindDrag(el, cell, fb) {
     if (!st || st.lock || st.gy < fb) return;
     ev.preventDefault();
     el.classList.add('dragging');
+    
+    // If the dragged desk is NOT part of the selected desks, make it the ONLY selected desk
+    if (!seatSelectedIds.includes(id)) {
+      seatSelectedIds = [id];
+      seatRenderAll();
+    }
+    
+    // Store original position of ALL selected desks
+    const draggedSeats = seatSnap.layout.seats.filter(s => seatSelectedIds.includes(s.id) && !s.lock && s.gy >= fb);
+    const seatPositions = draggedSeats.map(s => ({
+      id: s.id,
+      ogx: s.gx,
+      ogy: s.gy,
+      gw: s.gw || 3,
+      gh: s.gh || 2,
+      el: document.querySelector(`[data-seat="${s.id}"]`)
+    }));
+    
     seatDragState = {
-      id,
+      draggedId: id,
       startX: ev.clientX,
       startY: ev.clientY,
-      ogx: st.gx,
-      ogy: st.gy,
       cell,
-      gw: st.gw || 3,
-      gh: st.gh || 2,
-      fb
+      fb,
+      positions: seatPositions
     };
+    
     el.setPointerCapture(ev.pointerId);
   });
 
   el.addEventListener('pointermove', ev => {
-    if (!seatDragState || seatDragState.id !== el.dataset.seat) return;
+    if (!seatDragState || seatDragState.draggedId !== el.dataset.seat) return;
     const dx = ev.clientX - seatDragState.startX;
     const dy = ev.clientY - seatDragState.startY;
-    let ngx = seatDragState.ogx + Math.round(dx / seatDragState.cell);
-    let ngy = seatDragState.ogy + Math.round(dy / seatDragState.cell);
-    const st = seatSnap.layout.seats.find(s => s.id === seatDragState.id);
-    if (!st) return;
-    const gw = seatDragState.gw;
-    const gh = seatDragState.gh;
+    const cell = seatDragState.cell;
+    
+    // Calculate grid step delta
+    const dgx = Math.round(dx / cell);
+    const dgy = Math.round(dy / cell);
+    
     const g = seatSnap.layout.grid;
-    st.gx = Math.max(0, Math.min((g.cols || 22) - gw, ngx));
-    st.gy = Math.max(seatDragState.fb, Math.min((g.rows || 16) - gh, ngy));
-
-    el.style.left = `${st.gx * seatDragState.cell}px`;
-    el.style.top = `${st.gy * seatDragState.cell}px`;
+    const cols = g.cols || 22;
+    const rows = g.rows || 16;
+    
+    // Move ALL desks in the selection by the delta
+    seatDragState.positions.forEach(pos => {
+      const st = seatSnap.layout.seats.find(s => s.id === pos.id);
+      if (!st) return;
+      
+      st.gx = Math.max(0, Math.min(cols - pos.gw, pos.ogx + dgx));
+      st.gy = Math.max(seatDragState.fb, Math.min(rows - pos.gh, pos.ogy + dgy));
+      
+      // Update DOM style elements directly for smooth dragging
+      if (pos.el) {
+        pos.el.style.left = `${st.gx * cell}px`;
+        pos.el.style.top = `${st.gy * cell}px`;
+      }
+    });
   });
 
   el.addEventListener('pointerup', ev => {
-    if (seatDragState && seatDragState.id === el.dataset.seat) {
+    if (seatDragState && seatDragState.draggedId === el.dataset.seat) {
       el.classList.remove('dragging');
       seatDragState = null;
       try { el.releasePointerCapture(ev.pointerId); } catch (_) {}
+      seatRenderAll(); // final render to snap positions perfectly
     }
   });
+}
+
+// --- Zoom & Fit Utilities ---
+function seatApplyZoomAndFit() {
+  const scroll = document.getElementById('seatMapScroll');
+  const outer = document.getElementById('seatScaleOuter');
+  const wrapper = document.getElementById('seatMapScaleWrapper');
+  const inner = document.getElementById('seatMapInner');
+  
+  if (!scroll || !outer || !wrapper || !inner || !seatSnap || !seatSnap.layout) return;
+  
+  const g = seatSnap.layout.grid || { cols: 22, rows: 16, cell: 24 };
+  const cell = Number(g.cell) || 24;
+  const W = g.cols * cell;
+  const H = g.rows * cell;
+  
+  let S = currentZoomLevel;
+  
+  // Update checkbox state
+  const fitCheck = document.getElementById('seatAutoFitCheck');
+  if (fitCheck) {
+    isAutoFitEnabled = fitCheck.checked;
+  }
+  
+  if (isAutoFitEnabled) {
+    const padX = 32; // padding of seatMapScroll
+    const availW = scroll.clientWidth - padX;
+    S = Math.min(1.2, availW / W);
+    // Update zoom slider and percentage text
+    const slider = document.getElementById('seatZoomSlider');
+    if (slider) slider.value = S.toFixed(2);
+  }
+  
+  const pctText = document.getElementById('seatZoomPercent');
+  if (pctText) pctText.textContent = `${Math.round(S * 100)}%`;
+  
+  // Set physical sizes of outer container to match the scaled dimensions
+  outer.style.width = `${W * S}px`;
+  outer.style.height = `${Math.max(H * S, 250 * S)}px`;
+  
+  // Set wrapper constraints
+  wrapper.style.transform = `scale(${S})`;
+  wrapper.style.width = `${W}px`;
+  wrapper.style.height = `${Math.max(H, 250)}px`;
+}
+
+function seatSetZoomFromSlider(val) {
+  const fitCheck = document.getElementById('seatAutoFitCheck');
+  if (fitCheck) fitCheck.checked = false; // Turn off Auto-fit when user manually interacts with slider
+  isAutoFitEnabled = false;
+  currentZoomLevel = Number(val);
+  seatApplyZoomAndFit();
+}
+
+function seatAdjustZoom(delta) {
+  const fitCheck = document.getElementById('seatAutoFitCheck');
+  if (fitCheck) fitCheck.checked = false;
+  isAutoFitEnabled = false;
+  
+  currentZoomLevel = Math.max(0.4, Math.min(1.5, currentZoomLevel + delta));
+  const slider = document.getElementById('seatZoomSlider');
+  if (slider) slider.value = currentZoomLevel.toFixed(2);
+  
+  seatApplyZoomAndFit();
+}
+
+function seatToggleAutoFit(checked) {
+  isAutoFitEnabled = checked;
+  seatApplyZoomAndFit();
+}
+
+// --- Bulk Desk Utilities ---
+function seatSelectAll() {
+  if (!seatSnap?.layout?.seats) return;
+  seatSelectedIds = seatSnap.layout.seats.map(s => s.id);
+  seatRenderAll();
+}
+
+function seatClearSelection() {
+  seatSelectedIds = [];
+  seatRenderAll();
+}
+
+function seatAlignSelected(direction) {
+  if (seatSelectedIds.length < 2) return;
+  const seats = seatSnap.layout.seats.filter(s => seatSelectedIds.includes(s.id));
+  if (direction === 'top') {
+    // Find top-most Y (minimum gy)
+    let minY = Infinity;
+    seats.forEach(s => minY = Math.min(minY, s.gy));
+    seats.forEach(s => s.gy = minY);
+    showToast('จัดระดับแนวตั้งตรงกันแล้ว — อย่าลืมกดบันทึกแผนผัง', 'info');
+  } else if (direction === 'left') {
+    // Find left-most X (minimum gx)
+    let minX = Infinity;
+    seats.forEach(s => minX = Math.min(minX, s.gx));
+    seats.forEach(s => s.gx = minX);
+    showToast('จัดระดับแนวนอนตรงกันแล้ว — อย่าลืมกดบันทึกแผนผัง', 'info');
+  }
+  seatRenderAll();
+}
+
+function seatDeleteSelected() {
+  if (seatSelectedIds.length === 0) return;
+  if (!confirm(`ต้องการลบโต๊ะที่เลือกทั้งหมด ${seatSelectedIds.length} โต๊ะหรือไม่?`)) return;
+  
+  // Remove from layout
+  seatSnap.layout.seats = seatSnap.layout.seats.filter(s => !seatSelectedIds.includes(s.id));
+  
+  // Clear selection
+  seatSelectedIds = [];
+  seatRenderAll();
+  showToast('ลบโต๊ะที่เลือกเรียบร้อยแล้ว — อย่าลืมกดบันทึกแผนผัง', 'warning');
+}
+
+function seatApplyTemplate(templateId) {
+  if (!seatSnap?.canEditLayout) return;
+  const val = templateId;
+  if (!val) { showToast('กรุณาเลือกแม่แบบก่อน', 'error'); return; }
+
+  let xs = [];
+  let ys = [];
+  let cols = 22;
+  let rows = 16;
+  
+  if (val === 'temp1') {
+    xs = [0, 3, 8, 11, 16, 19, 24, 27, 32, 35];
+    ys = [2, 5, 8, 11];
+    cols = 38;
+    rows = 14;
+  } else if (val === 'temp2') {
+    xs = [0, 3, 8, 11, 16, 19, 24, 27];
+    ys = [2, 5, 8, 11, 14];
+    cols = 30;
+    rows = 17;
+  } else if (val === 'temp3') {
+    xs = [0, 3, 8, 11, 14, 21, 24, 27, 32, 35];
+    ys = [2, 5, 8, 11, 14];
+    cols = 38;
+    rows = 17;
+  }
+  
+  const positions = [];
+  ys.forEach(y => {
+    xs.forEach(x => {
+      positions.push({ gx: x, gy: y, gw: 3, gh: 2 });
+    });
+  });
+
+  const confirmMsg = `การจัดที่นั่งตามแม่แบบจะปรับขนาดตารางเป็น ${cols}x${rows} และจัดวางตำแหน่งโต๊ะใหม่ทั้งหมด ${positions.length} โต๊ะ\n\nต้องการดำเนินการต่อหรือไม่?`;
+  if (!confirm(confirmMsg)) return;
+
+  // Set grid dimensions
+  seatSnap.layout.grid.cols = cols;
+  seatSnap.layout.grid.rows = rows;
+  
+  const existingSeats = [...(seatSnap.layout.seats || [])];
+  const newSeats = [];
+  
+  for (let i = 0; i < positions.length; i++) {
+    const pos = positions[i];
+    if (i < existingSeats.length) {
+      // Reuse existing seat
+      const seat = existingSeats[i];
+      seat.gx = pos.gx;
+      seat.gy = pos.gy;
+      seat.gw = pos.gw;
+      seat.gh = pos.gh;
+      newSeats.push(seat);
+    } else {
+      // Create new seat
+      newSeats.push({
+        id: 'S_' + Math.random().toString(36).slice(2, 10),
+        gx: pos.gx,
+        gy: pos.gy,
+        gw: pos.gw,
+        gh: pos.gh,
+        label: String(i + 1),
+        lock: false
+      });
+    }
+  }
+  
+  // If there are more existing seats than template capacity, keep booked seats at the bottom
+  if (existingSeats.length > positions.length) {
+    const extraSeats = existingSeats.slice(positions.length);
+    let overflowY = rows;
+    extraSeats.forEach(seat => {
+      const bk = bookingBySeat(seat.id);
+      if (bk) {
+        seat.gx = 0;
+        seat.gy = overflowY;
+        seat.gw = 3;
+        seat.gh = 2;
+        newSeats.push(seat);
+        overflowY += 3;
+        if (overflowY >= seatSnap.layout.grid.rows) {
+          seatSnap.layout.grid.rows = overflowY + 2;
+        }
+      }
+    });
+  }
+
+  seatSnap.layout.seats = newSeats;
+  seatSelectedIds = [];
+  seatRenderAll();
+  showToast('จัดวางโต๊ะตามแม่แบบเรียบร้อยแล้ว — อย่าลืมกดบันทึกแผนผัง', 'success', 5000);
 }
 
 function seatSaveLayoutNow() {
@@ -2420,9 +2917,48 @@ function showApp() {
   loadMasters();
   startAutoRefresh();
   resetLoadingOverlay();
+  updateNotifBadges();
+  updateNotifBtnState();
 
   timetableRefresh();
   seatsLoadSnapshot(false);
+}
+
+function togglePushNotifications() {
+  if (!("Notification" in window)) {
+    showToast('เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน', 'error');
+    return;
+  }
+  
+  if (Notification.permission === "granted") {
+    showToast('คุณได้เปิดการแจ้งเตือนเรียบร้อยแล้ว', 'success');
+  } else if (Notification.permission !== "denied") {
+    Notification.requestPermission().then(permission => {
+      if (permission === "granted") {
+        showToast('เปิดการแจ้งเตือนสำเร็จ!', 'success');
+        updateNotifBtnState();
+      }
+    });
+  } else {
+    showToast('คุณได้ปิดการแจ้งเตือนไว้ กรุณาเปิดในตั้งค่าเบราว์เซอร์', 'warning');
+  }
+}
+
+function updateNotifBtnState() {
+  const btn = document.getElementById('btnPushNotif');
+  if (!btn) return;
+  if (!("Notification" in window)) {
+    btn.style.display = 'none';
+    return;
+  }
+  if (Notification.permission === "granted") {
+    btn.innerHTML = '<i class="fas fa-check-circle"></i> การแจ้งเตือนเปิดอยู่';
+    btn.classList.replace('btn-secondary', 'btn-success');
+    btn.disabled = true;
+  } else if (Notification.permission === "denied") {
+    btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> การแจ้งเตือนถูกบล็อก';
+    btn.classList.replace('btn-secondary', 'btn-danger');
+  }
 }
 
 // --- Load Masters ---
@@ -2441,6 +2977,47 @@ function loadMasters() {
       loadAll();
     })
     .getStudents();
+}
+
+function populateMoneyStudents() {
+  const container = document.getElementById('mStudentSelection');
+  if (!container) return;
+  container.innerHTML = '';
+  
+  students.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'template-item'; // reuse template-item style for selection
+    div.style.padding = '5px';
+    div.style.fontSize = '0.75rem';
+    div.dataset.no = s.no;
+    div.textContent = `${s.no}. ${s.name.split(' ')[0]}`;
+    div.classList.add('active'); // Default to selected
+    div.onclick = () => {
+      div.classList.toggle('active');
+      updateMTargetList();
+    };
+    container.appendChild(div);
+  });
+  updateMTargetList();
+}
+
+function updateMTargetList() {
+  const container = document.getElementById('mStudentSelection');
+  const input = document.getElementById('mTargetList');
+  if (!container || !input) return;
+  const selected = Array.from(container.querySelectorAll('.template-item.active'))
+                        .map(el => el.dataset.no);
+  input.value = selected.join(',');
+}
+
+function mSelectAll() {
+  document.querySelectorAll('#mStudentSelection .template-item').forEach(el => el.classList.add('active'));
+  updateMTargetList();
+}
+
+function mClearAll() {
+  document.querySelectorAll('#mStudentSelection .template-item').forEach(el => el.classList.remove('active'));
+  updateMTargetList();
 }
 
 function populateSubjects() {
@@ -2477,14 +3054,29 @@ function loadAll() {
         currentHwCount = hwData.length;
         currentTrCount = moneyData.length;
         currentLvCount = leaveData.length;
+
+        updateNotifBadges();
       }
       timetableRefresh();
     })
     .withFailureHandler(err => {
       console.error('getDashboardData failed:', err);
-      // fallback or retry? for now just log
     })
     .getDashboardData();
+}
+
+function updateNotifBadges() {
+  const pendingHw = hwData.filter(h => !h.noDueDate && new Date(h.dueDate) >= new Date()).length;
+  const pendingMoney = moneyData.filter(m => u.studentNo && m.payments[u.studentNo] && !m.payments[u.studentNo].isComplete).length;
+  const pendingLeave = u.canApproveLeave ? leaveData.filter(l => l.status === 'PENDING').length : 0;
+
+  const bHw = document.getElementById('notifHw');
+  const bMoney = document.getElementById('notifMoney');
+  const bLeave = document.getElementById('notifLeave');
+
+  if (bHw) { bHw.textContent = pendingHw; bHw.style.display = pendingHw > 0 ? 'flex' : 'none'; }
+  if (bMoney) { bMoney.textContent = pendingMoney; bMoney.style.display = pendingMoney > 0 ? 'flex' : 'none'; }
+  if (bLeave) { bLeave.textContent = pendingLeave; bLeave.style.display = pendingLeave > 0 ? 'flex' : 'none'; }
 }
 
 function manualRefresh() { loadAll(); showToast('รีเฟรชข้อมูลแล้ว', 'info', 2000); }
@@ -2560,12 +3152,12 @@ function loadHw() {
     .withSuccessHandler(r => {
       if (r && r.success) hwData = Array.isArray(r.homework) ? r.homework : [];
       else if (r && Array.isArray(r.data)) hwData = r.data;
-      else if (Array.isArray(hwData)) {} 
+      else if (Array.isArray(hwData)) {}
       else hwData = [];
       renderHw();
       currentHwCount = hwData.length;
-    })
-    .withFailureHandler(err => {
+      updateNotifBadges();
+    })    .withFailureHandler(err => {
       console.error('loadHw failed', err);
       if (!hwData.length && el) el.innerHTML = '<p style="text-align:center;color:var(--danger);padding:20px;">เชื่อมต่อไม่ได้</p>';
     })
@@ -2718,21 +3310,37 @@ function hwToggleDone(hid, isCurrentlyDone, imagePath) {
 
 function doAddHw(e) {
   e.preventDefault();
-  const btn = e.target.querySelector('button[type="submit"]');
-  const restoreBtn = btnLoading(btn); // เปลี่ยนปุ่มเป็นสถานะโหลด (ปุ่มจะไม่บังหน้าจอ)
+  const sub = document.getElementById('hwSub').value;
+  const desc = document.getElementById('hwDesc').value.trim();
+  const ad = document.getElementById('hwDate').value;
+  const dd = document.getElementById('hwDue').value;
+  const nd = document.getElementById('hwNoDue').checked;
+  const by = u.displayName;
 
-  const data = { /* ดึงค่าจากฟอร์ม */ };
+  if (!sub || !desc) {
+    showToast('กรุณากรอกข้อมูลให้ครบถ้วน', 'error');
+    return;
+  }
+
+  const btn = e.submitter || e.target.querySelector('button[type="submit"]');
+  const restoreBtn = btnLoading(btn);
 
   google.script.run
     .withSuccessHandler(r => {
-       restoreBtn(); // คืนค่าปุ่มเดิม
-       if(r.success) {
-         showToast('บันทึกสำเร็จ!', 'success');
-         closeModal('modalHw');
-         loadHw();
-       }
+      restoreBtn();
+      if (r.success) {
+        showToast('บันทึกสำเร็จ!', 'success');
+        closeModal('modalHw');
+        loadHw();
+      } else {
+        showToast(r.message || 'บันทึกไม่สำเร็จ', 'error');
+      }
     })
-    .addHomework(data);
+    .withFailureHandler(() => {
+      restoreBtn();
+      showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
+    })
+    .addHomework(sub, desc, ad, dd, nd, by);
 }
 
 function delHw(id) { 
@@ -2760,6 +3368,7 @@ function loadMoney() {
       else moneyData = [];
       currentTrCount = moneyData.length;
       renderMoney();
+      updateNotifBadges();
     })
     .withFailureHandler(() => {
       if (!moneyData.length && el) el.innerHTML = '<p style="text-align:center;color:var(--danger);padding:20px;">เชื่อมต่อไม่ได้</p>';
@@ -2900,6 +3509,7 @@ function loadLeave() {
       else leaveData = [];
       renderLeave();
       currentLvCount = leaveData.filter(l => l.status === 'PENDING').length;
+      updateNotifBadges();
     })
     .withFailureHandler(() => {
       if (!leaveData.length) document.getElementById('listLeave').innerHTML = '<p style="text-align:center;color:var(--danger);padding:20px;">เชื่อมต่อไม่ได้</p>';
