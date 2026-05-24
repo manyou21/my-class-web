@@ -314,113 +314,112 @@ function ensureSheetsExist() {
 }
 
 function formatSheets(specificSheetName = null) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheets = specificSheetName ? [ss.getSheetByName(specificSheetName)] : ss.getSheets();
-  
-  // สร้าง Color Map สำหรับเติมข้อมูลย้อนหลัง
-  const colorMap = {};
   try {
-    const hwData = ss.getSheetByName(SHEETS.HOMEWORK).getDataRange().getValues();
-    hwData.slice(1).forEach(r => colorMap[r[0]] = r[8]);
-    const trData = ss.getSheetByName(SHEETS.TREASURY).getDataRange().getValues();
-    trData.slice(1).forEach(r => colorMap[r[0]] = r[6]);
-  } catch(e) {}
-
-  sheets.forEach(sheet => {
-    if (!sheet) return;
-    const name = sheet.getName();
-    const lastCol = sheet.getLastColumn();
-    const lastRow = sheet.getLastRow();
-    if (lastCol === 0) return;
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheets = specificSheetName ? [ss.getSheetByName(specificSheetName)] : ss.getSheets();
     
-    // 1. จัดรูปแบบหัวข้อ (Header)
-    const headerRange = sheet.getRange(1, 1, 1, lastCol);
-    headerRange.setBackground('#1e293b') // Slate 800
-               .setFontColor('#ffffff')
-               .setFontWeight('bold')
-               .setHorizontalAlignment('center')
-               .setVerticalAlignment('middle')
-               .setFontSize(10)
-               .setFontFamily('Prompt');
-    
-    sheet.setFrozenRows(1);
-    
-    // 2. ซ่อนคอลัมน์ที่เป็นข้อมูลทางเทคนิค (ID, JSON, Hash, Token, UUID)
-    const headers = headerRange.getValues()[0];
-    const techKeywords = ['ID', 'JSON', 'HASH', 'TOKEN', 'UUID'];
-    
-    headers.forEach((header, index) => {
-      const hStr = String(header).toUpperCase();
-      if (techKeywords.some(key => hStr.includes(techKeywords.includes(hStr) ? key : key))) {
-         // ตรวจสอบ keyword ในหัวข้อ
-         if (techKeywords.some(key => hStr.includes(key))) {
-           sheet.hideColumns(index + 1);
-         }
+    // สร้าง Color Map สำหรับเติมข้อมูลย้อนหลัง
+    const colorMap = {};
+    try {
+      const hwSheet = ss.getSheetByName(SHEETS.HOMEWORK);
+      if (hwSheet) {
+        const hwData = hwSheet.getDataRange().getValues();
+        hwData.slice(1).forEach(r => { if(r[0]) colorMap[r[0]] = r[8]; });
       }
-      // พิเศษสำหรับคอลัมน์แรกที่เป็น ID ยาวๆ
-      if (index === 0 && (hStr.includes('ID') || hStr.includes('CODE') || hStr.length < 4)) {
-        // ซ่อนคอลัมน์แรกถ้าเข้าข่าย (ยกเว้นบางกรณี)
-        if (name !== SHEETS.STUDENT_CODES) sheet.hideColumns(1);
+      const trSheet = ss.getSheetByName(SHEETS.TREASURY);
+      if (trSheet) {
+        const trData = trSheet.getDataRange().getValues();
+        trData.slice(1).forEach(r => { if(r[0]) colorMap[r[0]] = r[6]; });
+      }
+    } catch(e) { Logger.log('ColorMap Error: ' + e.message); }
+
+    sheets.forEach(sheet => {
+      if (!sheet) return;
+      const name = sheet.getName();
+      const lastCol = sheet.getLastColumn();
+      const lastRow = sheet.getLastRow();
+      if (lastCol === 0) return;
+      
+      const headerRange = sheet.getRange(1, 1, 1, lastCol);
+      headerRange.setBackground('#1e293b') // Slate 800
+                 .setFontColor('#ffffff')
+                 .setFontWeight('bold')
+                 .setHorizontalAlignment('center')
+                 .setVerticalAlignment('middle')
+                 .setFontSize(10)
+                 .setFontFamily('Prompt');
+      
+      try { sheet.setFrozenRows(1); } catch(e) {}
+      
+      // 2. ซ่อนคอลัมน์ที่เป็นข้อมูลทางเทคนิค
+      const headers = headerRange.getValues()[0];
+      const techKeywords = ['ID', 'JSON', 'HASH', 'TOKEN', 'UUID'];
+      
+      headers.forEach((header, index) => {
+        const hStr = String(header || '').toUpperCase();
+        if (techKeywords.some(key => hStr.includes(key))) {
+           sheet.hideColumns(index + 1);
+        }
+        if (index === 0 && (hStr.includes('ID') || hStr.includes('CODE') || hStr.length < 4)) {
+          if (name !== SHEETS.STUDENT_CODES) sheet.hideColumns(1);
+        }
+      });
+
+      // 3. ปรับความกว้างคอลัมน์
+      for (let i = 1; i <= lastCol; i++) {
+        try {
+          if (sheet.isColumnHiddenByUser(i)) continue;
+          sheet.autoResizeColumn(i);
+          let width = sheet.getColumnWidth(i);
+          if (width > 300) sheet.setColumnWidth(i, 300);
+          if (width < 80) sheet.setColumnWidth(i, 80);
+        } catch(e) {}
+      }
+
+      // 4. จัดกลุ่มและสี
+      if (lastRow > 1) {
+        const contentRange = sheet.getRange(2, 1, lastRow - 1, lastCol);
+        contentRange.setFontFamily('Prompt').setFontSize(9).setVerticalAlignment('middle');
+        
+        // ล้างรูปแบบสี/สลับบรรทัดเดิมอย่างปลอดภัย
+        try { contentRange.getBandings().forEach(b => b.remove()); } catch(e) {}
+
+        const colorSheets = [SHEETS.HOMEWORK, SHEETS.HOMEWORK_STATUS, SHEETS.TREASURY, SHEETS.TREASURY_PAYMENTS];
+        if (colorSheets.includes(name)) {
+          const data = contentRange.getValues();
+          let colorColIdx = -1;
+          if (name === SHEETS.HOMEWORK) colorColIdx = 8;
+          if (name === SHEETS.HOMEWORK_STATUS) colorColIdx = 6;
+          if (name === SHEETS.TREASURY) colorColIdx = 6;
+          if (name === SHEETS.TREASURY_PAYMENTS) colorColIdx = 5;
+
+          if (colorColIdx !== -1) {
+            const bgColors = data.map((row, i) => {
+              let rowColor = row[colorColIdx];
+              if (!rowColor || !/^#[0-9A-F]{6}$/i.test(rowColor)) {
+                rowColor = colorMap[row[0]] || '#ffffff';
+                if (rowColor !== '#ffffff' && colorColIdx < lastCol) try { sheet.getRange(i + 2, colorColIdx + 1).setValue(rowColor); } catch(e) {}
+              }
+              return Array(lastCol).fill(rowColor);
+            });
+            try { contentRange.setBackgrounds(bgColors); } catch(e) { contentRange.setBackground('#ffffff'); }
+          }
+        } else {
+          try { contentRange.applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY, false, false); } catch(e) {}
+        }
       }
     });
 
-    // 3. ปรับความกว้างคอลัมน์อัตโนมัติ (เฉพาะตัวที่ยังแสดงอยู่)
-    for (let i = 1; i <= lastCol; i++) {
-      if (sheet.isColumnHiddenByUser(i)) continue;
-      sheet.autoResizeColumn(i);
-      let width = sheet.getColumnWidth(i);
-      if (width > 300) sheet.setColumnWidth(i, 300);
-      if (width < 80) sheet.setColumnWidth(i, 80);
-    }
-
-    // 4. จัดกลุ่มข้อมูล (Sorting) สำหรับชีตสถานะ/การจ่ายเงิน
-    if (lastRow > 1) {
-      if (name === SHEETS.HOMEWORK_STATUS || name === SHEETS.TREASURY_PAYMENTS) {
-        sheet.getRange(2, 1, lastRow - 1, lastCol).sort([{column: 1, ascending: true}, {column: 2, ascending: true}]);
-      }
-
-      const contentRange = sheet.getRange(2, 1, lastRow - 1, lastCol);
-      contentRange.setFontFamily('Prompt').setFontSize(9).setVerticalAlignment('middle');
-      
-      contentRange.getBandings().forEach(b => b.remove());
-
-      const colorSheets = [SHEETS.HOMEWORK, SHEETS.HOMEWORK_STATUS, SHEETS.TREASURY, SHEETS.TREASURY_PAYMENTS];
-      if (colorSheets.includes(name)) {
-        const data = contentRange.getValues();
-        let colorColIdx = -1;
-        if (name === SHEETS.HOMEWORK) colorColIdx = 8;
-        if (name === SHEETS.HOMEWORK_STATUS) colorColIdx = 6;
-        if (name === SHEETS.TREASURY) colorColIdx = 6;
-        if (name === SHEETS.TREASURY_PAYMENTS) colorColIdx = 5;
-
-        if (colorColIdx !== -1) {
-          const bgColors = data.map((row, i) => {
-            let rowColor = row[colorColIdx];
-            
-            // เติมสีที่หายไปจาก Color Map (ข้อมูลเก่า)
-            if (!rowColor || !/^#[0-9A-F]{6}$/i.test(rowColor)) {
-              rowColor = colorMap[row[0]] || '#ffffff';
-              if (rowColor !== '#ffffff') sheet.getRange(i + 2, colorColIdx + 1).setValue(rowColor);
-            }
-            
-            return Array(lastCol).fill(rowColor);
-          });
-          contentRange.setBackgrounds(bgColors);
-        }
-      } else {
-        contentRange.applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY, false, false);
+    if (!specificSheetName || specificSheetName === SHEETS.USERS) {
+      const userSheet = ss.getSheetByName(SHEETS.USERS);
+      if (userSheet && userSheet.getLastRow() > 1) {
+        try { userSheet.getRange(2, 4, userSheet.getLastRow() - 1, 1).setFontColor('#94a3b8').setFontSize(8); } catch(e) {}
       }
     }
-  });
-
-  // จัดรูปแบบพิเศษสำหรับชีต Users
-  if (!specificSheetName || specificSheetName === SHEETS.USERS) {
-    const userSheet = ss.getSheetByName(SHEETS.USERS);
-    if (userSheet && userSheet.getLastRow() > 1) {
-      userSheet.getRange(2, 4, userSheet.getLastRow() - 1, 1).setFontColor('#94a3b8').setFontSize(8);
-    }
+    SpreadsheetApp.flush();
+  } catch (err) {
+    Logger.log('Critical Error in formatSheets: ' + err.message);
   }
-  SpreadsheetApp.flush();
 }
 // ============================================
 // 🔐 AUTHENTICATION
@@ -1875,129 +1874,4 @@ function seatListActiveSessions(userId) {
 function getDashboardData() { try { ensureSheetsExist(); const ss = SpreadsheetApp.openById(SPREADSHEET_ID); const hw = getHomework(ss); const tr = getTreasuryItems(ss); const lv = getLeaveRequests(ss); return { success: true, homework: hw.homework || [], treasury: tr.treasury || [], leaveRequests: lv || [] }; } catch (e) { return { success: false, message: e.toString() }; } }
 
 function getCounts() { try { ensureSheetsExist(); const ss = SpreadsheetApp.openById(SPREADSHEET_ID); const hwCount = ss.getSheetByName(SHEETS.HOMEWORK).getLastRow() - 1; const trCount = ss.getSheetByName(SHEETS.TREASURY).getLastRow() - 1; const lvCount = ss.getSheetByName(SHEETS.LEAVE_REQUESTS).getLastRow() - 1; const trPayCounter = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS).getLastRow() - 1; const seatMeta = ss.getSheetByName(SHEETS.SEAT_META); let seatVersion = 0; if (seatMeta && seatMeta.getLastRow() >= 2) { seatVersion = Number(seatMeta.getRange(2, 5).getValue()) || 0; } return { success: true, hwCount, trCount, lvCount, trPayCounter, seatVersion }; } catch (e) { return { success: false, message: e.toString() }; } }
-
-// ============================================
-// 🎨 FORMAT ALL SHEETS — รันครั้งเดียวใน GAS Editor
-// ============================================
-function formatAllSheets() {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-
-  // ── config สีหัวตาราง แต่ละ sheet ──────────────────────────────
-  const SHEET_STYLES = {
-    [SHEETS.USERS]:             { bg: '#1e40af', fg: '#ffffff', emoji: '👤' },
-    [SHEETS.HOMEWORK]:          { bg: '#15803d', fg: '#ffffff', emoji: '📝' },
-    [SHEETS.HOMEWORK_STATUS]:   { bg: '#166534', fg: '#ffffff', emoji: '✅' },
-    [SHEETS.TREASURY]:          { bg: '#b45309', fg: '#ffffff', emoji: '💰' },
-    [SHEETS.TREASURY_PAYMENTS]: { bg: '#92400e', fg: '#ffffff', emoji: '💳' },
-    [SHEETS.LEAVE_REQUESTS]:    { bg: '#7c3aed', fg: '#ffffff', emoji: '🚪' },
-    [SHEETS.STUDENT_CODES]:     { bg: '#0e7490', fg: '#ffffff', emoji: '🎓' },
-    [SHEETS.REDEEM_CODES]:      { bg: '#be185d', fg: '#ffffff', emoji: '🎟️' },
-    [SHEETS.TIMETABLE]:         { bg: '#0f766e', fg: '#ffffff', emoji: '📅' },
-    [SHEETS.SEAT_META]:         { bg: '#4338ca', fg: '#ffffff', emoji: '🪑' },
-    [SHEETS.SEAT_BOOKINGS]:     { bg: '#3730a3', fg: '#ffffff', emoji: '📌' },
-    [SHEETS.SEAT_EDIT_CODES]:   { bg: '#6d28d9', fg: '#ffffff', emoji: '🔑' },
-    [SHEETS.SEAT_EDIT_SESSIONS]:{ bg: '#5b21b6', fg: '#ffffff', emoji: '🔐' },
-  };
-
-  // ── column widths แต่ละ sheet ───────────────────────────────────
-  const COL_WIDTHS = {
-    [SHEETS.USERS]: [220, 160, 200, 280, 160, 80, 120, 160, 160, 160, 80],
-    [SHEETS.HOMEWORK]: [220, 120, 300, 120, 120, 80, 160, 160, 100],
-    [SHEETS.HOMEWORK_STATUS]: [220, 80, 100, 300, 160, 200, 100],
-    [SHEETS.TREASURY]: [220, 200, 100, 160, 160, 100, 100],
-    [SHEETS.TREASURY_PAYMENTS]: [220, 80, 100, 160, 200],
-    [SHEETS.LEAVE_REQUESTS]: [220, 80, 160, 120, 120, 300, 100, 300, 80, 160],
-    [SHEETS.STUDENT_CODES]: [80, 100, 200, 100],
-    [SHEETS.REDEEM_CODES]: [160, 120, 100, 300, 80, 80, 120, 160, 200, 300, 200],
-    [SHEETS.TIMETABLE]: [300, 300, 160, 160],
-    [SHEETS.SEAT_META]: [400, 160, 160, 80, 80, 160],
-    [SHEETS.SEAT_BOOKINGS]: [160, 80, 200, 220, 160],
-    [SHEETS.SEAT_EDIT_CODES]: [220, 280, 160, 220, 160, 80],
-    [SHEETS.SEAT_EDIT_SESSIONS]: [280, 220, 160],
-  };
-
-  const sheetNames = Object.values(SHEETS);
-
-  sheetNames.forEach(name => {
-    const sh = ss.getSheetByName(name);
-    if (!sh || sh.getLastRow() < 1) return;
-
-    const style  = SHEET_STYLES[name] || { bg: '#374151', fg: '#ffffff', emoji: '📋' };
-    const widths = COL_WIDTHS[name] || [];
-    const lastCol = sh.getLastColumn();
-    const lastRow = sh.getLastRow();
-
-    // 1. ตั้งค่า row height
-    sh.setRowHeight(1, 36); // header สูงขึ้น
-    if (lastRow > 1) sh.setRowHeightsForced(2, lastRow - 1, 28);
-
-    // 2. จัดรูปแบบ header row
-    const headerRange = sh.getRange(1, 1, 1, lastCol);
-    headerRange
-      .setBackground(style.bg)
-      .setFontColor(style.fg)
-      .setFontWeight('bold')
-      .setFontSize(11)
-      .setVerticalAlignment('middle')
-      .setHorizontalAlignment('center')
-      .setWrap(false);
-
-    // เพิ่ม emoji หน้าชื่อ sheet ใน header แรก
-    const firstCell = sh.getRange(1, 1);
-    const firstVal  = String(firstCell.getValue());
-    if (!firstVal.startsWith(style.emoji)) {
-      firstCell.setValue(style.emoji + ' ' + firstVal);
-    }
-
-    // 3. จัดรูปแบบ data rows
-    if (lastRow > 1) {
-      const dataRange = sh.getRange(2, 1, lastRow - 1, lastCol);
-      dataRange
-        .setFontSize(10)
-        .setVerticalAlignment('middle')
-        .setFontColor('#1e293b')
-        .setWrap(false);
-
-      // สลับสีแถว (zebra striping)
-      for (let r = 2; r <= lastRow; r++) {
-        const rowRange = sh.getRange(r, 1, 1, lastCol);
-        rowRange.setBackground(r % 2 === 0 ? '#f8fafc' : '#ffffff');
-      }
-    }
-
-    // 4. ตั้งความกว้าง column
-    widths.forEach((w, idx) => {
-      if (idx < lastCol) sh.setColumnWidth(idx + 1, w);
-    });
-    // column ที่เกินจาก widths ให้ auto-resize
-    for (let c = widths.length + 1; c <= lastCol; c++) {
-      sh.autoResizeColumn(c);
-    }
-
-    // 5. Freeze header row
-    sh.setFrozenRows(1);
-
-    // 6. ขีดเส้นกรอบ
-    if (lastRow > 0) {
-      sh.getRange(1, 1, lastRow, lastCol)
-        .setBorder(true, true, true, true, true, true,
-          '#cbd5e1', SpreadsheetApp.BorderStyle.SOLID);
-    }
-
-    // 7. ซ่อน gridlines ด้วยการตั้งสีพื้นหลัง sheet (ทำได้ผ่าน tab color)
-    sh.setTabColor(style.bg);
-  });
-
-  // ── จัด column พิเศษ: PasswordHash ใน Users ให้แคบและซ่อนบางส่วน ──
-  const userSheet = ss.getSheetByName(SHEETS.USERS);
-  if (userSheet && userSheet.getLastRow() > 1) {
-    // column D = PasswordHash → ทำตัวอักษรสีเทาอ่านยาก
-    userSheet.getRange(2, 4, userSheet.getLastRow() - 1, 1)
-      .setFontColor('#94a3b8')
-      .setFontSize(8);
-  }
-
-  SpreadsheetApp.flush();
-  return '✅ จัดรูปแบบ Sheets เสร็จแล้ว!';
-}
 
