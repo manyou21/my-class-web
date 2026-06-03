@@ -1536,7 +1536,7 @@ function loadAll() {
 
         updateNotifBadges();
       }
-      timetableRefresh();
+      // timetableRefresh ย้ายออกจากที่นี่แล้ว — เรียกเฉพาะเมื่อเปิด tab ตารางเรียน
     })
     .withFailureHandler(err => {
       console.error('getDashboardData failed:', err);
@@ -1562,7 +1562,11 @@ function manualRefresh() { loadAll(); showToast('รีเฟรชข้อม�
 
 function startAutoRefresh() {
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-  autoRefreshTimer = setInterval(checkChanges, 3000); // ลดเหลือ 3 วินาที
+  // เพิ่มจาก 3s → 15s: cache ของ server มี TTL 5 นาที, poll ถี่กว่านั้นไม่มีประโยชน์
+  autoRefreshTimer = setInterval(() => {
+    // หยุด poll เมื่อ browser tab ถูก minimize หรือ user ไม่ได้ดูอยู่
+    if (!document.hidden) checkChanges();
+  }, 15000);
 }
 
 // Broadcast notifications — tracks what already shown to avoid duplicate toasts
@@ -1999,7 +2003,7 @@ function showReceipt(type, data) {
   if (!el) return;
 
   const now = new Date();
-  const fallbackReceiptNo = 'RC-' + now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + '-' + String(Math.floor(Math.random()*9000)+1000);
+  const receiptNo = 'RC-' + now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + '-' + String(Math.floor(Math.random()*9000)+1000);
   const dateStr = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
   const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
@@ -2007,7 +2011,6 @@ function showReceipt(type, data) {
     const { item, studentNo } = data;
     const std = students.find(s => String(s.no) === String(studentNo));
     const payment = item.payments?.[studentNo] || { amountPaid: 0 };
-    const receiptNo = payment.receiptNo || ('RC-' + now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + '-' + String(Math.floor(Math.random()*9000)+1000));
     const isPaid = payment.amountPaid >= item.amountPerPerson;
     const paidAtRaw = payment.paidAt || payment.updatedAt || payment.timestamp || null;
     const paidDate = paidAtRaw ? new Date(paidAtRaw) : null;
@@ -2016,18 +2019,9 @@ function showReceipt(type, data) {
 
     el.innerHTML = `
       <div class="receipt-header">
-        <div>
-          <div class="receipt-logo"><i class="fas fa-school"></i></div>
-        </div>
-        <div>
-          <h2>ใบเสร็จรับเงิน</h2>
-          <p class="receipt-subtitle">รายการเงินห้องและค่าธรรมเนียม</p>
-        </div>
-        <div class="receipt-company">
-          <strong>MyClass Web</strong>
-          <span>ระบบจัดการห้องเรียน</span>
-          <span>โทร. 02-123-4567</span>
-        </div>
+        <div class="receipt-logo"><i class="fas fa-school"></i></div>
+        <h2>ใบเสร็จรับเงิน</h2>
+        <p>MyClass Web - ระบบจัดการเงินห้อง</p>
       </div>
       <div class="receipt-title-bar"></div>
       <div class="receipt-meta">
@@ -2089,24 +2083,15 @@ function showReceipt(type, data) {
 
     el.innerHTML = `
       <div class="receipt-header">
-        <div>
-          <div class="receipt-logo"><i class="fas fa-hand-holding-usd"></i></div>
-        </div>
-        <div>
-          <h2>ใบเสร็จเงินยืม</h2>
-          <p class="receipt-subtitle">ธุรกรรมเงินยืมภายในกลุ่ม</p>
-        </div>
-        <div class="receipt-company">
-          <strong>MyClass Web</strong>
-          <span>ระบบจัดการห้องเรียน</span>
-          <span>โทร. 02-123-4567</span>
-        </div>
+        <div class="receipt-logo"><i class="fas fa-hand-holding-usd"></i></div>
+        <h2>ใบเสร็จเงินยืม</h2>
+        <p>MyClass Web - ระบบเงินยืมภายในกลุ่ม</p>
       </div>
       <div class="receipt-title-bar receipt-loan"></div>
       <div class="receipt-meta">
         <div>
           <div class="receipt-meta-label">เลขที่</div>
-          <div class="receipt-meta-value">${escapeHtml(loan.id || fallbackReceiptNo)}</div>
+          <div class="receipt-meta-value">${escapeHtml(loan.id || receiptNo)}</div>
         </div>
         <div>
           <div class="receipt-meta-label">วันที่</div>
@@ -2166,7 +2151,6 @@ function showLoanReceipt(id) {
 
 // --- RECEIPT PANEL / LIST ---
 function loadReceipts() {
-  // Ensure latest data exists (moneyData and loanData are kept up-to-date by loadAll/loadMoney/loadLoan)
   renderReceipts();
 }
 
@@ -2174,7 +2158,6 @@ function renderReceipts() {
   const wrap = document.getElementById('listReceipt');
   if (!wrap) return;
   const receipts = [];
-
   // Money receipts (only for current user where amountPaid > 0)
   (moneyData || []).forEach(item => {
     const payments = item.payments || {};
@@ -2182,29 +2165,20 @@ function renderReceipts() {
       // Show only if this receipt belongs to current user
       if (String(no) === String(u.studentNo)) {
         const amt = parseFloat(p.amountPaid || 0);
-        if (amt > 0) {
-          receipts.push({ type: 'money', item, studentNo: no, payment: p });
-        }
+        if (amt > 0) receipts.push({ type: 'money', item, studentNo: no, payment: p });
       }
     });
   });
-
   // Loan receipts (only where current user is borrower or lender)
   (loanData || []).forEach(l => {
     if (String(l.borrowerNo) === String(u.studentNo) || String(l.lenderNo) === String(u.studentNo)) {
       receipts.push({ type: 'loan', loan: l });
     }
   });
-
-  if (!receipts.length) {
-    wrap.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:30px;">ไม่มีใบเสร็จ</p>';
-    return;
-  }
-
+  if (!receipts.length) { wrap.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:30px;">ไม่มีใบเสร็จ</p>'; return; }
   wrap.innerHTML = receipts.map(r => {
     if (r.type === 'money') {
-      const m = r.item;
-      const std = students.find(s => String(s.no) === String(r.studentNo));
+      const m = r.item; const std = students.find(s => String(s.no) === String(r.studentNo));
       const paidAt = r.payment?.paidAt || r.payment?.updatedAt || '';
       const dateStr = paidAt ? new Date(paidAt).toLocaleString('th-TH') : '';
       return `
@@ -2224,9 +2198,7 @@ function renderReceipts() {
         </div>
       </div>`;
     } else {
-      const loan = r.loan;
-      const borrower = students.find(s => String(s.no) === String(loan.borrowerNo));
-      const lender = students.find(s => String(s.no) === String(loan.lenderNo));
+      const loan = r.loan; const borrower = students.find(s => String(s.no) === String(loan.borrowerNo));
       return `
       <div class="card loan-card">
         <div class="card-head">
@@ -2900,31 +2872,35 @@ function restoreGuestCountdownIfNeeded() {
 
 // --- QR Scanner ---
 function startScanner() {
-  document.getElementById('scanStatus').textContent = "กำลังขอสิทธิ์กล้อง...";
+  document.getElementById('scanStatus').textContent = "กำลังโหลด QR Scanner...";
   document.getElementById('scanStatus').style.color = 'var(--text-secondary)';
   document.getElementById('stopCamBtn').style.display = 'none';
   document.getElementById('startCamBtn').style.display = 'none';
-  
-  html5QrCode = new Html5Qrcode("reader");
-  const readerEl = document.getElementById('reader');
-  const maxSize = Math.min(360, readerEl.clientWidth || 360);
-  const qrSize = Math.max(200, Math.min(300, maxSize - 20));
-  
-  html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: qrSize, height: qrSize } }, onScanSuccess, () => {})
-    .then(() => {
-      document.getElementById('scanStatus').textContent = "สแกน QR Code ที่นี่";
-      document.getElementById('stopCamBtn').style.display = 'inline-flex';
-    })
-    .catch((err) => {
-      document.getElementById('startCamBtn').style.display = 'inline-flex';
-      let errMsg = "เกิดข้อผิดพลาด";
-      if (String(err).includes("NotAllowedError") || String(err).includes("Permission denied")) {
-        errMsg = "🚫 ถูกปฏิเสธการเข้าถึงกล้อง กรุณาอนุญาตสิทธิ์กล้องในเบราว์เซอร์";
-      } else if (String(err).includes("NotFoundError")) {
-        errMsg = "❌ ไม่พบกล้องในอุปกรณ์นี้";
-      }
-      document.getElementById('scanStatus').innerHTML = `<span style="color:var(--danger)">${errMsg}</span>`;
-    });
+
+  // Lazy load html5-qrcode เฉพาะเมื่อต้องการใช้งาน
+  window._loadQrScript(() => {
+    document.getElementById('scanStatus').textContent = "กำลังขอสิทธิ์กล้อง...";
+    html5QrCode = new Html5Qrcode("reader");
+    const readerEl = document.getElementById('reader');
+    const maxSize = Math.min(360, readerEl.clientWidth || 360);
+    const qrSize = Math.max(200, Math.min(300, maxSize - 20));
+    
+    html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: qrSize, height: qrSize } }, onScanSuccess, () => {})
+      .then(() => {
+        document.getElementById('scanStatus').textContent = "สแกน QR Code ที่นี่";
+        document.getElementById('stopCamBtn').style.display = 'inline-flex';
+      })
+      .catch((err) => {
+        document.getElementById('startCamBtn').style.display = 'inline-flex';
+        let errMsg = "เกิดข้อผิดพลาด";
+        if (String(err).includes("NotAllowedError") || String(err).includes("Permission denied")) {
+          errMsg = "🚫 ถูกปฏิเสธการเข้าถึงกล้อง กรุณาอนุญาตสิทธิ์กล้องในเบราว์เซอร์";
+        } else if (String(err).includes("NotFoundError")) {
+          errMsg = "❌ ไม่พบกล้องในอุปกรณ์นี้";
+        }
+        document.getElementById('scanStatus').innerHTML = `<span style="color:var(--danger)">${errMsg}</span>`;
+      });
+  });
 }
 
 function stopScanner() {
@@ -2948,12 +2924,16 @@ function startLoginScanner() {
   if (!loginReader) return;
   loginReader.innerHTML = '<div id="loginReaderInner" style="width:100%; min-height:220px;"></div>';
   if (html5QrCodeLogin) { try { html5QrCodeLogin.stop(); } catch(e) {} }
-  html5QrCodeLogin = new Html5Qrcode('loginReaderInner');
-  const maxSize = Math.min(320, loginReader.clientWidth || 320);
-  const qrSize = Math.max(200, Math.min(300, maxSize - 20));
-  html5QrCodeLogin.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: qrSize, height: qrSize } }, loginDecodeSuccess, () => {})
-    .then(() => { document.getElementById('stopLoginCamBtn').style.display = 'inline-flex'; })
-    .catch(() => { showToast('ไม่สามารถเปิดกล้องได้', 'error'); });
+
+  // Lazy load เช่นกัน
+  window._loadQrScript(() => {
+    html5QrCodeLogin = new Html5Qrcode('loginReaderInner');
+    const maxSize = Math.min(320, loginReader.clientWidth || 320);
+    const qrSize = Math.max(200, Math.min(300, maxSize - 20));
+    html5QrCodeLogin.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: qrSize, height: qrSize } }, loginDecodeSuccess, () => {})
+      .then(() => { document.getElementById('stopLoginCamBtn').style.display = 'inline-flex'; })
+      .catch(() => { showToast('ไม่สามารถเปิดกล้องได้', 'error'); });
+  });
 }
 
 function stopLoginScanner() {

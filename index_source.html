@@ -5,27 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>MyClass Web - ระบบจัดการห้องเรียน</title>
   <link rel="icon" type="image/png" href="https://img.icons8.com/fluency/48/classroom.png">
-  <!-- Preconnect ให้ browser เปิด connection ล่วงหน้า ลด latency ~200ms -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-  <link rel="preconnect" href="https://script.google.com">
-  <!-- Fonts: display=swap ให้ render ด้วย fallback font ก่อน ไม่ block -->
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <!-- Font Awesome: load async ไม่ block render -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
-<noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
-  <!-- html5-qrcode: โหลดแบบ lazy เฉพาะเมื่อจะใช้งาน QR scanner -->
-  <script>
-    window._qrScriptLoaded = false;
-    window._loadQrScript = function(cb) {
-      if (window._qrScriptLoaded) { if (cb) cb(); return; }
-      var s = document.createElement('script');
-      s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
-      s.onload = function() { window._qrScriptLoaded = true; if (cb) cb(); };
-      document.head.appendChild(s);
-    };
-  </script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://unpkg.com/html5-qrcode"></script>
 <style>
 :root {
 --bg-primary: #f0f2f5; --bg-secondary: #ffffff; --bg-tertiary: #f8f9fa;
@@ -44,50 +26,6 @@
 --accent: #3b82f6; --accent-light: #1e3a8a;
 --border: #4b5563;
 }
-/* Receipt / Invoice styles */
-.receipt-wrap { padding: 28px; max-width: 820px; margin: 18px auto; font-family: inherit; color: var(--text-primary); background: #fff; border: 1px solid rgba(148,163,184,0.18); border-radius: 22px; box-shadow: 0 30px 70px rgba(15,23,42,0.08); }
-.receipt-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
-.receipt-logo { width: 64px; height: 64px; border-radius: 16px; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.08); }
-.receipt-header h2 { margin: 0; font-size: 1.45rem; letter-spacing: 0.02em; }
-.receipt-subtitle { margin: 6px 0 0; color: var(--text-secondary); font-size: 0.95rem; }
-.receipt-company { text-align: right; color: var(--text-secondary); font-size: 0.95rem; }
-.receipt-company strong { display: block; color: var(--text-primary); font-size: 1rem; margin-bottom: 4px; }
-.receipt-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 22px; }
-.receipt-meta > div { min-width: 180px; background: #f8fafc; border: 1px solid rgba(148,163,184,0.18); border-radius: 14px; padding: 14px 16px; }
-.receipt-meta-label { display: block; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 6px; }
-.receipt-meta-value { font-weight: 700; font-size: 0.98rem; color: var(--text-primary); }
-.receipt-title-bar { height: 10px; background: linear-gradient(90deg, var(--accent), var(--success)); margin: 16px 0; border-radius: 12px; }
-.receipt-table { width: 100%; border-collapse: collapse; margin-top: 18px; overflow: hidden; border-radius: 16px; background: #f8fafc; }
-.receipt-table th, .receipt-table td { padding: 14px 14px; border-bottom: 1px solid rgba(148,163,184,0.25); }
-.receipt-table th { background: #eef2ff; color: var(--text-primary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
-.receipt-table tr:last-child td { border-bottom: none; }
-.receipt-total-row td { font-size: 1.08rem; font-weight: 700; }
-.receipt-footer { margin-top: 24px; display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; font-size: 0.92rem; color: var(--text-secondary); }
-.receipt-footer div { min-width: 180px; }
-.receipt-proof-img { max-width: 220px; border-radius: 16px; border: 1px solid rgba(148,163,184,0.24); display: block; margin-top: 10px; }
-.receipt-qr-area p { margin: 0 0 8px; font-size: 0.85rem; color: var(--text-secondary); }
-.receipt-badge { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: var(--success-light); color: var(--success); padding: 6px 10px; font-size: 0.85rem; font-weight: 700; }
-
-@media print {
-  html, body { background: white !important; }
-  * { margin: 0; padding: 0; }
-  body > *:not(#modalReceipt) { display: none !important; }
-  #modalReceipt { display: block !important; }
-  #receiptPrintArea { display: block !important; position: relative !important; top: auto !important; left: auto !important; width: 100% !important; z-index: 99999; background: white; padding: 0; }
-  .receipt-wrap { padding: 28px; box-shadow: none; border-radius: 0; border: none; }
-  .receipt-meta > div { background: #f8fafc !important; border-color: rgba(148,163,184,0.25) !important; }
-  .receipt-table { background: white !important; }
-  .receipt-table th { background: #f3f4f6 !important; }
-  .receipt-footer { color: #344054 !important; }
-  .receipt-proof-img { max-width: 100%; }
-  .receipt-print-btn, .modal-head, .modal-foot { display: none !important; }
-  @page { margin: 0.6in; }
-}
-/* Loan card tweaks */
-.loan-card .card-head { background: linear-gradient(90deg, rgba(37,99,235,0.06), rgba(22,163,74,0.02)); }
-.loan-card .loan-amount { font-size:1.2rem; font-weight:700; color:var(--text-primary); }
-.loan-badge.returned { background:var(--success-light); color:var(--success); padding:4px 8px; border-radius:12px; }
-.loan-badge.overdue { background:var(--warning-light); color:var(--warning); padding:4px 8px; border-radius:12px; }
 [data-theme="dark"] .check-card.checked .check-name { color: #000000 !important; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Prompt', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; line-height: 1.5; }
@@ -890,27 +828,10 @@ margin-right:8px;
 .loan-meta span { display: flex; align-items: center; gap: 5px; }
 
 @media print {
-  * { margin: 0; padding: 0; }
-  body > *:not(#modalReceipt) { display: none !important; }
-  #modalReceipt { display: block !important; }
-  #receiptPrintArea { display: block !important; position: relative !important; top: auto !important; left: auto !important; width: 100% !important; z-index: 99999; background: white; padding: 0; }
-  .receipt-wrap { padding: 30px; box-shadow: none; background: white; color: black; }
-  .receipt-header { page-break-inside: avoid; }
-  .receipt-logo { background: #2563eb !important; color: white !important; }
-  .receipt-title-bar { background: linear-gradient(90deg, #2563eb, #16a34a) !important; }
-  .receipt-meta { margin-top: 20px; page-break-inside: avoid; }
-  .receipt-meta > div { border: 1px solid #ccc; padding: 12px; border-radius: 4px; }
-  .receipt-meta-label { font-size: 0.8rem; color: #666; }
-  .receipt-meta-value { font-weight: 700; color: black; }
-  .receipt-table { width: 100%; border-collapse: collapse; margin-top: 20px; page-break-inside: avoid; }
-  .receipt-table th, .receipt-table td { padding: 12px 10px; border: 1px solid #999; text-align: left; color: black; }
-  .receipt-table th { background: #f5f5f5 !important; color: black; font-weight: 700; }
-  .receipt-total-row { background: #f0f0f0 !important; font-weight: 700; font-size: 1.1rem; }
-  .receipt-footer { margin-top: 30px; border-top: 2px solid #999; padding-top: 15px; page-break-inside: avoid; color: black; }
-  .receipt-proof-img { max-width: 200px; border: 1px solid #999; display: block; margin-top: 15px; }
-  .receipt-qr-area { margin-top: 20px; page-break-inside: avoid; }
+  body > *:not(#receiptPrintArea) { display: none !important; }
+  #receiptPrintArea { display: block !important; position: fixed; top: 0; left: 0; width: 100%; z-index: 99999; background: white; }
+  .receipt-wrap { padding: 20px; box-shadow: none; }
   .receipt-print-btn, .modal-head, .modal-foot { display: none !important; }
-  @page { margin: 0.5in; }
 }
 </style>
 </style>
@@ -1034,9 +955,6 @@ margin-right:8px;
       <div class="sidebar-item" onclick="setTab('loan')" data-tab="loan" data-tooltip="เงินยืม">
         <i class="fas fa-hand-holding-usd"></i><span>เงินยืม</span>
       </div>
-      <div class="sidebar-item" onclick="setTab('receipt')" data-tab="receipt" data-tooltip="ใบเสร็จ">
-        <i class="fas fa-file-invoice-dollar"></i><span>ใบเสร็จ</span>
-      </div>
       <div class="sidebar-item" onclick="setTab('leave')" data-tab="leave" data-tooltip="ลา / กิจกรรม">
         <i class="fas fa-calendar-times"></i><span>ลา / กิจกรรม</span>
       </div>
@@ -1095,9 +1013,6 @@ margin-right:8px;
       </div>
       <div class="sidebar-item" onclick="setTab('loan');" data-tab="loan">
         <i class="fas fa-hand-holding-usd"></i><span>เงินยืม</span>
-      </div>
-      <div class="sidebar-item" onclick="setTab('receipt');" data-tab="receipt">
-        <i class="fas fa-file-invoice-dollar"></i><span>ใบเสร็จ</span>
       </div>
       <div class="sidebar-item" onclick="setTab('leave');" data-tab="leave">
         <i class="fas fa-calendar-times"></i><span>ลา / กิจกรรม</span>
@@ -1195,17 +1110,6 @@ margin-right:8px;
           </div>
         </div>
         <div id="listLoan"></div>
-      </div>
-
-      <!-- Receipt / Invoice Panel -->
-      <div class="tab-panel" id="panelReceipt">
-        <div class="header">
-          <h1 class="title"><i class="fas fa-file-invoice-dollar"></i> ใบเสร็จ</h1>
-          <div style="display:flex; gap:8px;">
-            <button class="btn btn-primary btn-sm" onclick="loadReceipts()"><i class="fas fa-sync-alt"></i> รีเฟรช</button>
-          </div>
-        </div>
-        <div id="listReceipt"></div>
       </div>
 
       <!-- Leave -->

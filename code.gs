@@ -21,8 +21,52 @@ const SHEETS = {
   SEAT_META: 'SeatMeta',
   SEAT_BOOKINGS: 'SeatBookings',
   SEAT_EDIT_CODES: 'SeatEditCodes',
-  SEAT_EDIT_SESSIONS: 'SeatEditSessions'
+  SEAT_EDIT_SESSIONS: 'SeatEditSessions',
+  LOANS: 'Loans'
 };
+
+// ============================================
+// ⚡ PERFORMANCE & CACHE CONFIGURATION
+// ============================================
+const CACHE_UPDATE_KEY = 'dashboard_last_update_v1';
+const CACHE_COUNTS_KEY = 'dashboard_counts_v1';
+const CACHE_DASHBOARD_KEY = 'dashboard_data_v1';
+const CACHE_TTL = 300;           // 5 นาที สำหรับ counts/lastUpdate
+const CACHE_DASHBOARD_TTL = 60;  // 60 วินาที สำหรับ full data (invalidate ได้บ่อยกว่า)
+
+function getSpreadsheet() {
+  if (ss) return ss;
+  ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  return ss;
+}
+
+function getSheet_(name) {
+  const activeSs = getSpreadsheet();
+  let sheet = activeSs.getSheetByName(name);
+  if (!sheet) {
+    ensureSheetsExist();
+    sheet = activeSs.getSheetByName(name);
+  }
+  return sheet;
+}
+
+function getSheetFromSs_(activeSs, name) {
+  let sheet = activeSs.getSheetByName(name);
+  if (!sheet) {
+    ensureSheetsExist();
+    sheet = activeSs.getSheetByName(name);
+  }
+  return sheet;
+}
+
+function clearDashboardCaches_() {
+  try {
+    const cache = CacheService.getScriptCache();
+    cache.removeAll([CACHE_UPDATE_KEY, CACHE_COUNTS_KEY, CACHE_DASHBOARD_KEY]);
+  } catch (e) {
+    Logger.log('Cache clear error: ' + e.toString());
+  }
+}
 
 const STUDENTS = [
   { no: 1,  code: '47535', name: 'คีตภัทร ชัยปรัชย์' },    { no: 2,  code: '47550', name: 'จิรายุ วงกต' },
@@ -97,7 +141,8 @@ const ALLOWED_ACTIONS = new Set([
   'seatGetSnapshot', 'seatSetBookingWindow', 'seatSetFrontBand',
   'seatSaveLayout', 'seatBook', 'seatCancelBooking',
   'seatCreateEditCode', 'seatValidateEditCode', 'seatListEditCodes',
-  'seatRevokeEditCode', 'seatRevokeSession', 'seatListActiveSessions'
+  'seatRevokeEditCode', 'seatRevokeSession', 'seatListActiveSessions',
+  'addLoan', 'getLoans', 'updateLoanStatus', 'deleteLoan'
 ]);
 
 function doPost(e) {
@@ -142,7 +187,8 @@ function doPost(e) {
       seatGetSnapshot, seatSetBookingWindow, seatSetFrontBand,
       seatSaveLayout, seatBook, seatCancelBooking,
       seatCreateEditCode, seatValidateEditCode, seatListEditCodes,
-      seatRevokeEditCode, seatRevokeSession, seatListActiveSessions
+      seatRevokeEditCode, seatRevokeSession, seatListActiveSessions,
+      addLoan, getLoans, updateLoanStatus, deleteLoan
     };
     if (!DISPATCH[action]) {
       output.setContent(JSON.stringify({ status: 'error', message: 'Action not found' }));
@@ -292,24 +338,54 @@ function convertDriveToDirect(url) {
 
 function ensureSheetsExist() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  if (!ss.getSheetByName(SHEETS.USERS)) ss.insertSheet(SHEETS.USERS).appendRow(['ID','DisplayName','Email','PasswordHash','Hint','StudentNo','Role','CreatedAt','LastLogin','TempRoleExpiry','HwCredits']);
-  if (!ss.getSheetByName(SHEETS.STUDENT_CODES)) {
+  const existingSheets = {};
+  ss.getSheets().forEach(function(s) {
+    existingSheets[s.getName()] = s;
+  });
+  
+  let createdAny = false;
+
+  if (!existingSheets[SHEETS.USERS]) {
+    ss.insertSheet(SHEETS.USERS).appendRow(['ID','DisplayName','Email','PasswordHash','Hint','StudentNo','Role','CreatedAt','LastLogin','TempRoleExpiry','HwCredits']);
+    createdAny = true;
+  }
+  if (!existingSheets[SHEETS.STUDENT_CODES]) {
     const sc = ss.insertSheet(SHEETS.STUDENT_CODES);
     sc.appendRow(['StudentNo','StudentCode','StudentName','IsRegistered']);
     STUDENTS.forEach(s => sc.appendRow([s.no, s.code, s.name, false]));
+    createdAny = true;
   }
-  if (!ss.getSheetByName(SHEETS.HOMEWORK)) ss.insertSheet(SHEETS.HOMEWORK).appendRow(['ID','Subject','Description','AssignedDate','DueDate','NoDueDate','CreatedBy','CreatedAt','SubjectColor']);
-  if (!ss.getSheetByName(SHEETS.HOMEWORK_STATUS)) ss.insertSheet(SHEETS.HOMEWORK_STATUS).appendRow(['HomeworkID','StudentNo','Status','ImagePath','CompletedAt','Notes','SubjectColor']);
-  if (!ss.getSheetByName(SHEETS.TREASURY)) ss.insertSheet(SHEETS.TREASURY).appendRow(['ID','Title','AmountPerPerson','CreatedBy','CreatedAt','Status','Color']);
-  if (!ss.getSheetByName(SHEETS.TREASURY_PAYMENTS)) ss.insertSheet(SHEETS.TREASURY_PAYMENTS).appendRow(['TreasuryID','StudentNo','AmountPaid','PaidAt','Notes','Color']);
-  if (!ss.getSheetByName(SHEETS.LEAVE_REQUESTS)) ss.insertSheet(SHEETS.LEAVE_REQUESTS).appendRow(['ID','StudentNo','StudentName','Type','Date','Reason','Status','ProofImage','Confirmed','Timestamp']);
-  if (!ss.getSheetByName(SHEETS.REDEEM_CODES)) ss.insertSheet(SHEETS.REDEEM_CODES).appendRow(['Code','ActionType','Value','Details','MaxUses','UsesCount','CreatedBy','CreatedAt','QrFileId','QrUrl','CreatedAtUTC']);
-  if (!ss.getSheetByName(SHEETS.TIMETABLE)) {
+  if (!existingSheets[SHEETS.HOMEWORK]) {
+    ss.insertSheet(SHEETS.HOMEWORK).appendRow(['ID','Subject','Description','AssignedDate','DueDate','NoDueDate','CreatedBy','CreatedAt','SubjectColor']);
+    createdAny = true;
+  }
+  if (!existingSheets[SHEETS.HOMEWORK_STATUS]) {
+    ss.insertSheet(SHEETS.HOMEWORK_STATUS).appendRow(['HomeworkID','StudentNo','Status','ImagePath','CompletedAt','Notes','SubjectColor']);
+    createdAny = true;
+  }
+  if (!existingSheets[SHEETS.TREASURY]) {
+    ss.insertSheet(SHEETS.TREASURY).appendRow(['ID','Title','AmountPerPerson','CreatedBy','CreatedAt','Status','Color']);
+    createdAny = true;
+  }
+  if (!existingSheets[SHEETS.TREASURY_PAYMENTS]) {
+    ss.insertSheet(SHEETS.TREASURY_PAYMENTS).appendRow(['TreasuryID','StudentNo','AmountPaid','PaidAt','Notes','Color','ReceiptNo']);
+    createdAny = true;
+  }
+  if (!existingSheets[SHEETS.LEAVE_REQUESTS]) {
+    ss.insertSheet(SHEETS.LEAVE_REQUESTS).appendRow(['ID','StudentNo','StudentName','Type','Date','Reason','Status','ProofImage','Confirmed','Timestamp']);
+    createdAny = true;
+  }
+  if (!existingSheets[SHEETS.REDEEM_CODES]) {
+    ss.insertSheet(SHEETS.REDEEM_CODES).appendRow(['Code','ActionType','Value','Details','MaxUses','UsesCount','CreatedBy','CreatedAt','QrFileId','QrUrl','CreatedAtUTC']);
+    createdAny = true;
+  }
+  if (!existingSheets[SHEETS.TIMETABLE]) {
     const tt = ss.insertSheet(SHEETS.TIMETABLE);
     tt.appendRow(['ImageUrl', 'LinkUrl', 'UpdatedAt', 'UpdatedBy']);
     tt.appendRow(['', '', '', '']);
+    createdAny = true;
   }
-  if (!ss.getSheetByName(SHEETS.SEAT_META)) {
+  if (!existingSheets[SHEETS.SEAT_META]) {
     const sm = ss.insertSheet(SHEETS.SEAT_META);
     sm.appendRow(['LayoutJSON', 'BookingStart', 'BookingEnd', 'FrontBandRows', 'Version', 'UpdatedAt']);
     const defaultLayout = JSON.stringify({
@@ -318,24 +394,34 @@ function ensureSheetsExist() {
       frontBand: 2
     });
     sm.appendRow([defaultLayout, '', '', 2, 0, new Date().toISOString()]);
+    createdAny = true;
   }
-  if (!ss.getSheetByName(SHEETS.SEAT_BOOKINGS)) {
+  if (!existingSheets[SHEETS.SEAT_BOOKINGS]) {
     ss.insertSheet(SHEETS.SEAT_BOOKINGS).appendRow(['SeatId', 'TargetStudentNo', 'TargetStudentName', 'BookedByUserId', 'CreatedAt']);
+    createdAny = true;
   }
-  if (!ss.getSheetByName(SHEETS.SEAT_EDIT_CODES)) {
+  if (!existingSheets[SHEETS.SEAT_EDIT_CODES]) {
     ss.insertSheet(SHEETS.SEAT_EDIT_CODES).appendRow(['Id', 'CodeHash', 'ExpiresAt', 'CreatedByUserId', 'Label', 'Revoked']);
+    createdAny = true;
   }
-  if (!ss.getSheetByName(SHEETS.SEAT_EDIT_SESSIONS)) {
+  if (!existingSheets[SHEETS.SEAT_EDIT_SESSIONS]) {
     ss.insertSheet(SHEETS.SEAT_EDIT_SESSIONS).appendRow(['Token', 'CodeId', 'ExpiresAt']);
+    createdAny = true;
+  }
+  if (!existingSheets[SHEETS.LOANS]) {
+    ss.insertSheet(SHEETS.LOANS).appendRow(['ID', 'BorrowerNo', 'LenderNo', 'Amount', 'Note', 'ProofUrl', 'Status', 'CreatedAt', 'CreatedBy']);
+    createdAny = true;
   }
 
-  formatSheets();
+  if (createdAny) {
+    formatSheets();
+  }
   return 'OK';
 }
 
 function formatSheets(specificSheetName = null) {
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = getSpreadsheet();
     const sheets = specificSheetName ? [ss.getSheetByName(specificSheetName)] : ss.getSheets();
     
     // สร้าง Color Map สำหรับเติมข้อมูลย้อนหลัง
@@ -377,19 +463,25 @@ function formatSheets(specificSheetName = null) {
       
       headers.forEach((header, index) => {
         const hStr = String(header || '').toUpperCase();
-        if (techKeywords.some(key => hStr.includes(key))) {
-           sheet.hideColumns(index + 1);
-        }
-        if (index === 0 && (hStr.includes('ID') || hStr.includes('CODE') || hStr.length < 4)) {
-          if (name !== SHEETS.STUDENT_CODES) sheet.hideColumns(1);
-        }
+        const shouldHide = techKeywords.some(key => hStr.includes(key)) || (index === 0 && (hStr.includes('ID') || hStr.includes('CODE') || hStr.length < 4) && name !== SHEETS.STUDENT_CODES);
+        
+        try {
+          const isHidden = sheet.isColumnHiddenByUser(index + 1);
+          if (shouldHide && !isHidden) {
+            sheet.hideColumns(index + 1);
+          } else if (!shouldHide && isHidden) {
+            sheet.showColumns(index + 1);
+          }
+        } catch(e) {}
       });
 
-      // 3. ปรับความกว้างคอลัมน์
+      // 3. ปรับความกว้างคอลัมน์ (ข้าม autoResizeColumn ถ้าเกิดรันแบบเจาะจงแผ่นงานเพื่อให้ทำงานเร็วขึ้น)
       for (let i = 1; i <= lastCol; i++) {
         try {
           if (sheet.isColumnHiddenByUser(i)) continue;
-          sheet.autoResizeColumn(i);
+          if (!specificSheetName) { // รันเฉพาะการฟอร์แมตตั้งต้นทั้งหมด
+            sheet.autoResizeColumn(i);
+          }
           let width = sheet.getColumnWidth(i);
           if (width > 300) sheet.setColumnWidth(i, 300);
           if (width < 80) sheet.setColumnWidth(i, 80);
@@ -419,10 +511,11 @@ function formatSheets(specificSheetName = null) {
               }
               return Array(lastCol).fill(rowColor);
             });
-            try { contentRange.setBackgrounds(bgColors); } catch(e) { contentRange.setBackground('#ffffff'); }
+            try { contentRange.getBandings().forEach(b => b.remove()); } catch(e) {}; try { contentRange.setBackgrounds(bgColors); } catch(e) { contentRange.setBackground('#ffffff'); }
           }
         } else {
-          // ใช้การใส่สีสลับแถวแบบ Manual แทน applyRowBanding เพื่อป้องกัน Error "Banding already exists"
+          // ล้าง Banding เก่าออกก่อนเพื่อป้องกัน Error "Banding already exists"
+          try { contentRange.getBandings().forEach(b => b.remove()); } catch(e) {}
           const rowColors = [];
           for (let r = 2; r <= lastRow; r++) {
             rowColors.push(Array(lastCol).fill(r % 2 === 0 ? '#f8fafc' : '#ffffff'));
@@ -448,9 +541,8 @@ function formatSheets(specificSheetName = null) {
 // ============================================
 function registerUser(name, email, pw, cpw, code, hint) {
   try {
-    if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
-    const uSheet = ss.getSheetByName(SHEETS.USERS); 
-    const cSheet = ss.getSheetByName(SHEETS.STUDENT_CODES);
+    const uSheet = getSheet_(SHEETS.USERS); 
+    const cSheet = getSheet_(SHEETS.STUDENT_CODES);
 
     // Sanitize inputs
     const cleanName  = sanitizeStr(name, 100);
@@ -512,8 +604,7 @@ function hashPasswordLegacy_(p) {
 
 function loginUser(id, pw) {
   try {
-    if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
-    const uSheet = ss.getSheetByName(SHEETS.USERS);
+    const uSheet = getSheet_(SHEETS.USERS);
     if (!uSheet) return { success: false, message: 'ไม่พบข้อมูลผู้ใช้' };
 
     // Sanitize inputs
@@ -585,9 +676,7 @@ function loginUser(id, pw) {
 
 function changePassword(uid, curr, newP, conf) {
   try {
-    ensureSheetsExist();
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
-    const uSheet = ss.getSheetByName(SHEETS.USERS); 
+    const uSheet = getSheet_(SHEETS.USERS); 
     const uData = uSheet.getDataRange().getValues();
 
     const cleanUid = sanitizeStr(uid, 100);
@@ -614,9 +703,7 @@ function changePassword(uid, curr, newP, conf) {
 }
 
 function getPasswordHint(username) {
-  ensureSheetsExist();
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID); 
-  const data = ss.getSheetByName(SHEETS.USERS).getDataRange().getValues();
+  const data = getSheet_(SHEETS.USERS).getDataRange().getValues();
   for (let i = 1; i < data.length; i++) { 
     if (data[i][1] === username) return { success: true, hint: data[i][4] || 'ไม่มีคำใบ้' }; 
   }
@@ -634,10 +721,9 @@ function getSubjects() { return { success: true, subjects: SUBJECTS }; }
 // ============================================
 function addHomework(sub, desc, ad, dd, nd, by) {
   try {
-    if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
-    const uSheet = ss.getSheetByName(SHEETS.USERS); 
-    const hwS = ss.getSheetByName(SHEETS.HOMEWORK); 
-    const stS = ss.getSheetByName(SHEETS.HOMEWORK_STATUS);
+    const uSheet = getSheet_(SHEETS.USERS); 
+    const hwS = getSheet_(SHEETS.HOMEWORK); 
+    const stS = getSheet_(SHEETS.HOMEWORK_STATUS);
 
     // Sanitize inputs
     const cleanSub  = sanitizeStr(sub, 100);
@@ -691,8 +777,7 @@ function addHomework(sub, desc, ad, dd, nd, by) {
       stS.getRange(startRow, 1, rows.length, 7).setBackground(color);
     }
 
-    formatSheets(SHEETS.HOMEWORK);
-    formatSheets(SHEETS.HOMEWORK_STATUS);
+    clearDashboardCaches_();
     return { success: true, message: 'เพิ่มการบ้านเรียบร้อยแล้ว' };
   } catch (e) { 
     return { success: false, message: 'เกิดข้อผิดพลาด: ' + e.toString() }; 
@@ -701,9 +786,9 @@ function addHomework(sub, desc, ad, dd, nd, by) {
 
 function getHomework(ss = null) {
   try {
-    if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
-    const hwSheet = ss.getSheetByName(SHEETS.HOMEWORK); 
-    const stSheet = ss.getSheetByName(SHEETS.HOMEWORK_STATUS);
+    const activeSs = ss || getSpreadsheet();
+    const hwSheet = getSheetFromSs_(activeSs, SHEETS.HOMEWORK); 
+    const stSheet = getSheetFromSs_(activeSs, SHEETS.HOMEWORK_STATUS);
 
     const hwData = hwSheet.getDataRange().getValues(); 
     const stData = stSheet.getDataRange().getValues();
@@ -747,8 +832,7 @@ function getHomework(ss = null) {
 
 function updateHomeworkStatus(hid, sno, stat, imgBase64) {
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const stS = ss.getSheetByName(SHEETS.HOMEWORK_STATUS);
+    const stS = getSheet_(SHEETS.HOMEWORK_STATUS);
     const d = stS.getDataRange().getValues();
 
     // Validate inputs
@@ -767,6 +851,7 @@ function updateHomeworkStatus(hid, sno, stat, imgBase64) {
           if (url) stS.getRange(i + 1, 4).setValue(url);
         }
         if (cleanStat === 'completed') stS.getRange(i + 1, 5).setValue(new Date());
+        clearDashboardCaches_();
         return { success: true };
       }
     }
@@ -778,9 +863,8 @@ function updateHomeworkStatus(hid, sno, stat, imgBase64) {
 
 function deleteHomework(id) {
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const hS = ss.getSheetByName(SHEETS.HOMEWORK);
-    const sS = ss.getSheetByName(SHEETS.HOMEWORK_STATUS);
+    const hS = getSheet_(SHEETS.HOMEWORK);
+    const sS = getSheet_(SHEETS.HOMEWORK_STATUS);
 
     const cleanId = sanitizeStr(id, 100);
     if (!cleanId) return { success: false, message: 'ข้อมูลไม่ถูกต้อง' };
@@ -793,8 +877,7 @@ function deleteHomework(id) {
     for (let i = sd.length - 1; i >= 1; i--) {
       if (sd[i][0] === cleanId) sS.deleteRow(i + 1);
     }
-    formatSheets(SHEETS.HOMEWORK);
-    formatSheets(SHEETS.HOMEWORK_STATUS);
+    clearDashboardCaches_();
     return { success: true };
   } catch (e) {
     return { success: false, message: 'เกิดข้อผิดพลาด' };
@@ -806,8 +889,7 @@ function deleteHomework(id) {
 // ============================================
 function submitLeaveRequest(studentNo, studentName, type, date, reason, base64Image) {
   try {
-    if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
-    const sheet = ss.getSheetByName(SHEETS.LEAVE_REQUESTS); 
+    const sheet = getSheet_(SHEETS.LEAVE_REQUESTS); 
 
     // Sanitize inputs
     const cleanName   = sanitizeStr(studentName, 100);
@@ -844,7 +926,7 @@ function submitLeaveRequest(studentNo, studentName, type, date, reason, base64Im
     }
 
     sheet.appendRow([id, cleanNo, cleanName, cleanType, cleanDate, cleanReason, 'PENDING', imageUrl, false, new Date()]); 
-    formatSheets(SHEETS.LEAVE_REQUESTS);
+    clearDashboardCaches_();
     return { success: true };
   } catch (e) { 
     return { success: false, message: 'เกิดข้อผิดพลาด' }; 
@@ -853,8 +935,8 @@ function submitLeaveRequest(studentNo, studentName, type, date, reason, base64Im
 
 function getLeaveRequests(ss = null) {
   try {
-    if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
-    const sheet = ss.getSheetByName(SHEETS.LEAVE_REQUESTS); 
+    const activeSs = ss || getSpreadsheet();
+    const sheet = getSheetFromSs_(activeSs, SHEETS.LEAVE_REQUESTS); 
     const data = sheet.getDataRange().getValues(); 
     if (data.length <= 1) return [];
     return data.slice(1).map(row => ({
@@ -877,8 +959,7 @@ function getLeaveRequests(ss = null) {
 
 function confirmLeaveRequest(id, imgBase64) {
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = ss.getSheetByName(SHEETS.LEAVE_REQUESTS);
+    const sheet = getSheet_(SHEETS.LEAVE_REQUESTS);
     const data = sheet.getDataRange().getValues();
 
     const cleanId = sanitizeStr(id, 100);
@@ -896,6 +977,7 @@ function confirmLeaveRequest(id, imgBase64) {
           if (url) sheet.getRange(i + 1, 8).setValue(url);
         }
         sheet.getRange(i + 1, 9).setValue(true);
+        clearDashboardCaches_();
         return { success: true };
       }
     }
@@ -907,8 +989,7 @@ function confirmLeaveRequest(id, imgBase64) {
 
 function updateLeaveStatus(id, status) {
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = ss.getSheetByName(SHEETS.LEAVE_REQUESTS);
+    const sheet = getSheet_(SHEETS.LEAVE_REQUESTS);
     const data = sheet.getDataRange().getValues();
 
     const cleanId = sanitizeStr(id, 100);
@@ -921,6 +1002,7 @@ function updateLeaveStatus(id, status) {
       if (data[i][0] === cleanId) {
         sheet.getRange(i + 1, 7).setValue(cleanStatus);
         sheet.getRange(i + 1, 9).setValue(cleanStatus === 'APPROVED');
+        clearDashboardCaches_();
         return { success: true };
       }
     }
@@ -935,21 +1017,11 @@ function updateLeaveStatus(id, status) {
 // ============================================
 function addTreasuryItem(title, amt, by, targetStudents = null) {
   try {
-    if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); }
-
-    // Sanitize inputs
-    const cleanTitle = sanitizeStr(title, 200);
-    const cleanBy    = sanitizeStr(by, 200);
-    const cleanAmt   = parseFloat(amt);
-
-    if (!cleanTitle) return { success: false, message: 'กรุณาระบุชื่อรายการ' };
-    if (!cleanBy)    return { success: false, message: 'ไม่พบข้อมูลผู้ใช้' };
-    if (isNaN(cleanAmt) || cleanAmt < 0 || cleanAmt > 100000) return { success: false, message: 'จำนวนเงินไม่ถูกต้อง' };
-
-    // ตรวจสิทธิ์จาก server
-    const uSheet = ss.getSheetByName(SHEETS.USERS);
+    const ss = getSpreadsheet();
+    const uSheet = getSheetFromSs_(ss, SHEETS.USERS);
     const uData = uSheet.getDataRange().getValues();
     let hasPerm = false;
+    const cleanBy = sanitizeStr(by, 200);
     for (let i = 1; i < uData.length; i++) {
       if (uData[i][1] === cleanBy) {
         const rK = uData[i][6];
@@ -959,8 +1031,14 @@ function addTreasuryItem(title, amt, by, targetStudents = null) {
     }
     if (!hasPerm) return { success: false, message: 'คุณไม่มีสิทธิ์จัดการเงินห้อง' };
 
-    const tS = ss.getSheetByName(SHEETS.TREASURY); 
-    const pS = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS); 
+    const cleanTitle = sanitizeStr(title, 200);
+    const cleanAmt   = parseFloat(amt);
+
+    if (!cleanTitle) return { success: false, message: 'กรุณาระบุชื่อรายการ' };
+    if (isNaN(cleanAmt) || cleanAmt < 0 || cleanAmt > 100000) return { success: false, message: 'จำนวนเงินไม่ถูกต้อง' };
+
+    const tS = getSheetFromSs_(ss, SHEETS.TREASURY); 
+    const pS = getSheetFromSs_(ss, SHEETS.TREASURY_PAYMENTS); 
     const id = Utilities.getUuid(); 
     const color = getSubjectColor(cleanTitle); 
     
@@ -978,11 +1056,10 @@ function addTreasuryItem(title, amt, by, targetStudents = null) {
       targetNos = STUDENTS.map(s => s.no);
     }
 
-    const rows = targetNos.map(no => [id, no, 0, '', '', color]);
-    if (rows.length > 0) pS.getRange(pS.getLastRow() + 1, 1, rows.length, 6).setValues(rows);
+    const rows = targetNos.map(no => [id, no, 0, '', '', color, '']);
+    if (rows.length > 0) pS.getRange(pS.getLastRow() + 1, 1, rows.length, 7).setValues(rows);
     
-    formatSheets(SHEETS.TREASURY);
-    formatSheets(SHEETS.TREASURY_PAYMENTS);
+    clearDashboardCaches_();
     return { success: true, treasuryId: id };
   } catch (e) { 
     return { success: false, message: 'เกิดข้อผิดพลาด: ' + e.toString() };
@@ -991,9 +1068,9 @@ function addTreasuryItem(title, amt, by, targetStudents = null) {
 
 function getTreasuryItems(ss = null) {
   try {
-    if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
-    const tSheet = ss.getSheetByName(SHEETS.TREASURY); 
-    const pSheet = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS);
+    const activeSs = ss || getSpreadsheet();
+    const tSheet = getSheetFromSs_(activeSs, SHEETS.TREASURY); 
+    const pSheet = getSheetFromSs_(activeSs, SHEETS.TREASURY_PAYMENTS);
 
     const tData = tSheet.getDataRange().getValues(); 
     const pData = pSheet ? pSheet.getDataRange().getValues() : [];
@@ -1003,7 +1080,13 @@ function getTreasuryItems(ss = null) {
       const tId = pData[r][0];
       if (!tId) continue;
       if (!payMap[tId]) payMap[tId] = {};
-      payMap[tId][pData[r][1]] = { amountPaid: parseFloat(pData[r][2]) || 0 };
+      payMap[tId][pData[r][1]] = {
+        amountPaid: parseFloat(pData[r][2]) || 0,
+        paidAt: pData[r][3] ? new Date(pData[r][3]).toISOString() : '',
+        notes: pData[r][4] || '',
+        color: pData[r][5] || '',
+        receiptNo: pData[r][6] || ''
+      };
     }
 
     const list = [];
@@ -1040,8 +1123,7 @@ function getTreasuryItems(ss = null) {
 
 function updatePayment(tid, sno, paid) {
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const pS = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS);
+    const pS = getSheet_(SHEETS.TREASURY_PAYMENTS);
     const d = pS.getDataRange().getValues();
 
     const cleanTid  = sanitizeStr(tid, 100);
@@ -1052,12 +1134,18 @@ function updatePayment(tid, sno, paid) {
 
     for (let i = 1; i < d.length; i++) {
       if (d[i][0] === cleanTid && Number(d[i][1]) === cleanSno) {
+        const paidAt = cleanPaid > 0 ? new Date() : '';
+        // Generate server-side receipt number
+        const receiptNo = 'RC-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss') + '-' + Utilities.getUuid().split('-')[0];
         pS.getRange(i + 1, 3).setValue(cleanPaid);
-        pS.getRange(i + 1, 4).setValue(cleanPaid > 0 ? new Date() : '');
+        pS.getRange(i + 1, 4).setValue(paidAt);
+        // Store receiptNo in column 7 (ReceiptNo) - creates column if missing
+        try { pS.getRange(i + 1, 7).setValue(receiptNo); } catch(e) { /* ignore if cannot write */ }
         const props = PropertiesService.getScriptProperties();
         const count = parseInt(props.getProperty('tr_pay_counter') || '0');
         props.setProperty('tr_pay_counter', (count + 1).toString());
-        return { success: true };
+        clearDashboardCaches_();
+        return { success: true, paidAt: paidAt ? paidAt.toISOString() : '', receiptNo: receiptNo };
       }
     }
     return { success: false, message: 'ไม่พบรายการ' };
@@ -1068,9 +1156,8 @@ function updatePayment(tid, sno, paid) {
 
 function deleteTreasuryItem(id) {
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const tS = ss.getSheetByName(SHEETS.TREASURY);
-    const pS = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS);
+    const tS = getSheet_(SHEETS.TREASURY);
+    const pS = getSheet_(SHEETS.TREASURY_PAYMENTS);
 
     const cleanId = sanitizeStr(id, 100);
     if (!cleanId) return { success: false, message: 'ข้อมูลไม่ถูกต้อง' };
@@ -1083,9 +1170,112 @@ function deleteTreasuryItem(id) {
     for (let i = pd.length - 1; i >= 1; i--) {
       if (pd[i][0] === cleanId) pS.deleteRow(i + 1);
     }
-    formatSheets(SHEETS.TREASURY);
-    formatSheets(SHEETS.TREASURY_PAYMENTS);
+    clearDashboardCaches_();
     return { success: true };
+  } catch (e) {
+    return { success: false, message: 'เกิดข้อผิดพลาด' };
+  }
+}
+
+// ============================================
+// 💸 LOANS (เงินยืม)
+// ============================================
+function addLoan(borrowerNo, lenderNo, amount, note, proofBase64, createdBy) {
+  try {
+    const cleanBorrower = parseInt(borrowerNo);
+    const cleanLender   = parseInt(lenderNo);
+    const cleanAmount   = parseFloat(amount);
+    const cleanNote     = sanitizeStr(note, 500);
+    const cleanBy       = sanitizeStr(createdBy, 200);
+
+    if (isNaN(cleanBorrower) || cleanBorrower < 1) return { success: false, message: 'เลขที่ผู้ยืมไม่ถูกต้อง' };
+    if (isNaN(cleanLender)   || cleanLender < 1)   return { success: false, message: 'เลขที่ผู้ให้ยืมไม่ถูกต้อง' };
+    if (cleanBorrower === cleanLender) return { success: false, message: 'ผู้ยืมและผู้ให้ยืมต้องไม่เป็นคนเดียวกัน' };
+    if (isNaN(cleanAmount) || cleanAmount <= 0 || cleanAmount > 1000000) return { success: false, message: 'จำนวนเงินไม่ถูกต้อง' };
+
+    // Upload proof image if provided
+    let proofUrl = '';
+    if (proofBase64 && proofBase64.startsWith('data:image')) {
+      proofUrl = uploadImageToDrive(proofBase64, 'loan_proof_' + Date.now() + '.jpg') || '';
+    }
+
+    const id = Utilities.getUuid();
+    const sheet = getSheet_(SHEETS.LOANS);
+    sheet.appendRow([id, cleanBorrower, cleanLender, cleanAmount, cleanNote, proofUrl, 'pending', new Date().toISOString(), cleanBy]);
+
+    return { success: true, loanId: id };
+  } catch (e) {
+    return { success: false, message: 'เกิดข้อผิดพลาด: ' + e.toString() };
+  }
+}
+
+function getLoans() {
+  try {
+    ensureSheetsExist();
+    const sheet = getSheet_(SHEETS.LOANS);
+    if (!sheet || sheet.getLastRow() < 2) return { success: true, loans: [] };
+
+    const data = sheet.getDataRange().getValues();
+    const loans = [];
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (!row[0]) continue;
+      loans.push({
+        id:         row[0],
+        borrowerNo: row[1],
+        lenderNo:   row[2],
+        amount:     parseFloat(row[3]) || 0,
+        note:       row[4] || '',
+        proofUrl:   row[5] || '',
+        status:     row[6] || 'pending',
+        createdAt:  row[7] ? new Date(row[7]).toISOString() : '',
+        createdBy:  row[8] || ''
+      });
+    }
+    // Most recent first
+    loans.reverse();
+    return { success: true, loans: loans };
+  } catch (e) {
+    return { success: false, message: e.toString(), loans: [] };
+  }
+}
+
+function updateLoanStatus(id, status) {
+  try {
+    const cleanId     = sanitizeStr(id, 100);
+    const cleanStatus = sanitizeStr(status, 50);
+    if (!cleanId) return { success: false, message: 'ข้อมูลไม่ถูกต้อง' };
+    const allowed = ['pending', 'returned'];
+    if (!allowed.includes(cleanStatus)) return { success: false, message: 'สถานะไม่ถูกต้อง' };
+
+    const sheet = getSheet_(SHEETS.LOANS);
+    const data = sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === cleanId) {
+        sheet.getRange(i + 1, 7).setValue(cleanStatus);
+        return { success: true };
+      }
+    }
+    return { success: false, message: 'ไม่พบรายการ' };
+  } catch (e) {
+    return { success: false, message: 'เกิดข้อผิดพลาด' };
+  }
+}
+
+function deleteLoan(id) {
+  try {
+    const cleanId = sanitizeStr(id, 100);
+    if (!cleanId) return { success: false, message: 'ข้อมูลไม่ถูกต้อง' };
+
+    const sheet = getSheet_(SHEETS.LOANS);
+    const data = sheet.getDataRange().getValues();
+    for (let i = data.length - 1; i >= 1; i--) {
+      if (data[i][0] === cleanId) {
+        sheet.deleteRow(i + 1);
+        return { success: true };
+      }
+    }
+    return { success: false, message: 'ไม่พบรายการ' };
   } catch (e) {
     return { success: false, message: 'เกิดข้อผิดพลาด' };
   }
@@ -1096,32 +1286,40 @@ function deleteTreasuryItem(id) {
 // ============================================
 function getLastUpdate() {
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const hw = ss.getSheetByName(SHEETS.HOMEWORK);
-    const tr = ss.getSheetByName(SHEETS.TREASURY);
-    const lv = ss.getSheetByName(SHEETS.LEAVE_REQUESTS);
+    const cache = CacheService.getScriptCache();
+    const cached = cache.get(CACHE_UPDATE_KEY);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const ss = getSpreadsheet();
+    const hw = getSheetFromSs_(ss, SHEETS.HOMEWORK);
+    const tr = getSheetFromSs_(ss, SHEETS.TREASURY);
+    const lv = getSheetFromSs_(ss, SHEETS.LEAVE_REQUESTS);
 
     let pCount = 0;
     let lastPendingType = '';
 
     if (lv && lv.getLastRow() > 1) {
-      const vals = lv.getRange(2, 7, lv.getLastRow() - 1, 1).getValues();
-      pCount = vals.filter(r => r[0] === 'PENDING').length;
-      const lastRow = lv.getLastRow();
-      const lastVals = lv.getRange(lastRow, 4, 1, 4).getValues()[0];
-      if (lastVals[3] === 'PENDING') lastPendingType = lastVals[0] || 'รายการ';
+      const lvData = lv.getDataRange().getValues();
+      const pendingRows = lvData.slice(1).filter(function(r) { return r[6] === 'PENDING'; });
+      pCount = pendingRows.length;
+      const lastRowVals = lvData[lvData.length - 1];
+      if (lastRowVals[6] === 'PENDING') {
+        lastPendingType = lastRowVals[3] || 'รายการ';
+      }
     }
 
     const props = PropertiesService.getScriptProperties();
     const trPayCounter = parseInt(props.getProperty('tr_pay_counter') || '0');
 
     let seatVersion = 0;
-    const seatMeta = ss.getSheetByName(SHEETS.SEAT_META);
+    const seatMeta = getSheetFromSs_(ss, SHEETS.SEAT_META);
     if (seatMeta && seatMeta.getLastRow() >= 2) {
       seatVersion = Number(seatMeta.getRange(2, 5).getValue()) || 0;
     }
 
-    return {
+    const result = {
       success: true,
       hwCount: hw ? Math.max(0, hw.getLastRow() - 1) : 0,
       trCount: tr ? Math.max(0, tr.getLastRow() - 1) : 0,
@@ -1130,6 +1328,9 @@ function getLastUpdate() {
       trPayCounter: trPayCounter,
       seatVersion: seatVersion
     };
+
+    cache.put(CACHE_UPDATE_KEY, JSON.stringify(result), CACHE_TTL);
+    return result;
   } catch (e) { 
     return { success: false, hwCount: 0, trCount: 0, pendingLeaveCount: 0, lastPendingType: '', trPayCounter: 0 }; 
   }
@@ -1140,13 +1341,12 @@ function getLastUpdate() {
 // ============================================
 function generateCode(actionType, value, details) {
   try {
-    ensureSheetsExist();
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = ss.getSheetByName(SHEETS.REDEEM_CODES);
+    const sheet = getSheet_(SHEETS.REDEEM_CODES);
     const code = Utilities.getUuid().split('-')[0].toUpperCase();
     const qr = createQrInDrive(code);
     const now = new Date();
     sheet.appendRow([code, actionType, value, JSON.stringify(details || {}), 1, 0, 'Owner', now, qr.fileId || '', qr.url || '', now.toISOString()]);
+    clearDashboardCaches_();
     return { success: true, code: code, qrUrl: qr.url };
   } catch (e) {
     return { success: false, message: e.toString() };
@@ -1191,10 +1391,9 @@ function cleanupOldQrFiles() {
 
 function createGuestAccount(code) {
   try {
-    ensureSheetsExist();
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const codeSheet = ss.getSheetByName(SHEETS.REDEEM_CODES);
-    const userSheet = ss.getSheetByName(SHEETS.USERS);
+    const ss = getSpreadsheet();
+    const codeSheet = getSheetFromSs_(ss, SHEETS.REDEEM_CODES);
+    const userSheet = getSheetFromSs_(ss, SHEETS.USERS);
 
     if (!code) return { success: false, message: 'กรุณากรอกโค้ด' };
 
@@ -1237,7 +1436,6 @@ function createGuestAccount(code) {
     const guestName = 'Guest_' + Utilities.getUuid().split('-')[0].slice(0, 5).toUpperCase();
 
     // บันทึกบัญชีใหม่ใน Users sheet
-    // ID | DisplayName | Email | PasswordHash | Hint | StudentNo | Role | CreatedAt | LastLogin | TempRoleExpiry | HwCredits
     userSheet.appendRow([
       guestId, guestName, '', '', '', '', 'GUEST',
       new Date(), new Date(), expiresAt, 0
@@ -1249,6 +1447,7 @@ function createGuestAccount(code) {
     const unitTh = unit === 'DAYS' ? 'วัน' : unit === 'WEEKS' ? 'อาทิตย์' : unit === 'MONTHS' ? 'เดือน' : 'ปี';
     const expiresAtISO = expiresAt.toISOString();
 
+    clearDashboardCaches_();
     return {
       success: true,
       expiresAt: expiresAtISO,
@@ -1279,13 +1478,12 @@ function deleteGuestAccount(userId) {
     if (!userId || !String(userId).startsWith('GUEST_')) {
       return { success: false, message: 'ไม่ใช่บัญชีชั่วคราว' };
     }
-    ensureSheetsExist();
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const userSheet = ss.getSheetByName(SHEETS.USERS);
+    const userSheet = getSheet_(SHEETS.USERS);
     const data = userSheet.getDataRange().getValues();
     for (let i = data.length - 1; i >= 1; i--) {
       if (String(data[i][0]) === String(userId) && data[i][6] === 'GUEST') {
         userSheet.deleteRow(i + 1);
+        clearDashboardCaches_();
         return { success: true };
       }
     }
@@ -1298,9 +1496,7 @@ function deleteGuestAccount(userId) {
 // Time-based trigger: ลบบัญชี GUEST ที่หมดอายุทั้งหมด (ตั้ง trigger ทุก 1 ชม. ใน GAS)
 function cleanupExpiredGuestAccounts() {
   try {
-    ensureSheetsExist();
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const userSheet = ss.getSheetByName(SHEETS.USERS);
+    const userSheet = getSheet_(SHEETS.USERS);
     const data = userSheet.getDataRange().getValues();
     const now = new Date();
     let deleted = 0;
@@ -1312,6 +1508,9 @@ function cleanupExpiredGuestAccounts() {
         }
       }
     }
+    if (deleted > 0) {
+      clearDashboardCaches_();
+    }
     return { success: true, deleted: deleted };
   } catch (e) {
     return { success: false, message: e.toString() };
@@ -1322,9 +1521,9 @@ function cleanupExpiredGuestAccounts() {
 // FIX: Returns addedCredits for ADD_HW so client can update local state
 function redeemCode(code, userId) {
   try {
-    if (!ss) { ensureSheetsExist(); ss = SpreadsheetApp.openById(SPREADSHEET_ID); } 
-    const codeSheet = ss.getSheetByName(SHEETS.REDEEM_CODES); 
-    const userSheet = ss.getSheetByName(SHEETS.USERS);
+    const ss = getSpreadsheet();
+    const codeSheet = getSheetFromSs_(ss, SHEETS.REDEEM_CODES); 
+    const userSheet = getSheetFromSs_(ss, SHEETS.USERS);
 
     const codeData = codeSheet.getDataRange().getValues();
 
@@ -1370,8 +1569,8 @@ function redeemCode(code, userId) {
               extraData.addedCredits = addAmt;
             }
             else if (action === 'ADD_MONEY') {
-              const tSheet = ss.getSheetByName(SHEETS.TREASURY);
-              const pSheet = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS);
+              const tSheet = getSheetFromSs_(ss, SHEETS.TREASURY);
+              const pSheet = getSheetFromSs_(ss, SHEETS.TREASURY_PAYMENTS);
               const tId = Utilities.getUuid();
               const title = details.title || 'รายการพิเศษ';
               const amt = parseFloat(details.amount) || 0;
@@ -1380,9 +1579,9 @@ function redeemCode(code, userId) {
               // เพิ่ม color เข้าไปในแถว
               tSheet.appendRow([tId, title, amt, 'Code:' + code, new Date(), 'active', color]); 
               
-              const rows = STUDENTS.map(s => [tId, s.no, 0, '', '']);
+              const rows = STUDENTS.map(s => [tId, s.no, 0, '', '', '']);
               if (rows.length > 0) {
-                pSheet.getRange(pSheet.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
+                pSheet.getRange(pSheet.getLastRow() + 1, 1, rows.length, 6).setValues(rows);
               }
               resultMsg = `สร้างรายการเก็บเงิน "${title}" (${amt} บาท/คน) สำเร็จ`;
               extraData.treasuryId = tId;
@@ -1392,6 +1591,7 @@ function redeemCode(code, userId) {
             break;
           }
         }
+        clearDashboardCaches_();
         return { success: true, message: resultMsg, ...extraData };
       }
     }
@@ -1406,9 +1606,7 @@ function redeemCode(code, userId) {
 // ============================================
 function getTimetable() {
   try {
-    ensureSheetsExist();
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sh = ss.getSheetByName(SHEETS.TIMETABLE);
+    const sh = getSheet_(SHEETS.TIMETABLE);
     if (!sh || sh.getLastRow() < 2) return { success: true, imageUrl: '', linkUrl: '', updatedAt: '' };
     const r = sh.getRange(2, 1, 1, 4).getValues()[0];
     return {
@@ -1425,14 +1623,12 @@ function getTimetable() {
 
 function setTimetable(userId, imageBase64, linkUrl) {
   try {
-    ensureSheetsExist();
     const row = getUserRow_(userId);
     if (!row) return { success: false, message: 'ไม่พบผู้ใช้' };
     const rk = row.data[6];
     if (rk !== 'OWNER') return { success: false, message: 'เฉพาะเจ้าของเว็บเท่านั้นที่แก้ไขตารางเรียนได้' };
 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sh = ss.getSheetByName(SHEETS.TIMETABLE);
+    const sh = getSheet_(SHEETS.TIMETABLE);
     const cur = sh.getRange(2, 1, 1, 4).getValues()[0];
     let imageUrl = cur[0] || '';
     let link = cur[1] || '';
@@ -1445,6 +1641,7 @@ function setTimetable(userId, imageBase64, linkUrl) {
       link = String(linkUrl).trim();
     }
     sh.getRange(2, 1, 1, 4).setValues([[imageUrl, link, new Date(), row.data[1]]]);
+    clearDashboardCaches_();
     return { success: true, imageUrl: convertDriveToDirect(String(imageUrl)), linkUrl: link };
   } catch (e) {
     return { success: false, message: e.toString() };
@@ -1456,9 +1653,7 @@ function setTimetable(userId, imageBase64, linkUrl) {
 // ============================================
 function getUserRow_(userId) {
   if (!userId) return null;
-  ensureSheetsExist();
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sh = ss.getSheetByName(SHEETS.USERS);
+  const sh = getSheet_(SHEETS.USERS);
   const d = sh.getDataRange().getValues();
   for (let i = 1; i < d.length; i++) {
     if (String(d[i][0]) === String(userId)) return { row: i + 1, data: d[i] };
@@ -1550,9 +1745,7 @@ function bumpSeatVersion_(sh) {
 
 function seatSessionValid_(token) {
   if (!token) return null;
-  ensureSheetsExist();
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sh = ss.getSheetByName(SHEETS.SEAT_EDIT_SESSIONS);
+  const sh = getSheet_(SHEETS.SEAT_EDIT_SESSIONS);
   const d = sh.getDataRange().getValues();
   const now = new Date();
   for (let i = 1; i < d.length; i++) {
@@ -1575,10 +1768,9 @@ function findStudentByCode_(code5) {
 /** Public + editor snapshot */
 function seatGetSnapshot(userId, guestEditToken) {
   try {
-    ensureSheetsExist();
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const meta = ss.getSheetByName(SHEETS.SEAT_META);
-    const book = ss.getSheetByName(SHEETS.SEAT_BOOKINGS);
+    const ss = getSpreadsheet();
+    const meta = getSheetFromSs_(ss, SHEETS.SEAT_META);
+    const book = getSheetFromSs_(ss, SHEETS.SEAT_BOOKINGS);
     const row = userId ? getUserRow_(userId) : null;
     const roleKey = row ? row.data[6] : '';
     const layout = normalizeLayout_(parseLayout_(meta.getRange(2, 1).getValue()));
@@ -1628,15 +1820,14 @@ function seatGetSnapshot(userId, guestEditToken) {
 
 function seatSetBookingWindow(userId, startISO, endISO) {
   try {
-    ensureSheetsExist();
     const row = getUserRow_(userId);
     if (!row) return { success: false, message: 'ไม่พบผู้ใช้' };
     if (!roleIsSeatAdmin_(row.data[6])) return { success: false, message: 'ไม่มีสิทธิ์ตั้งเวลาเปิดจอง' };
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const meta = ss.getSheetByName(SHEETS.SEAT_META);
+    const meta = getSheet_(SHEETS.SEAT_META);
     meta.getRange(2, 2).setValue(startISO ? new Date(startISO) : '');
     meta.getRange(2, 3).setValue(endISO ? new Date(endISO) : '');
     const v = bumpSeatVersion_(meta);
+    clearDashboardCaches_();
     return { success: true, version: v };
   } catch (e) {
     return { success: false, message: e.toString() };
@@ -1646,16 +1837,15 @@ function seatSetBookingWindow(userId, startISO, endISO) {
 function seatSetFrontBand(userId, frontBandRows, guestEditToken) {
   try {
     return withSeatLock_(function() {
-      ensureSheetsExist();
       const snap = seatGetSnapshot(userId, guestEditToken);
       if (!snap.success || !snap.canEditLayout) return { success: false, message: 'Permission denied' };
-      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-      const meta = ss.getSheetByName(SHEETS.SEAT_META);
+      const meta = getSheet_(SHEETS.SEAT_META);
       const layout = normalizeLayout_(parseLayout_(meta.getRange(2, 1).getValue()));
       layout.frontBand = Math.max(0, Math.min(Number(frontBandRows) || 0, layout.grid.rows));
       meta.getRange(2, 4).setValue(layout.frontBand);
       meta.getRange(2, 1).setValue(JSON.stringify(layout));
       const v = bumpSeatVersion_(meta);
+      clearDashboardCaches_();
       return { success: true, layout: layout, version: v };
     });
   } catch (e) {
@@ -1666,16 +1856,15 @@ function seatSetFrontBand(userId, frontBandRows, guestEditToken) {
 function seatSaveLayout(userId, layoutJson, guestEditToken) {
   try {
     return withSeatLock_(function() {
-      ensureSheetsExist();
       const snap = seatGetSnapshot(userId, guestEditToken);
       if (!snap.success || !snap.canEditLayout) return { success: false, message: 'Permission denied' };
       const layout = typeof layoutJson === 'string' ? parseLayout_(layoutJson) : parseLayout_(JSON.stringify(layoutJson));
       const normalized = normalizeLayout_(layout);
-      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-      const meta = ss.getSheetByName(SHEETS.SEAT_META);
+      const meta = getSheet_(SHEETS.SEAT_META);
       meta.getRange(2, 1).setValue(JSON.stringify(normalized));
       meta.getRange(2, 4).setValue(normalized.frontBand);
       const v = bumpSeatVersion_(meta);
+      clearDashboardCaches_();
       return { success: true, version: v };
     });
   } catch (e) {
@@ -1686,7 +1875,6 @@ function seatSaveLayout(userId, layoutJson, guestEditToken) {
 function seatBook(userId, seatId, studentCode5) {
   try {
     return withSeatLock_(function() {
-      ensureSheetsExist();
       const row = getUserRow_(userId);
       if (!row) return { success: false, message: 'Login required' };
       const normalizedSeatId = normalizeSeatId_(seatId);
@@ -1700,8 +1888,8 @@ function seatBook(userId, seatId, studentCode5) {
       if (!seat) return { success: false, message: 'Seat not found' };
       if (seat.lock) return { success: false, message: 'Seat is locked for teachers/front row' };
 
-      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-      const book = ss.getSheetByName(SHEETS.SEAT_BOOKINGS);
+      const ss = getSpreadsheet();
+      const book = getSheetFromSs_(ss, SHEETS.SEAT_BOOKINGS);
       const d = book.getDataRange().getValues();
       for (let i = 1; i < d.length; i++) {
         if (String(d[i][1]) === String(st.no)) return { success: false, message: 'This student number already booked another seat' };
@@ -1711,7 +1899,8 @@ function seatBook(userId, seatId, studentCode5) {
       }
 
       book.appendRow([normalizedSeatId, st.no, st.name, userId, new Date()]);
-      bumpSeatVersion_(ss.getSheetByName(SHEETS.SEAT_META));
+      bumpSeatVersion_(getSheetFromSs_(ss, SHEETS.SEAT_META));
+      clearDashboardCaches_();
       return { success: true, message: 'Booked successfully' };
     });
   } catch (e) {
@@ -1722,7 +1911,6 @@ function seatBook(userId, seatId, studentCode5) {
 function seatCancelBooking(userId, seatId) {
   try {
     return withSeatLock_(function() {
-      ensureSheetsExist();
       const row = getUserRow_(userId);
       if (!row) return { success: false, message: 'Login required' };
       const normalizedSeatId = normalizeSeatId_(seatId);
@@ -1730,8 +1918,8 @@ function seatCancelBooking(userId, seatId) {
       const rk = row.data[6];
       const admin = roleIsSeatAdmin_(rk);
 
-      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-      const book = ss.getSheetByName(SHEETS.SEAT_BOOKINGS);
+      const ss = getSpreadsheet();
+      const book = getSheetFromSs_(ss, SHEETS.SEAT_BOOKINGS);
       const d = book.getDataRange().getValues();
       const myNo = row.data[5];
       for (let i = d.length - 1; i >= 1; i--) {
@@ -1740,7 +1928,8 @@ function seatCancelBooking(userId, seatId) {
         const targetNo = d[i][1];
         if (admin || bookedBy === String(userId) || String(myNo) === String(targetNo)) {
           book.deleteRow(i + 1);
-          bumpSeatVersion_(ss.getSheetByName(SHEETS.SEAT_META));
+          bumpSeatVersion_(getSheetFromSs_(ss, SHEETS.SEAT_META));
+          clearDashboardCaches_();
           return { success: true, message: 'Booking canceled' };
         }
         return { success: false, message: 'You cannot cancel this booking' };
@@ -1754,7 +1943,6 @@ function seatCancelBooking(userId, seatId) {
 
 function seatCreateEditCode(userId, plainCode, durationMinutes, label) {
   try {
-    ensureSheetsExist();
     const row = getUserRow_(userId);
     if (!row) return { success: false, message: 'ไม่พบผู้ใช้' };
     if (!roleIsSeatAdmin_(row.data[6])) return { success: false, message: 'ไม่มีสิทธิ์สร้างโค้ดแก้ไข' };
@@ -1766,9 +1954,9 @@ function seatCreateEditCode(userId, plainCode, durationMinutes, label) {
     const exp = new Date();
     exp.setMinutes(exp.getMinutes() + mins);
 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sh = ss.getSheetByName(SHEETS.SEAT_EDIT_CODES);
+    const sh = getSheet_(SHEETS.SEAT_EDIT_CODES);
     sh.appendRow([id, hash, exp, userId, String(label || ''), false]);
+    clearDashboardCaches_();
     return { success: true, codeId: id, expiresAt: exp.toISOString() };
   } catch (e) {
     return { success: false, message: e.toString() };
@@ -1777,14 +1965,13 @@ function seatCreateEditCode(userId, plainCode, durationMinutes, label) {
 
 function seatValidateEditCode(plainCode) {
   try {
-    ensureSheetsExist();
     const pc = String(plainCode || '').trim();
     if (!pc) return { success: false, message: 'Code is required' };
     const rl = checkRateLimit_('seatEditCode', pc.toUpperCase(), 12, 15 * 60 * 1000);
     if (rl.blocked) return { success: false, message: 'Too many attempts. Please wait and try again later' };
     const hash = hashPassword(pc + '_SEAT_EDIT_SALT');
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sh = ss.getSheetByName(SHEETS.SEAT_EDIT_CODES);
+    const ss = getSpreadsheet();
+    const sh = getSheetFromSs_(ss, SHEETS.SEAT_EDIT_CODES);
     const d = sh.getDataRange().getValues();
     const now = new Date();
 
@@ -1795,8 +1982,9 @@ function seatValidateEditCode(plainCode) {
 
       const token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '').slice(0, 8);
       const exp = new Date(d[i][2]);
-      const sess = ss.getSheetByName(SHEETS.SEAT_EDIT_SESSIONS);
+      const sess = getSheetFromSs_(ss, SHEETS.SEAT_EDIT_SESSIONS);
       sess.appendRow([token, d[i][0], exp]);
+      clearDashboardCaches_();
       return { success: true, token: token, expiresAt: exp.toISOString() };
     }
     return { success: false, message: 'โค้ดไม่ถูกต้อง' };
@@ -1807,11 +1995,9 @@ function seatValidateEditCode(plainCode) {
 
 function seatListEditCodes(userId) {
   try {
-    ensureSheetsExist();
     const row = getUserRow_(userId);
     if (!row || !roleIsSeatAdmin_(row.data[6])) return { success: false, message: 'ไม่มีสิทธิ์' };
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sh = ss.getSheetByName(SHEETS.SEAT_EDIT_CODES);
+    const sh = getSheet_(SHEETS.SEAT_EDIT_CODES);
     const d = sh.getDataRange().getValues();
     const list = [];
     const now = new Date();
@@ -1833,20 +2019,20 @@ function seatListEditCodes(userId) {
 
 function seatRevokeEditCode(userId, codeId) {
   try {
-    ensureSheetsExist();
     const row = getUserRow_(userId);
     if (!row || !roleIsSeatAdmin_(row.data[6])) return { success: false, message: 'ไม่มีสิทธิ์' };
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sh = ss.getSheetByName(SHEETS.SEAT_EDIT_CODES);
+    const ss = getSpreadsheet();
+    const sh = getSheetFromSs_(ss, SHEETS.SEAT_EDIT_CODES);
     const d = sh.getDataRange().getValues();
     for (let i = 1; i < d.length; i++) {
       if (String(d[i][0]) === String(codeId)) {
         sh.getRange(i + 1, 6).setValue(true);
-        const sess = ss.getSheetByName(SHEETS.SEAT_EDIT_SESSIONS);
+        const sess = getSheetFromSs_(ss, SHEETS.SEAT_EDIT_SESSIONS);
         const sd = sess.getDataRange().getValues();
         for (let j = sd.length - 1; j >= 1; j--) {
           if (String(sd[j][1]) === String(codeId)) sess.deleteRow(j + 1);
         }
+        clearDashboardCaches_();
         return { success: true };
       }
     }
@@ -1858,15 +2044,14 @@ function seatRevokeEditCode(userId, codeId) {
 
 function seatRevokeSession(userId, token) {
   try {
-    ensureSheetsExist();
     const row = getUserRow_(userId);
     if (!row || !roleIsSeatAdmin_(row.data[6])) return { success: false, message: 'ไม่มีสิทธิ์' };
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sess = ss.getSheetByName(SHEETS.SEAT_EDIT_SESSIONS);
+    const sess = getSheet_(SHEETS.SEAT_EDIT_SESSIONS);
     const sd = sess.getDataRange().getValues();
     for (let i = sd.length - 1; i >= 1; i--) {
       if (String(sd[i][0]) === String(token)) sess.deleteRow(i + 1);
     }
+    clearDashboardCaches_();
     return { success: true };
   } catch (e) {
     return { success: false, message: e.toString() };
@@ -1875,11 +2060,9 @@ function seatRevokeSession(userId, token) {
 
 function seatListActiveSessions(userId) {
   try {
-    ensureSheetsExist();
     const row = getUserRow_(userId);
     if (!row || !roleIsSeatAdmin_(row.data[6])) return { success: false, message: 'ไม่มีสิทธิ์' };
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sess = ss.getSheetByName(SHEETS.SEAT_EDIT_SESSIONS);
+    const sess = getSheet_(SHEETS.SEAT_EDIT_SESSIONS);
     const sd = sess.getDataRange().getValues();
     const now = new Date();
     const out = [];
@@ -1893,7 +2076,43 @@ function seatListActiveSessions(userId) {
     return { success: false, message: e.toString() };
   }
 }
-function getDashboardData() { try { ensureSheetsExist(); const ss = SpreadsheetApp.openById(SPREADSHEET_ID); const hw = getHomework(ss); const tr = getTreasuryItems(ss); const lv = getLeaveRequests(ss); return { success: true, homework: hw.homework || [], treasury: tr.treasury || [], leaveRequests: lv || [] }; } catch (e) { return { success: false, message: e.toString() }; } }
 
-function getCounts() { try { ensureSheetsExist(); const ss = SpreadsheetApp.openById(SPREADSHEET_ID); const hwCount = ss.getSheetByName(SHEETS.HOMEWORK).getLastRow() - 1; const trCount = ss.getSheetByName(SHEETS.TREASURY).getLastRow() - 1; const lvCount = ss.getSheetByName(SHEETS.LEAVE_REQUESTS).getLastRow() - 1; const trPayCounter = ss.getSheetByName(SHEETS.TREASURY_PAYMENTS).getLastRow() - 1; const seatMeta = ss.getSheetByName(SHEETS.SEAT_META); let seatVersion = 0; if (seatMeta && seatMeta.getLastRow() >= 2) { seatVersion = Number(seatMeta.getRange(2, 5).getValue()) || 0; } return { success: true, hwCount, trCount, lvCount, trPayCounter, seatVersion }; } catch (e) { return { success: false, message: e.toString() }; } }
+function getDashboardData() {
+  try {
+    const ss = getSpreadsheet();
+    const hw = getHomework(ss);
+    const tr = getTreasuryItems(ss);
+    const lv = getLeaveRequests(ss);
+    return { success: true, homework: hw.homework || [], treasury: tr.treasury || [], leaveRequests: lv || [] };
+  } catch (e) {
+    return { success: false, message: e.toString() };
+  }
+}
+
+function getCounts() {
+  try {
+    const cache = CacheService.getScriptCache();
+    const cached = cache.get(CACHE_COUNTS_KEY);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const ss = getSpreadsheet();
+    const hwCount = getSheetFromSs_(ss, SHEETS.HOMEWORK).getLastRow() - 1;
+    const trCount = getSheetFromSs_(ss, SHEETS.TREASURY).getLastRow() - 1;
+    const lvCount = getSheetFromSs_(ss, SHEETS.LEAVE_REQUESTS).getLastRow() - 1;
+    const trPayCounter = getSheetFromSs_(ss, SHEETS.TREASURY_PAYMENTS).getLastRow() - 1;
+    const seatMeta = getSheetFromSs_(ss, SHEETS.SEAT_META);
+    let seatVersion = 0;
+    if (seatMeta && seatMeta.getLastRow() >= 2) {
+      seatVersion = Number(seatMeta.getRange(2, 5).getValue()) || 0;
+    }
+    const result = { success: true, hwCount, trCount, lvCount, trPayCounter, seatVersion };
+    
+    cache.put(CACHE_COUNTS_KEY, JSON.stringify(result), CACHE_TTL);
+    return result;
+  } catch (e) {
+    return { success: false, message: e.toString() };
+  }
+}
 
