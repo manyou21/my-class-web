@@ -16,6 +16,7 @@
 --success: #16a34a; --success-light: #dcfce7;
 --warning: #d97706; --warning-light: #fef3c7;
 --danger: #dc2626; --danger-light: #fee2e2;
+--surface-card: #ffffff; --surface-muted: #f8fafc; --surface-hover: #eef2ff;
 --border: #e5e7eb; --shadow: 0 4px 6px -1px rgba(0,0,0,0.1); --radius: 10px;
 --transition: all 0.2s ease-in-out;
 --sidebar-width: 260px;
@@ -24,11 +25,13 @@
 --bg-primary: #111827; --bg-secondary: #1f2937; --bg-tertiary: #374151;
 --text-primary: #f3f4f6; --text-secondary: #d1d5db; --text-muted: #9ca3af;
 --accent: #3b82f6; --accent-light: #1e3a8a;
+--surface-card: #1f2937; --surface-muted: #111827; --surface-hover: #111827;
 --border: #4b5563;
 }
-[data-theme="dark"] .check-card.checked .check-name { color: #000000 !important; }
+[data-theme="dark"] .check-card.checked .check-name { color: var(--text-primary) !important; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Prompt', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; line-height: 1.5; }
+html, body { min-height: 100%; }
+body { font-family: 'Prompt', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; line-height: 1.5; overflow-x: hidden; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
 
 /* Loading Overlay */
 .loading-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 9999; display: none; align-items: center; justify-content: center; flex-direction: column; backdrop-filter: blur(4px); }
@@ -767,65 +770,67 @@ margin-right:8px;
 }
 
 /* ===== RECEIPT (ใบเสร็จ) ===== */
-.receipt-modal .modal-content { max-width: 600px; }
+.receipt-modal .modal-content { max-width: min(96vw, 760px); width: min(96vw, 760px); }
 .receipt-wrap {
-  background: #fff;
-  color: #1e293b;
-  padding: 32px 36px;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 24px 18px;
   font-family: 'Prompt', sans-serif;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   line-height: 1.6;
+  border-radius: 18px;
+  box-shadow: var(--shadow);
 }
-.receipt-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #1e293b; padding-bottom: 14px; }
-.receipt-header .receipt-logo { font-size: 2rem; color: #2563eb; }
-.receipt-header h2 { font-size: 1.3rem; font-weight: 700; margin: 6px 0 2px; }
-.receipt-header p { font-size: 0.8rem; color: #64748b; margin: 0; }
+.receipt-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid var(--border); padding-bottom: 14px; }
+.receipt-header .receipt-logo { font-size: 2rem; color: var(--accent); }
+.receipt-header h2 { font-size: 1.3rem; font-weight: 700; margin: 6px 0 2px; color: var(--text-primary); }
+.receipt-header p { font-size: 0.85rem; color: var(--text-secondary); margin: 0; }
 .receipt-title-bar {
-  background: #2563eb;
-  color: white;
+  background: linear-gradient(135deg, var(--accent), #1d4ed8);
+  color: #fff;
   text-align: center;
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-weight: 700;
   font-size: 1rem;
   margin: 14px 0;
   letter-spacing: 0.05em;
 }
-.receipt-title-bar.receipt-loan { background: #7c3aed; }
-.receipt-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; margin-bottom: 14px; font-size: 0.85rem; }
-.receipt-meta-label { color: #64748b; font-size: 0.78rem; }
-.receipt-meta-value { font-weight: 600; }
-.receipt-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.85rem; }
-.receipt-table th { background: #f1f5f9; padding: 8px 10px; text-align: left; font-weight: 600; border-bottom: 1px solid #e2e8f0; }
-.receipt-table td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.receipt-title-bar.receipt-loan { background: linear-gradient(135deg, #7c3aed, #5b21b6); }
+.receipt-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; margin-bottom: 14px; font-size: 0.9rem; }
+.receipt-meta > div { background: var(--surface-muted); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; }
+.receipt-meta-label { color: var(--text-muted); font-size: 0.78rem; }
+.receipt-meta-value { font-weight: 600; color: var(--text-primary); }
+.receipt-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.9rem; overflow: hidden; border-radius: 10px; }
+.receipt-table th { background: var(--surface-hover); color: var(--text-primary); padding: 8px 10px; text-align: left; font-weight: 700; border-bottom: 1px solid var(--border); }
+.receipt-table td { color: var(--text-primary); padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .receipt-table tr:last-child td { border-bottom: none; }
-.receipt-total-row { font-weight: 700; background: #eff6ff; }
-.receipt-total-row td { border-top: 2px solid #2563eb; padding: 10px; }
-.receipt-footer { text-align: center; margin-top: 18px; padding-top: 12px; border-top: 1px dashed #cbd5e1; font-size: 0.78rem; color: #94a3b8; }
-.receipt-stamp {
-  display: inline-block;
-  border: 3px solid #16a34a;
-  color: #16a34a;
-  border-radius: 8px;
-  padding: 6px 18px;
-  font-weight: 800;
-  font-size: 1rem;
-  letter-spacing: 0.12em;
-  transform: rotate(-5deg);
-  margin: 10px auto;
-}
+.receipt-total-row { font-weight: 700; background: var(--accent-light); color: var(--text-primary); }
+.receipt-total-row td { border-top: 2px solid var(--accent); padding: 10px; }
+.receipt-footer { text-align: center; margin-top: 18px; padding-top: 12px; border-top: 1px dashed var(--border); font-size: 0.82rem; color: var(--text-secondary); }
+.receipt-stamp { display: inline-block; border: 3px solid var(--success); color: var(--success); border-radius: 8px; padding: 6px 18px; font-weight: 800; font-size: 1rem; letter-spacing: 0.12em; transform: rotate(-5deg); margin: 10px auto; background: rgba(22,163,74,0.06); }
 .receipt-qr-area { text-align: center; margin: 10px 0; }
-.receipt-proof-img { max-width: 160px; border-radius: 8px; border: 1px solid #e2e8f0; margin: 6px auto; display: block; }
+.receipt-qr-area p { color: var(--text-secondary); }
+.receipt-proof-img { max-width: 160px; border-radius: 8px; border: 1px solid var(--border); margin: 6px auto; display: block; background: var(--surface-muted); }
 
 /* ===== LOAN (เงินยืม) ===== */
-.loan-card { border-left: 4px solid #7c3aed; }
-.loan-card .card-head { background: linear-gradient(to right, #ede9fe, var(--bg-tertiary)); }
-.loan-amount { font-size: 1.3rem; font-weight: 800; color: #7c3aed; }
-.loan-badge { background: #ede9fe; color: #6d28d9; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
-.loan-badge.returned { background: #dcfce7; color: #16a34a; }
-.loan-badge.overdue { background: #fee2e2; color: #dc2626; }
-.loan-meta { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 8px 0; font-size: 0.85rem; color: var(--text-secondary); }
+.loan-card { border-left: 4px solid #7c3aed; background: var(--surface-card); border: 1px solid var(--border); border-radius: 14px; }
+.loan-card .card-head { background: linear-gradient(135deg, rgba(124,58,237,0.12), var(--bg-tertiary)); border-bottom: 1px solid var(--border); }
+.loan-amount { font-size: 1.3rem; font-weight: 800; color: var(--accent); }
+.loan-badge { background: var(--accent-light); color: var(--accent-dark); padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+.loan-badge.returned { background: var(--success-light); color: var(--success); }
+.loan-badge.overdue { background: var(--danger-light); color: var(--danger); }
+.loan-meta { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 8px 0; font-size: 0.88rem; color: var(--text-secondary); }
 .loan-meta span { display: flex; align-items: center; gap: 5px; }
+
+@media (max-width: 640px) {
+  .receipt-modal .modal-content { max-width: 100vw; width: 100vw; border-radius: 0; }
+  .receipt-wrap { padding: 18px 14px; font-size: 0.9rem; }
+  .receipt-meta { grid-template-columns: 1fr; }
+  .receipt-table { display: block; overflow-x: auto; white-space: nowrap; }
+  .loan-meta { gap: 6px 10px; }
+}
 
 @media print {
   body > *:not(#receiptPrintArea) { display: none !important; }
