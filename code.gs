@@ -100,8 +100,8 @@ const SUBJECTS = [
 
 const ROLES = {
   OWNER:        { name: 'เจ้าของเว็บ',    canManageHomework: true,  canManageTreasury: true,  canApproveLeave: true,  canManageCodes: true  },
-  CLASS_LEADER: { name: 'หัวหน้าห้อง',    canManageHomework: true,  canManageTreasury: false, canApproveLeave: false, canManageCodes: false },
-  SECRETARY:    { name: 'เลขานุการ',      canManageHomework: true,  canManageTreasury: false, canApproveLeave: false, canManageCodes: false },
+  CLASS_LEADER: { name: 'หัวหน้าห้อง',    canManageHomework: true,  canManageTreasury: true,  canApproveLeave: false, canManageCodes: false },
+  SECRETARY:    { name: 'เลขานุการ',      canManageHomework: true,  canManageTreasury: true,  canApproveLeave: false, canManageCodes: false },
   TREASURER:    { name: 'เหรัญญิก',       canManageHomework: true,  canManageTreasury: true,  canApproveLeave: false, canManageCodes: false },
   TEACHER:      { name: 'ครูที่ปรึกษา',   canManageHomework: false, canManageTreasury: false, canApproveLeave: true,  canManageCodes: false },
   STUDENT:      { name: 'นักเรียน',       canManageHomework: false, canManageTreasury: false, canApproveLeave: false, canManageCodes: false },

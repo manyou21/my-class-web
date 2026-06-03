@@ -1362,7 +1362,7 @@ function showApp() {
   document.getElementById('mobileSidebarCredits').textContent = u.hwCredits || 0;
   
   if (u.canManageHomework || u.hwCredits > 0) document.getElementById('btnAddHw').style.display = 'inline-flex';
-  if (u.canManageTreasury) document.getElementById('btnAddMoney').style.display = 'inline-flex';
+  if (u.canManageTreasury || u.roleKey === 'CLASS_LEADER' || u.roleKey === 'SECRETARY' || u.roleKey === 'TEACHER') document.getElementById('btnAddMoney').style.display = 'inline-flex';
   if (u.canManageCodes) {
     document.getElementById('createCodeCard').style.display = 'block';
     updateCodeForm();
@@ -1948,7 +1948,7 @@ function doAddMoney(e) {
   e.preventDefault(); 
   const t = document.getElementById('mTitle').value.trim(); 
   const a = document.getElementById('mAmt').value;
-  const targetStr = document.getElementById('mTargetList')?.value?.trim() || '';
+  const targetStr = document.getElementById('mTargetInput')?.value?.trim() || document.getElementById('mTargetList')?.value?.trim() || '';
   if (!t || !a) return;
 
   let targetList = null;
