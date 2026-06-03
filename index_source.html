@@ -28,7 +28,11 @@
 --surface-card: #1f2937; --surface-muted: #111827; --surface-hover: #111827;
 --border: #4b5563;
 }
-[data-theme="dark"] .check-card.checked .check-name { color: var(--text-primary) !important; }
+[data-theme="dark"] .check-card.checked .check-no,
+[data-theme="dark"] .check-card.checked .check-name,
+[data-theme="dark"] .check-card.checked .check-amt {
+  color: #0f172a !important;
+}
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { min-height: 100%; }
 body { font-family: 'Prompt', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; line-height: 1.5; overflow-x: hidden; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
@@ -770,6 +774,17 @@ margin-right:8px;
 }
 
 /* ===== RECEIPT (ใบเสร็จ) ===== */
+[data-theme="dark"] .receipt-wrap,
+[data-theme="dark"] .receipt-meta > div,
+[data-theme="dark"] .receipt-table th,
+[data-theme="dark"] .receipt-table td,
+[data-theme="dark"] .receipt-footer,
+[data-theme="dark"] .receipt-qr-area p {
+  color: var(--text-primary) !important;
+  background-color: var(--surface-card) !important;
+  border-color: var(--border) !important;
+}
+[data-theme="dark"] .receipt-total-row { background: var(--surface-hover) !important; }
 .receipt-modal .modal-content { max-width: min(96vw, 760px); width: min(96vw, 760px); }
 .receipt-wrap {
   background: var(--surface-card);
@@ -823,6 +838,9 @@ margin-right:8px;
 .loan-badge.overdue { background: var(--danger-light); color: var(--danger); }
 .loan-meta { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 8px 0; font-size: 0.88rem; color: var(--text-secondary); }
 .loan-meta span { display: flex; align-items: center; gap: 5px; }
+.hw-age-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; background: var(--accent-light); color: var(--accent-dark); }
+.hw-age-badge.overdue { background: var(--danger-light); color: var(--danger); }
+.hw-age-badge.warning { background: var(--warning-light); color: var(--warning); }
 
 @media (max-width: 640px) {
   .receipt-modal .modal-content { max-width: 100vw; width: 100vw; border-radius: 0; }

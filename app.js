@@ -1676,6 +1676,13 @@ function renderHw() {
     const baseColor = h.color || '#E0E0E0';
     const subjectColor = isDarkMode ? getLuminousColor(baseColor, 50) : baseColor;
     const textColor = isDarkMode ? getLuminousColor(baseColor, 85) : getDarkColor(baseColor, -55);
+    const assignedDate = h.assignedDate ? new Date(h.assignedDate) : null;
+    const dueDate = h.noDueDate ? null : h.dueDate ? new Date(h.dueDate) : null;
+    const now = new Date();
+    const daysSinceAssigned = assignedDate ? Math.max(0, Math.floor((now - assignedDate) / 86400000)) : 0;
+    const isOverdue = dueDate && dueDate < new Date(new Date().setHours(0,0,0,0)) && !isDone;
+    const ageClass = isOverdue ? 'overdue' : (daysSinceAssigned >= 3 ? 'warning' : '');
+    const ageLabel = isOverdue ? 'เลยกำหนดแล้ว' : `สั่งมา ${daysSinceAssigned} วัน`;
     return `
 <div class="card">
   <div class="subject-color-bar" style="background-color: ${subjectColor};"></div>
@@ -1687,10 +1694,14 @@ function renderHw() {
     ${u.canManageHomework ? `<button class="btn btn-danger btn-icon" onclick="delHw('${h.id}')"><i class="fas fa-trash"></i></button>` : ''}
   </div>
   <div class="card-body">
-    <p style="margin-bottom:10px;">
+    <p style="margin-bottom:8px;">
       <i class="fas fa-calendar-alt"></i> สั่ง: ${formatDate(h.assignedDate)} | 
       <i class="fas fa-calendar-check"></i> ส่ง: ${h.noDueDate ? 'ไม่มีกำหนด' : formatDate(h.dueDate)}
     </p>
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+      <span class="hw-age-badge ${ageClass}"><i class="fas fa-clock"></i> ${ageLabel}</span>
+      ${isOverdue ? '<span class="hw-age-badge overdue"><i class="fas fa-exclamation-triangle"></i> ต้องส่งทันที</span>' : ''}
+    </div>
     ${hasStudentStatus ? `
     <div style="background:var(--bg-tertiary); padding:10px; border-radius:8px; margin-top:10px;">
       <div style="margin-bottom:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
