@@ -102,6 +102,7 @@ let loadingCount = 0;
 let loadingTimeout = null;
 let html5QrCode = null;
 let html5QrCodeLogin = null;
+let browserNotificationsEnabled = localStorage.getItem('browserNotificationsEnabled') === '1';
 
 const SUBJECTS_FALLBACK = ['ไทยหลัก','ไทยเสริม','คณิตหลัก','คณิตเสริม','วิทย์หลัก','วิทย์เสริม',
 'อังกฤษหลัก','อังกฤษเสริม Joshua','อังกฤษเสริม จิรารัตน์','IS','ประวัติ','สังคม',
@@ -112,6 +113,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initForms(); 
   checkSession(); 
   applyTheme(); 
+  window.addEventListener('sourceGuardBlocked', () => {
+    showToast('ปิดการดูซอร์ส/เครื่องมือนักพัฒนาในหน้านี้แล้ว', 'warning', 2500);
+  });
   window.addEventListener('resize', () => {
     if (seatSnap?.layout && document.getElementById('panelSeats')?.classList.contains('active')) {
       seatRenderAll();
@@ -1371,6 +1375,8 @@ function showApp() {
   if (u.roleKey === 'OWNER') {
     const ttCard = document.getElementById('timetableOwnerCard');
     if (ttCard) ttCard.style.display = 'block';
+    const ownerDangerZone = document.getElementById('ownerDangerZone');
+    if (ownerDangerZone) ownerDangerZone.style.display = 'block';
   }
 
   const canSeatAdmin = u.roleKey === 'OWNER' || u.roleKey === 'TEACHER';
@@ -1410,11 +1416,22 @@ function togglePushNotifications() {
   }
   
   if (Notification.permission === "granted") {
+    browserNotificationsEnabled = true;
+    localStorage.setItem('browserNotificationsEnabled', '1');
+    sendBrowserNotification('MyClass Web', 'การแจ้งเตือนพร้อมใช้งานแล้ว');
     showToast('คุณได้เปิดการแจ้งเตือนเรียบร้อยแล้ว', 'success');
+    updateNotifBtnState();
   } else if (Notification.permission !== "denied") {
     Notification.requestPermission().then(permission => {
       if (permission === "granted") {
+        browserNotificationsEnabled = true;
+        localStorage.setItem('browserNotificationsEnabled', '1');
+        sendBrowserNotification('MyClass Web', 'การแจ้งเตือนพร้อมใช้งานแล้ว');
         showToast('เปิดการแจ้งเตือนสำเร็จ!', 'success');
+        updateNotifBtnState();
+      } else {
+        browserNotificationsEnabled = false;
+        localStorage.removeItem('browserNotificationsEnabled');
         updateNotifBtnState();
       }
     });
@@ -1426,18 +1443,87 @@ function togglePushNotifications() {
 function updateNotifBtnState() {
   const btn = document.getElementById('btnPushNotif');
   if (!btn) return;
+  btn.classList.remove('btn-success', 'btn-danger');
+  btn.classList.add('btn-secondary');
+  btn.disabled = false;
   if (!("Notification" in window)) {
     btn.style.display = 'none';
     return;
   }
-  if (Notification.permission === "granted") {
+  if (Notification.permission === "granted" && browserNotificationsEnabled) {
     btn.innerHTML = '<i class="fas fa-check-circle"></i> การแจ้งเตือนเปิดอยู่';
-    btn.classList.replace('btn-secondary', 'btn-success');
-    btn.disabled = true;
+    btn.classList.remove('btn-secondary');
+    btn.classList.add('btn-success');
+  } else if (Notification.permission === "granted") {
+    btn.innerHTML = '<i class="fas fa-bell"></i> เปิดการแจ้งเตือนบนเบราว์เซอร์';
   } else if (Notification.permission === "denied") {
     btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> การแจ้งเตือนถูกบล็อก';
-    btn.classList.replace('btn-secondary', 'btn-danger');
+    btn.classList.remove('btn-secondary');
+    btn.classList.add('btn-danger');
+  } else {
+    btn.innerHTML = '<i class="fas fa-bell-slash"></i> เปิดการแจ้งเตือนบนเบราว์เซอร์';
   }
+}
+
+function sendBrowserNotification(title, body, tag = 'myclass-web') {
+  if (!browserNotificationsEnabled || !("Notification" in window) || Notification.permission !== "granted") return;
+  try {
+    const notif = new Notification(title, {
+      body,
+      tag,
+      renotify: true,
+      icon: 'https://img.icons8.com/fluency/48/classroom.png',
+      badge: 'https://img.icons8.com/fluency/48/classroom.png'
+    });
+    notif.onclick = () => {
+      window.focus();
+      notif.close();
+    };
+  } catch (e) {
+    console.warn('Notification failed:', e);
+  }
+}
+
+function clearAllWebsiteData() {
+  if (!u || u.roleKey !== 'OWNER') {
+    showToast('เฉพาะเจ้าของเว็บเท่านั้นที่ลบข้อมูลทั้งหมดได้', 'error');
+    return;
+  }
+  const first = confirm('ต้องการลบข้อมูลทดลองทั้งหมดจริงหรือไม่? ข้อมูลการบ้าน เงินห้อง คำลา จองที่นั่ง โค้ด ตารางเรียน และเงินยืมจะถูกลบ');
+  if (!first) return;
+  const typed = prompt('พิมพ์คำว่า "ลบทั้งหมด" เพื่อยืนยัน');
+  if (typed !== 'ลบทั้งหมด') {
+    showToast('ยกเลิกการลบข้อมูล', 'info');
+    return;
+  }
+  showLoading('กำลังลบข้อมูลทั้งหมด...');
+  google.script.run
+    .withSuccessHandler(r => {
+      hideLoading();
+      if (r && r.success) {
+        hwData = [];
+        moneyData = [];
+        leaveData = [];
+        loanData = [];
+        currentHwCount = 0;
+        currentTrCount = 0;
+        currentLvCount = 0;
+        currentTrPayCounter = -1;
+        currentSeatVersion = -1;
+        showToast(r.message || 'ลบข้อมูลทั้งหมดแล้ว', 'success', 5000);
+        loadAll();
+        timetableRefresh();
+        seatsLoadSnapshot(false);
+      } else {
+        showToast(r?.message || 'ลบข้อมูลไม่สำเร็จ', 'error');
+      }
+    })
+    .withFailureHandler(err => {
+      hideLoading();
+      showToast('เชื่อมต่อ Server ไม่ได้', 'error');
+      console.error('clearAllWebsiteData failed:', err);
+    })
+    .clearAllWebsiteData(u.id);
 }
 
 // --- Load Masters ---
@@ -1580,7 +1666,10 @@ function checkChanges() {
         loadHw();
         if (lastBroadcastHwCount !== r.hwCount) {
           lastBroadcastHwCount = r.hwCount;
-          if (r.hwCount > currentHwCount) showToast('📚 มีการบ้านใหม่!', 'broadcast', 5000);
+          if (r.hwCount > currentHwCount) {
+            showToast('📚 มีการบ้านใหม่!', 'broadcast', 5000);
+            sendBrowserNotification('มีการบ้านใหม่!', 'เปิด MyClass Web เพื่อดูรายละเอียด', 'myclass-homework');
+          }
         }
       }
 
@@ -1589,7 +1678,10 @@ function checkChanges() {
         loadMoney();
         if (lastBroadcastTrCount !== r.trCount) {
           lastBroadcastTrCount = r.trCount;
-          if (r.trCount > currentTrCount) showToast('💰 มีรายการเงินใหม่!', 'broadcast', 5000);
+          if (r.trCount > currentTrCount) {
+            showToast('💰 มีรายการเงินใหม่!', 'broadcast', 5000);
+            sendBrowserNotification('มีรายการเงินใหม่!', 'เปิด MyClass Web เพื่อตรวจสอบยอด', 'myclass-money');
+          }
         }
       }
 
@@ -1611,6 +1703,7 @@ function checkChanges() {
           if (u.canApproveLeave && lastBroadcastLvCount !== r.pendingLeaveCount) {
             lastBroadcastLvCount = r.pendingLeaveCount;
             showToast(`🚨 มี${r.lastPendingType || 'คำขอ'}ใหม่รออนุมัติ!`, 'error', 0);
+            sendBrowserNotification('มีคำขอใหม่รออนุมัติ!', `${r.lastPendingType || 'คำขอ'}ใหม่ใน MyClass Web`, 'myclass-leave');
           }
           if (!u.canApproveLeave && lastBroadcastLvCount !== r.pendingLeaveCount) {
             lastBroadcastLvCount = r.pendingLeaveCount;

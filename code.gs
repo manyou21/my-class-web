@@ -136,6 +136,7 @@ const ALLOWED_ACTIONS = new Set([
   'submitLeaveRequest', 'getLeaveRequests', 'confirmLeaveRequest', 'updateLeaveStatus',
   'getLastUpdate', 'getDashboardData', 'getCounts',
   'generateCode', 'redeemCode',
+  'clearAllWebsiteData',
   'createGuestAccount', 'deleteGuestAccount',
   'getTimetable', 'setTimetable',
   'seatGetSnapshot', 'seatSetBookingWindow', 'seatSetFrontBand',
@@ -182,6 +183,7 @@ function doPost(e) {
       submitLeaveRequest, getLeaveRequests, confirmLeaveRequest, updateLeaveStatus,
       getLastUpdate, getDashboardData, getCounts,
       generateCode, redeemCode,
+      clearAllWebsiteData,
       createGuestAccount, deleteGuestAccount,
       getTimetable, setTimetable,
       seatGetSnapshot, seatSetBookingWindow, seatSetFrontBand,
@@ -1659,6 +1661,86 @@ function getUserRow_(userId) {
     if (String(d[i][0]) === String(userId)) return { row: i + 1, data: d[i] };
   }
   return null;
+}
+
+function clearSheetDataRows_(sheet) {
+  if (!sheet) return 0;
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return 0;
+  sheet.deleteRows(2, lastRow - 1);
+  return lastRow - 1;
+}
+
+function clearGuestUsers_() {
+  const userSheet = getSheet_(SHEETS.USERS);
+  const data = userSheet.getDataRange().getValues();
+  let deleted = 0;
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (data[i][6] === 'GUEST' || String(data[i][0]).startsWith('GUEST_')) {
+      userSheet.deleteRow(i + 1);
+      deleted++;
+    }
+  }
+  return deleted;
+}
+
+function clearAllWebsiteData(userId) {
+  try {
+    const userRow = getUserRow_(userId);
+    if (!userRow || userRow.data[6] !== 'OWNER') {
+      return { success: false, message: 'เฉพาะเจ้าของเว็บเท่านั้นที่ลบข้อมูลทั้งหมดได้' };
+    }
+
+    const activeSs = getSpreadsheet();
+    const cleared = {};
+    [
+      SHEETS.HOMEWORK,
+      SHEETS.HOMEWORK_STATUS,
+      SHEETS.TREASURY,
+      SHEETS.TREASURY_PAYMENTS,
+      SHEETS.LEAVE_REQUESTS,
+      SHEETS.REDEEM_CODES,
+      SHEETS.SEAT_BOOKINGS,
+      SHEETS.SEAT_EDIT_CODES,
+      SHEETS.SEAT_EDIT_SESSIONS,
+      SHEETS.LOANS
+    ].forEach(function(sheetName) {
+      cleared[sheetName] = clearSheetDataRows_(getSheetFromSs_(activeSs, sheetName));
+    });
+
+    const timetableSheet = getSheetFromSs_(activeSs, SHEETS.TIMETABLE);
+    if (timetableSheet) {
+      clearSheetDataRows_(timetableSheet);
+      timetableSheet.appendRow(['', '', new Date(), userId]);
+      cleared[SHEETS.TIMETABLE] = 1;
+    }
+
+    const seatMetaSheet = getSheetFromSs_(activeSs, SHEETS.SEAT_META);
+    if (seatMetaSheet) {
+      clearSheetDataRows_(seatMetaSheet);
+      const defaultLayout = JSON.stringify({
+        grid: { cols: 22, rows: 16, cell: 24 },
+        seats: [],
+        frontBand: 2
+      });
+      seatMetaSheet.appendRow([defaultLayout, '', '', 2, 0, new Date().toISOString()]);
+      cleared[SHEETS.SEAT_META] = 1;
+    }
+
+    cleared.GuestUsers = clearGuestUsers_();
+
+    const props = PropertiesService.getScriptProperties();
+    props.setProperty('tr_pay_counter', '0');
+    clearDashboardCaches_();
+
+    return {
+      success: true,
+      message: 'ลบข้อมูลทดลองทั้งหมดแล้ว',
+      cleared: cleared
+    };
+  } catch (e) {
+    return { success: false, message: 'ลบข้อมูลไม่สำเร็จ: ' + e.toString() };
+  }
 }
 
 function roleIsSeatAdmin_(roleKey) {
